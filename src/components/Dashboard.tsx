@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
 import { Lead, CallType, CallStatus } from "../types.ts";
-import { Search, Filter, AlertCircle, Clock, CheckCircle, XCircle, Trash2, ExternalLink, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, User, Wrench, ThermometerSun } from "lucide-react";
+import { Search, Filter, Clock, CheckCircle, XCircle, Trash2, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, Wrench, ThermometerSun, ChevronRight, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -12,13 +12,13 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const STATUS_COLORS: Record<CallStatus, string> = {
-  new: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  contacted: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  booked: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  closed: "bg-slate-800 text-slate-400 border-slate-700",
-  spam: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-  emergency_follow_up: "bg-rose-600/20 text-rose-400 border-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.5)] animate-pulse",
-  after_hours_follow_up: "bg-purple-500/10 text-purple-400 border-purple-500/20"
+  new: "bg-blue-500/15 text-blue-400 border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.15)]",
+  contacted: "bg-amber-500/15 text-amber-400 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.15)]",
+  booked: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)]",
+  closed: "bg-slate-800/80 text-slate-400 border-slate-700/80",
+  spam: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+  emergency_follow_up: "bg-rose-600/25 text-rose-300 border-rose-500 shadow-[0_0_12px_rgba(225,29,72,0.4)] animate-pulse",
+  after_hours_follow_up: "bg-purple-500/15 text-purple-400 border-purple-500/30"
 };
 
 const TYPE_ICONS: Record<CallType, any> = {
@@ -71,7 +71,9 @@ export default function Dashboard() {
     }
   };
 
-  const deleteLead = async (leadId: string) => {
+  const deleteLead = async (leadId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this lead?")) return;
     try {
       await deleteDoc(doc(db, "leads", leadId));
       if (selectedLead?.id === leadId) {
@@ -118,9 +120,7 @@ export default function Dashboard() {
       { caller_name: "David Miller", callback_number: "555-0107", call_type: "repair_request", equipment_type: "Mini-split", property_address: "159 Willow Dr, Queens, NY", call_status: "new", ai_summary: "Mini-split unit in bedroom is leaking water down the wall.", transcript: [] },
       { caller_name: "Linda Wilson", callback_number: "555-0108", call_type: "existing_customer", property_address: "753 Cherry Ln, Bronx, NY", call_status: "contacted", ai_summary: "Checking on the status of the part ordered for her compressor.", transcript: [] },
       { caller_name: "James Moore", callback_number: "555-0109", call_type: "maintenance_request", equipment_type: "Furnace", maintenance_agreement: false, property_address: "852 Spruce St, Staten Island, NY", call_status: "new", ai_summary: "New homeowner wants a general furnace inspection before winter.", transcript: [] },
-      { caller_name: "Patricia Taylor", callback_number: "555-0110", call_type: "emergency", emergency_flag: true, emergency_type: "Carbon Monoxide", property_address: "369 Poplar Ave, Brooklyn, NY", call_status: "emergency_follow_up", ai_summary: "CO detectors are going off in the house.", transcript: [] },
-      { caller_name: "Christopher Anderson", callback_number: "555-0111", call_type: "spam", call_status: "spam", ai_summary: "Robocall about credit card debt.", transcript: [] },
-      { caller_name: "Barbara Thomas", callback_number: "555-0112", call_type: "general_office", call_status: "closed", ai_summary: "Asking about pricing for annual maintenance agreements.", transcript: [] }
+      { caller_name: "Patricia Taylor", callback_number: "555-0110", call_type: "emergency", emergency_flag: true, emergency_type: "Carbon Monoxide", property_address: "369 Poplar Ave, Brooklyn, NY", call_status: "emergency_follow_up", ai_summary: "CO detectors are going off in the house.", transcript: [] }
     ];
 
     for (const lead of sampleLeads) {
@@ -137,82 +137,137 @@ export default function Dashboard() {
   const textBackCount = leads.filter(l => l.text_back_sent).length;
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-transparent overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full bg-slate-950/80 overflow-hidden relative font-sans text-slate-100">
+      {/* Background radial glow spots */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden">
-        <header className="bg-slate-900/40 backdrop-blur-md border-b border-slate-800 p-4 sm:p-6 flex flex-col gap-4 shrink-0">
+        {/* Top Header */}
+        <header className="bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 p-4 sm:p-6 flex flex-col gap-5 shrink-0 shadow-lg">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded shadow-[0_0_8px_rgba(34,211,238,0.2)]">System Active</span>
-                <h1 className="text-xl sm:text-2xl font-serif italic text-slate-100">Lead Engine Dashboard</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-mono text-[10px] uppercase font-bold px-2.5 py-1 rounded-full shadow-[0_0_12px_rgba(34,211,238,0.2)] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  System Active
+                </span>
+                <h1 className="text-xl sm:text-2xl font-serif italic text-slate-100 tracking-tight">Lead Engine Dashboard</h1>
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">Goal: Never miss another lead for Lunar Heating and Cooling.</p>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">Real-time caller telemetry & AI receptionist dispatch log for Lunar Heating and Cooling.</p>
             </div>
             <div className="flex gap-2 shrink-0">
               {leads.length > 0 ? (
                 <button
                   onClick={clearAllLeads}
-                  className="text-xs bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 px-4 py-2.5 rounded-xl transition-colors font-medium min-h-[44px] flex items-center gap-1.5 justify-center"
+                  className="text-xs bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 px-4 py-2.5 rounded-xl transition-all font-medium min-h-[44px] flex items-center gap-2 justify-center shadow-sm hover:shadow-[0_0_15px_rgba(244,63,94,0.2)]"
                   title="Clear all lead logs from Firestore"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                   Clear All Leads
                 </button>
               ) : (
                 <button
                   onClick={seedData}
-                  className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl transition-colors font-medium min-h-[44px] flex items-center justify-center"
+                  className="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 px-4 py-2.5 rounded-xl transition-all font-medium min-h-[44px] flex items-center gap-2 justify-center shadow-sm"
                 >
+                  <Activity size={15} className="text-cyan-400" />
                   Seed Demo Data
                 </button>
               )}
             </div>
           </div>
 
-          {/* Stage 1 Metric Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mt-1">
-            <div className="bg-slate-800/40 p-3.5 sm:p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5 truncate"><span className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"></span>Total Inbound</span>
-              <p className="text-2xl sm:text-3xl font-light text-slate-200 mt-1">{leads.length}</p>
+          {/* High-Tech Telemetry Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Total Inbound Card */}
+            <div className="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-slate-700/90 transition-all group">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-slate-600 via-slate-400 to-slate-600 opacity-60" />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  Total Inbound
+                </span>
+                <span className="text-[10px] font-mono text-slate-500">100% AI Automated</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-2">
+                <p className="text-3xl font-light text-slate-100 tracking-tight">{leads.length}</p>
+                <span className="text-[11px] font-mono text-slate-500">calls logged</span>
+              </div>
             </div>
-            <div className="bg-amber-500/10 p-3.5 sm:p-4 rounded-xl border border-amber-500/20 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-full blur-xl -mr-8 -mt-8 group-hover:bg-amber-500/20 transition-all"></div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500 font-bold flex items-center gap-1.5 truncate"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>Missed-Call Texts</span>
-              <p className="text-2xl sm:text-3xl font-light text-amber-100 mt-1">{textBackCount}</p>
+
+            {/* Missed-Call Texts Card */}
+            <div className="bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-amber-500/40 transition-all group">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-amber-300 opacity-80" />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  Missed-Call Texts
+                </span>
+                <span className="text-[10px] font-mono text-amber-500/80">Auto SMS</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-2">
+                <p className="text-3xl font-light text-amber-200 tracking-tight">{textBackCount}</p>
+                <span className="text-[11px] font-mono text-amber-400/80">dispatched</span>
+              </div>
             </div>
-            <div className="bg-rose-500/10 p-3.5 sm:p-4 rounded-xl border border-rose-500/20 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-rose-500/10 rounded-full blur-xl -mr-8 -mt-8 group-hover:bg-rose-500/20 transition-all"></div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-rose-500 font-bold flex items-center gap-1.5 truncate"><span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.8)] flex-shrink-0"></span>Emergency</span>
-              <p className="text-2xl sm:text-3xl font-light text-rose-100 mt-1">{emergencyCount}</p>
+
+            {/* Emergency Card */}
+            <div className="bg-rose-500/5 p-4 rounded-2xl border border-rose-500/20 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-rose-500/40 transition-all group">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500 to-red-400 opacity-80" />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-rose-400 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]" />
+                  Emergency Calls
+                </span>
+                <span className="text-[10px] font-mono text-rose-400/80">Priority Dispatch</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-2">
+                <p className="text-3xl font-light text-rose-100 tracking-tight">{emergencyCount}</p>
+                <span className="text-[11px] font-mono text-rose-400/80">flagged</span>
+              </div>
             </div>
-            <div className="bg-emerald-500/10 p-3.5 sm:p-4 rounded-xl border border-emerald-500/20 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl -mr-8 -mt-8 group-hover:bg-emerald-500/20 transition-all"></div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-500 font-bold flex items-center gap-1.5 truncate"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)] flex-shrink-0"></span>Booked</span>
-              <p className="text-2xl sm:text-3xl font-light text-emerald-100 mt-1">{bookedCount}</p>
+
+            {/* Booked Card */}
+            <div className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-emerald-500/40 transition-all group">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80" />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                  Booked Appointments
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400/80">Calendar Synced</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-2">
+                <p className="text-3xl font-light text-emerald-100 tracking-tight">{bookedCount}</p>
+                <span className="text-[11px] font-mono text-emerald-400/80">scheduled</span>
+              </div>
             </div>
           </div>
         </header>
 
-        <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-w-0">
-          <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        {/* Content Body & Filters */}
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-w-0 space-y-4">
+          {/* Glass Search & Filter Control Bar */}
+          <div className="bg-slate-900/80 backdrop-blur-md p-2 border border-slate-800/80 rounded-2xl flex flex-col sm:flex-row gap-2 shadow-lg">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search leads by name, phone, address..."
+                placeholder="Search leads by name, phone number, address, or summary..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-900/60 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 min-h-[44px]"
+                className="w-full bg-slate-950/60 border border-slate-800/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 min-h-[44px] transition-all"
               />
             </div>
             <div className="flex gap-2">
-              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-900/50 border border-slate-700/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
-                <Filter size={14} className="text-cyan-500 shrink-0" />
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950/60 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
+                <Filter size={14} className="text-cyan-400 shrink-0" />
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as any)}
-                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-300 font-medium w-full"
+                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-300 font-medium w-full cursor-pointer"
                 >
                   <option value="all" className="bg-slate-900">All Types</option>
                   <option value="estimate_request" className="bg-slate-900">Estimate Request</option>
@@ -224,12 +279,12 @@ export default function Dashboard() {
                   <option value="spam" className="bg-slate-900">Spam</option>
                 </select>
               </div>
-              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-900/50 border border-slate-700/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
-                <Clock size={14} className="text-cyan-500 shrink-0" />
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950/60 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
+                <Clock size={14} className="text-cyan-400 shrink-0" />
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as any)}
-                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-300 font-medium w-full"
+                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-300 font-medium w-full cursor-pointer"
                 >
                   <option value="all" className="bg-slate-900">All Statuses</option>
                   <option value="new" className="bg-slate-900">New</option>
@@ -247,9 +302,9 @@ export default function Dashboard() {
           {/* Mobile Card List View (< md screen) */}
           <div className="block md:hidden space-y-3">
             {isLoading ? (
-              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900/40 rounded-xl border border-slate-800">LOADING LEADS...</div>
+              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900/60 rounded-2xl border border-slate-800/80">LOADING LEADS TELEMETRY...</div>
             ) : filteredLeads.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900/40 rounded-xl border border-slate-800">NO LEADS MATCHING CRITERIA</div>
+              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900/60 rounded-2xl border border-slate-800/80">NO LEADS MATCHING CRITERIA</div>
             ) : (
               filteredLeads.map((lead) => {
                 const Icon = TYPE_ICONS[lead.call_type];
@@ -260,33 +315,42 @@ export default function Dashboard() {
                     key={lead.id}
                     onClick={() => setSelectedLead(lead)}
                     className={cn(
-                      "p-4 rounded-xl border transition-all cursor-pointer space-y-3 bg-slate-900/60 backdrop-blur-sm active:scale-[0.99]",
+                      "p-4 rounded-2xl border transition-all cursor-pointer space-y-3 bg-slate-900/70 backdrop-blur-xl active:scale-[0.99] shadow-md relative overflow-hidden",
                       selectedLead?.id === lead.id ? "border-cyan-500 ring-1 ring-cyan-500/50" : "border-slate-800/80 hover:border-slate-700",
-                      isEmergency && "bg-rose-950/20 border-rose-500/60 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                      isEmergency && "bg-rose-950/20 border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className={cn("p-2 rounded-lg shrink-0", isEmergency ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700")}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2.5 rounded-xl shrink-0 border shadow-inner", isEmergency ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-slate-800 text-cyan-400 border-slate-700")}>
                           <Icon size={18} />
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-slate-100">{lead.caller_name || "Unknown"}</div>
-                          <div className="text-xs font-mono text-slate-400">{lead.callback_number}</div>
+                          <div className="text-sm font-semibold text-slate-100">{lead.caller_name || "Unknown Caller"}</div>
+                          <div className="text-xs font-mono text-cyan-400/90">{lead.callback_number}</div>
                         </div>
                       </div>
-                      <span className={cn("text-[9px] uppercase font-bold px-2 py-1 rounded-md tracking-wider border shrink-0", STATUS_COLORS[lead.call_status])}>
+                      <span className={cn("text-[9px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider border shrink-0", STATUS_COLORS[lead.call_status])}>
                         {lead.call_status.replace("_", " ")}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-300 line-clamp-2 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/50">
+                    <p className="text-xs text-slate-300 line-clamp-2 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 font-light">
                       {lead.ai_summary || "No summary captured."}
                     </p>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1 border-t border-slate-800/40">
-                      <span className="truncate max-w-[200px]">{lead.property_address || "No address"}</span>
-                      <span>{lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}</span>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-800/60">
+                      <span className="truncate max-w-[180px]">{lead.property_address || "No address"}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500">{lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}</span>
+                        <button
+                          onClick={(e) => deleteLead(lead.id!, e)}
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all ml-1"
+                          title="Delete Lead"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -295,25 +359,26 @@ export default function Dashboard() {
           </div>
 
           {/* Desktop Table View (>= md screen) */}
-          <div className="hidden md:block bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm shadow-xl">
+          <div className="hidden md:block bg-slate-900/70 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-800/50 border-b border-slate-800">
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Type</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Caller</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Summary & Preview</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Status</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Time</th>
+                <tr className="bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                  <th className="p-4 pl-6">Type</th>
+                  <th className="p-4">Caller</th>
+                  <th className="p-4">Summary & Preview</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Time</th>
+                  <th className="p-4 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-800/50 text-sm">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-500 font-mono text-sm">LOADING LEADS...</td>
+                    <td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs">LOADING LEADS TELEMETRY...</td>
                   </tr>
                 ) : filteredLeads.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-500 font-mono text-sm">NO LEADS MATCHING CRITERIA</td>
+                    <td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs">NO LEADS MATCHING CRITERIA</td>
                   </tr>
                 ) : (
                   filteredLeads.map((lead) => {
@@ -326,37 +391,55 @@ export default function Dashboard() {
                         key={lead.id}
                         onClick={() => setSelectedLead(lead)}
                         className={cn(
-                          "border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors cursor-pointer group",
-                          selectedLead?.id === lead.id && "bg-slate-800/60 border-l-2 border-l-cyan-500",
-                          isEmergency && "bg-rose-900/10 border-l-2 border-l-rose-500"
+                          "hover:bg-slate-800/40 transition-all cursor-pointer group",
+                          selectedLead?.id === lead.id && "bg-slate-800/50 border-l-2 border-l-cyan-400",
+                          isEmergency && "bg-rose-950/20 border-l-2 border-l-rose-500"
                         )}
                       >
                         <td className="p-4 pl-6">
                           <div className="flex items-center gap-2">
-                            <div className={cn("p-2 rounded-lg shadow-inner", isEmergency ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700")}>
+                            <div className={cn("p-2.5 rounded-xl border shadow-inner transition-transform group-hover:scale-105", isEmergency ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-slate-800 text-cyan-400 border-slate-700")}>
                               <Icon size={16} />
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm font-medium text-slate-200">{lead.caller_name || "Unknown"}</div>
-                          <div className="text-[11px] font-mono text-slate-500 mt-0.5">{lead.callback_number}</div>
+                          <div className="font-semibold text-slate-100 group-hover:text-cyan-300 transition-colors">{lead.caller_name || "Unknown Caller"}</div>
+                          <div className="text-xs font-mono text-cyan-400/90 mt-0.5">{lead.callback_number}</div>
                         </td>
-                        <td className="p-4">
-                          <div className="text-sm text-slate-300 font-medium line-clamp-1">{lead.ai_summary || "No summary"}</div>
+                        <td className="p-4 max-w-xs lg:max-w-md">
+                          <div className="text-slate-200 font-light line-clamp-1">{lead.ai_summary || "No summary captured."}</div>
                           {lastMessage && (
-                            <div className="text-[11px] text-slate-500 line-clamp-1 mt-1">
+                            <div className="text-xs text-slate-400 line-clamp-1 mt-1 font-mono italic">
                               "{lastMessage}"
                             </div>
                           )}
                         </td>
-                        <td className="p-4">
-                          <span className={cn("text-[9px] uppercase font-bold px-2 py-1 rounded-md tracking-wider border", STATUS_COLORS[lead.call_status])}>
+                        <td className="p-4 whitespace-nowrap">
+                          <span className={cn("text-[10px] uppercase font-bold px-2.5 py-1 rounded-full tracking-wider border", STATUS_COLORS[lead.call_status])}>
                             {lead.call_status.replace("_", " ")}
                           </span>
                         </td>
-                        <td className="p-4 text-xs text-stone-500">
+                        <td className="p-4 text-xs font-mono text-slate-400 whitespace-nowrap">
                           {lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}
+                        </td>
+                        <td className="p-4 pr-6 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => deleteLead(lead.id!, e)}
+                              className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 hover:border-rose-500/40 transition-all shadow-sm"
+                              title="Delete Lead"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }}
+                              className="p-2 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 border border-slate-700/60 hover:border-cyan-500/40 transition-all shadow-sm"
+                              title="Inspect Details"
+                            >
+                              <ChevronRight size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -375,7 +458,7 @@ export default function Dashboard() {
             {/* Mobile backdrop */}
             <div
               onClick={() => setSelectedLead(null)}
-              className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-30 md:hidden transition-opacity"
+              className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-30 md:hidden transition-opacity"
             />
 
             <motion.div
@@ -383,142 +466,143 @@ export default function Dashboard() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] lg:w-[560px] bg-slate-900/95 backdrop-blur-2xl border-l border-slate-800 shadow-2xl flex flex-col"
+              className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] lg:w-[560px] bg-slate-900/95 backdrop-blur-2xl border-l border-slate-800/90 shadow-2xl flex flex-col"
             >
-              <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/40 shrink-0">
+              <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/60 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-lg shadow-inner shrink-0", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700")}>
+                  <div className={cn("p-2.5 rounded-xl border shadow-inner shrink-0", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-slate-800 text-cyan-400 border-slate-700")}>
                     {React.createElement(TYPE_ICONS[selectedLead.call_type], { size: 20 })}
                   </div>
                   <div>
-                    <h2 className="text-base sm:text-lg font-serif italic text-slate-100">Lead Detail</h2>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold font-mono mt-0.5">
-                      ID: {selectedLead.id?.slice(-6)}
+                    <h2 className="text-base sm:text-lg font-serif italic text-slate-100">Lead Inspector</h2>
+                    <p className="text-[10px] uppercase tracking-widest text-cyan-400 font-bold font-mono mt-0.5">
+                      ID: {selectedLead.id?.slice(-8)}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedLead(null)}
-                  className="text-slate-400 hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-slate-800 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  className="text-slate-400 hover:text-slate-200 transition-colors p-2 rounded-xl hover:bg-slate-800/80 min-h-[44px] min-w-[44px] flex items-center justify-center border border-transparent hover:border-slate-700"
                   aria-label="Close detail panel"
                 >
                   <XCircle size={22} />
                 </button>
               </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {/* Header Info */}
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-medium text-slate-100">{selectedLead.caller_name || "Unknown Caller"}</h3>
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <Phone size={14} className="text-cyan-500" />
-                    <span className="text-base font-mono text-cyan-400">{selectedLead.callback_number}</span>
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Header Info */}
+                <div className="flex justify-between items-start bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-medium text-slate-100">{selectedLead.caller_name || "Unknown Caller"}</h3>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Phone size={14} className="text-cyan-400" />
+                      <span className="text-base font-mono text-cyan-400 font-semibold">{selectedLead.callback_number}</span>
+                    </div>
                   </div>
-                </div>
-                <span className={cn("text-[10px] uppercase font-bold px-3 py-1 rounded-full tracking-widest border shadow-sm", STATUS_COLORS[selectedLead.call_status])}>
-                  {selectedLead.call_status.replace("_", " ")}
-                </span>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => updateStatus(selectedLead.id!, "contacted")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-xl hover:bg-slate-700 transition-all shadow-sm">
-                  <Phone size={14} />
-                  Contacted
-                </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "booked")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 py-3 rounded-xl hover:bg-cyan-600/30 transition-all shadow-[0_0_10px_rgba(34,211,238,0.1)]">
-                  <Calendar size={14} />
-                  Book Appointment
-                </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "closed")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-900/50 text-slate-500 border border-slate-800 py-3 rounded-xl hover:bg-slate-800 transition-all">
-                  <CheckCircle size={14} />
-                  Archive
-                </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "spam")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-900/50 text-slate-500 border border-slate-800 py-3 rounded-xl hover:bg-slate-800 transition-all">
-                  <XCircle size={14} />
-                  Spam
-                </button>
-                <button onClick={() => deleteLead(selectedLead.id!)} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 py-3 rounded-xl hover:bg-rose-500/20 transition-all">
-                  <Trash2 size={14} />
-                  Delete
-                </button>
-              </div>
-
-              {/* Details Grid */}
-              <div className="grid grid-cols-1 gap-6 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-inner">
-                <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Property Address</div>
-                  <div className="text-sm text-slate-300 flex items-center gap-2">
-                    <MapPin size={14} className="text-cyan-500/70" />
-                    {selectedLead.property_address || "Not provided"}
-                  </div>
+                  <span className={cn("text-[10px] uppercase font-bold px-3 py-1 rounded-full tracking-widest border shadow-sm", STATUS_COLORS[selectedLead.call_status])}>
+                    {selectedLead.call_status.replace("_", " ")}
+                  </span>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Equipment</div>
-                  <div className="text-sm text-slate-300 flex items-center gap-2">
-                    <Wrench size={14} className="text-cyan-500/70" />
-                    {selectedLead.equipment_type || "Unknown"}
-                    {selectedLead.maintenance_agreement && (
-                      <span className="ml-2 text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_5px_rgba(34,211,238,0.2)]">Maintenance Plan</span>
+                {/* Quick Action Pills */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => updateStatus(selectedLead.id!, "contacted")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 py-3 rounded-xl hover:bg-amber-500/20 transition-all min-h-[44px]">
+                    <Clock size={14} />
+                    Mark Contacted
+                  </button>
+                  <button onClick={() => updateStatus(selectedLead.id!, "booked")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 py-3 rounded-xl hover:bg-emerald-500/20 transition-all min-h-[44px]">
+                    <Calendar size={14} />
+                    Book Appointment
+                  </button>
+                  <button onClick={() => updateStatus(selectedLead.id!, "closed")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-800/80 text-slate-400 border border-slate-700 py-3 rounded-xl hover:bg-slate-800 transition-all min-h-[44px]">
+                    <CheckCircle size={14} />
+                    Archive
+                  </button>
+                  <button onClick={() => deleteLead(selectedLead.id!)} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/30 py-3 rounded-xl hover:bg-rose-500/25 transition-all min-h-[44px]">
+                    <Trash2 size={14} />
+                    Delete Lead
+                  </button>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 gap-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Property Address</div>
+                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                      <MapPin size={14} className="text-cyan-400" />
+                      {selectedLead.property_address || "Not provided"}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Equipment</div>
+                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                      <Wrench size={14} className="text-cyan-400" />
+                      {selectedLead.equipment_type || "Unknown"}
+                      {selectedLead.maintenance_agreement && (
+                        <span className="ml-2 text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Maintenance Plan</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Appointment Request</div>
+                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                      <Calendar size={14} className="text-cyan-400" />
+                      {selectedLead.preferred_appointment_date ? (
+                        <span className="font-medium text-cyan-200">
+                          {selectedLead.preferred_appointment_date}
+                          {selectedLead.preferred_time_window && ` @ ${selectedLead.preferred_time_window}`}
+                        </span>
+                      ) : "No specific time requested"}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">AI Triage Summary</div>
+                    <div className="text-sm text-slate-300 leading-relaxed italic border-l-2 border-cyan-500/50 pl-3 py-1 bg-slate-900/40 rounded-r-lg">
+                      "{selectedLead.ai_summary || "No summary available."}"
+                    </div>
+                  </div>
+                </div>
+
+                {/* Call Transcript */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-mono uppercase tracking-widest text-slate-400 font-bold flex items-center justify-between">
+                    <span>Call Transcript</span>
+                    <span className="text-[10px] text-cyan-400 font-normal">{selectedLead.transcript?.length || 0} turns</span>
+                  </h4>
+                  
+                  <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                    {selectedLead.transcript && selectedLead.transcript.length > 0 ? (
+                      selectedLead.transcript.map((t, idx) => (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "p-3 rounded-xl text-xs leading-relaxed max-w-[90%]",
+                            t.role === "user" 
+                              ? "bg-slate-800/80 text-slate-200 ml-auto border border-slate-700/60 rounded-br-none" 
+                              : "bg-cyan-950/30 text-cyan-100 mr-auto border border-cyan-800/40 rounded-bl-none"
+                          )}
+                        >
+                          <div className="text-[9px] font-mono text-slate-400 mb-1 font-semibold uppercase">
+                            {t.role === "user" ? "Caller" : "AI Receptionist"}
+                          </div>
+                          {t.text}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-500 italic p-4 text-center bg-slate-950/40 rounded-xl border border-slate-800/60">
+                        No transcript recorded for this call.
+                      </div>
                     )}
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Appointment Request</div>
-                  <div className="text-sm text-slate-300 flex items-center gap-2">
-                    <Calendar size={14} className="text-cyan-500/70" />
-                    {selectedLead.preferred_appointment_date ? (
-                      <span className="font-medium text-cyan-100">
-                        {selectedLead.preferred_appointment_date}
-                        {selectedLead.preferred_time_window && ` @ ${selectedLead.preferred_time_window}`}
-                      </span>
-                    ) : "No specific time requested"}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">AI Summary</div>
-                  <div className="text-sm text-slate-400 leading-relaxed italic border-l-2 border-slate-700 pl-3">
-                    "{selectedLead.ai_summary || "No summary available."}"
-                  </div>
-                </div>
               </div>
-
-              {/* Transcript */}
-              {selectedLead.transcript && selectedLead.transcript.length > 0 && (
-                <div className="space-y-4">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
-                    Conversation Terminal
-                  </div>
-                  <div className="space-y-4 font-mono text-xs">
-                    {selectedLead.transcript.map((entry, i) => (
-                      <div key={i} className={cn(
-                        "flex flex-col gap-1",
-                        entry.role === "user" ? "items-end" : "items-start"
-                      )}>
-                        <span className="text-[9px] uppercase tracking-tighter text-slate-500 font-bold">
-                          {entry.role === "assistant" ? "AI Receptionist" : "Caller"}
-                        </span>
-                        <div className={cn(
-                          "px-4 py-2.5 rounded-lg max-w-[90%] border backdrop-blur-sm",
-                          entry.role === "user" ? "bg-slate-800/80 text-cyan-100 border-slate-700" : "bg-cyan-900/20 text-cyan-300 border-cyan-500/20"
-                        )}>
-                          {entry.text}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
