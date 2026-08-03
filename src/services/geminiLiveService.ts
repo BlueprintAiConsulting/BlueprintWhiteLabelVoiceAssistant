@@ -287,6 +287,7 @@ export class GeminiLiveSession {
     this.audioQueue.close();
 
     if (this.workletNode) {
+      this.workletNode.port.onmessage = null;
       this.workletNode.disconnect();
       this.workletNode = null;
     }
@@ -299,6 +300,10 @@ export class GeminiLiveSession {
       this.mediaStream = null;
     }
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
       if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
         this.ws.close();
       }
