@@ -172,6 +172,7 @@ describe("Live Tool Dispatcher Unit Tests", () => {
     expect(res.output.success).toBe(true);
     expect(res.output.route).toBe("owner");
     expect(res.output.target_number).toBe("+17175550001");
+    expect(res.output.handoff_summary).toContain("owner handoff");
   });
 
   it("returns failure when transfer is disabled", async () => {

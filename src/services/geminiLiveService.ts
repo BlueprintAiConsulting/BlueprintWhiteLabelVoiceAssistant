@@ -213,6 +213,7 @@ export class GeminiLiveSession {
                   properties: {
                     target_number: { type: "STRING", description: "Phone number to transfer to." },
                     reason: { type: "STRING", description: "Reason for call transfer." },
+                    caller_name: { type: "STRING", description: "Caller name for the human handoff summary." },
                     caller_callback_number: { type: "STRING", description: "Caller phone number." }
                   },
                   required: ["reason", "caller_callback_number"]

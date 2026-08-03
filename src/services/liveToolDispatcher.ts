@@ -3,6 +3,7 @@ import { processLead } from "./geminiService.ts";
 import { getAvailableAppointmentSlots, bookAppointmentSlot } from "./calendarService.ts";
 import { ConversationState } from "./conversationState.ts";
 import { triageHvacIssue } from "./hvacIntelligence.ts";
+import { buildHumanEscalationPlan } from "./humanEscalationService.ts";
 
 export interface ToolCallPayload {
   id: string;
@@ -198,12 +199,11 @@ export async function executeLiveToolCall(
 
       case "transferCall": {
         const transferReason = typeof args.reason === "string" ? args.reason : "";
-        const triage = triageHvacIssue(transferReason, settings);
-        const ownerRequest = /\b(josh|owner|manager|boss|person in charge|proprietor)\b/i.test(transferReason);
-        const ownerTarget = settings.owner_phone_number || settings.transfer_phone_number || settings.on_call_technician_phone;
+        const plan = buildHumanEscalationPlan(args || {}, settings);
+        const ownerRequest = plan.route === "owner";
         const transferTarget = ownerRequest
-          ? ownerTarget
-          : (args.target_number || settings.on_call_technician_phone || settings.transfer_phone_number);
+          ? plan.target_phone
+          : (args.target_number || plan.target_phone);
         const isTransferConfigured = settings.transfer_enabled && Boolean(transferTarget);
 
         if (!isTransferConfigured) {
@@ -214,7 +214,13 @@ export async function executeLiveToolCall(
               success: false,
               transferred: false,
               error: "TRANSFER_NOT_CONFIGURED",
-              message: triage.mandatory_instruction || "Live call transfer provider is not configured. Collect callback phone number and inform caller an emergency technician will call back immediately."
+              route: plan.route,
+              priority: plan.priority,
+              handoff_summary: plan.summary,
+              fallback_required_fields: plan.fallback_required_fields,
+              fallback_message: plan.fallback_message,
+              mandatory_instruction: plan.mandatory_instruction || null,
+              message: plan.mandatory_instruction || plan.fallback_message
             }
           };
         }
@@ -225,9 +231,13 @@ export async function executeLiveToolCall(
           output: {
             success: true,
             transferred: true,
-            route: ownerRequest ? "owner" : "on_call_technician",
+            route: plan.route,
+            priority: plan.priority,
             target_number: transferTarget,
-            mandatory_instruction: triage.mandatory_instruction || null,
+            handoff_summary: plan.summary,
+            fallback_required_fields: plan.fallback_required_fields,
+            fallback_message: plan.fallback_message,
+            mandatory_instruction: plan.mandatory_instruction || null,
             message: ownerRequest
               ? "Call transfer initiated to the business owner."
               : `Call transfer initiated to ${transferTarget}.`
