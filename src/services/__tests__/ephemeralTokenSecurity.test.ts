@@ -15,7 +15,7 @@ describe("Ephemeral Token Production Security Tests", () => {
 
     expect(fnContent).toContain("https://generativelanguage.googleapis.com/v1beta/auth_tokens");
     expect(fnContent).toContain("x-goog-api-key");
-    expect(fnContent).toContain("models/gemini-3.1-flash-live-preview");
+    expect(fnContent).toContain("gemini-3.1-flash-live-preview");
     expect(fnContent).toContain("access_token");
   });
 

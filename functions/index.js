@@ -66,19 +66,9 @@ exports.issueGeminiEphemeralToken = onRequest(
         return;
       }
 
-      const expireTime = new Date(now + 30 * 60 * 1000).toISOString();
-      const newSessionExpireTime = new Date(now + 60 * 1000).toISOString();
-
       const payload = {
-        uses: 1,
-        expireTime,
-        newSessionExpireTime,
-        liveConnectConstraints: {
-          model: "models/gemini-3.1-flash-live-preview",
-          config: {
-            responseModalities: ["AUDIO"]
-          }
-        }
+        ttl: "1800s",
+        uses: 1
       };
 
       const googleResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
