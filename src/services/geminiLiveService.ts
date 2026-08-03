@@ -33,7 +33,11 @@ export class GeminiLiveSession {
 
     this.audioQueue.init();
 
-    const cleanApiKey = apiKey.replace(/['"]/g, '').trim();
+    const rawApiKey = this.options.apiKey || "";
+    if (!rawApiKey || rawApiKey.includes("dummy")) {
+      throw new Error("Invalid or missing Gemini API Key. Please add it in the Settings tab.");
+    }
+    const cleanApiKey = rawApiKey.replace(/['"]/g, '').trim();
     const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${cleanApiKey}`;
 
     this.ws = new WebSocket(wsUrl);
