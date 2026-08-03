@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
 const DEFAULT_SETTINGS: Settings = {
-  office_name: "Blueprint AI HVAC",
+  office_name: "Lunar Heating and Cooling",
   business_hours: {
     start: "09:00",
     end: "17:00",
@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS: Settings = {
   emergency_dispatch_webhook: "https://api.blueprint.ai/webhooks/hvac-emergency",
   sms_alerts_enabled: true,
   escalation_timeout_minutes: 15,
-  after_hours_message: "Thank you for calling Blueprint AI HVAC. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
+  after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice_style: "professional, warm, and helpful",
   prompt_overrides: ""
@@ -297,10 +297,10 @@ export default function SettingsPage() {
             <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">SMS Text-Back Message Template</label>
             <textarea
               rows={3}
-              value={settings.missed_call_template || "Hi! This is Josh's HVAC Services. Sorry we missed your call! How can we help you today?"}
+              value={settings.missed_call_template || "Hi! This is Lunar Heating and Cooling. Sorry we missed your call! How can we help you today?"}
               onChange={(e) => setSettings({ ...settings, missed_call_template: e.target.value })}
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-4 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all font-sans resize-none"
-              placeholder="Hi! This is Josh's HVAC Services. Sorry we missed your call..."
+              placeholder="Hi! This is Lunar Heating and Cooling. Sorry we missed your call..."
             />
             <p className="text-[11px] text-stone-400">Use <code className="bg-stone-100 px-1 py-0.5 rounded font-mono text-stone-600">{"{{name}}"}</code> to insert customer's name if available.</p>
           </div>

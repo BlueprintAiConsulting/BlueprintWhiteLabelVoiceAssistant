@@ -78,7 +78,7 @@ export class GeminiLiveSession {
   private sendSetupConfig() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const officeName = this.options.officeName || "Blueprint AI HVAC";
+    const officeName = this.options.officeName || "Lunar Heating and Cooling";
     const emergencyKeywords = (this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"]).join(", ");
 
     const systemPrompt = this.options.systemInstruction || `

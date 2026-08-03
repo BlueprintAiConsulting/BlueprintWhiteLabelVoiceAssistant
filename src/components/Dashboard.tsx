@@ -124,7 +124,7 @@ export default function Dashboard() {
                 <span className="bg-emerald-100 text-emerald-800 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded-md">Stage 1 Active</span>
                 <h1 className="text-2xl font-serif italic text-stone-800">Lead Engine Dashboard</h1>
               </div>
-              <p className="text-sm text-stone-500">Goal: Never miss another lead for Josh's HVAC Services.</p>
+              <p className="text-sm text-stone-500">Goal: Never miss another lead for Lunar Heating and Cooling.</p>
             </div>
             <div className="flex gap-2">
               {leads.length === 0 && (

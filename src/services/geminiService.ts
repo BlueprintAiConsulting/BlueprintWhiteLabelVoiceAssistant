@@ -5,7 +5,7 @@ import { Lead, CallType, CallStatus, Settings } from "../types.ts";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
 const DEFAULT_SETTINGS: Settings = {
-  office_name: "Blueprint AI HVAC",
+  office_name: "Lunar Heating and Cooling",
   business_hours: {
     start: "09:00",
     end: "17:00",
@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS: Settings = {
   emergency_dispatch_webhook: "https://api.blueprint.ai/webhooks/hvac-emergency",
   sms_alerts_enabled: true,
   escalation_timeout_minutes: 15,
-  after_hours_message: "Thank you for calling Blueprint AI HVAC. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
+  after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice_style: "professional office staff",
   prompt_overrides: ""
@@ -178,7 +178,7 @@ export async function triggerMissedCallTextBack(callbackNumber: string, callerNa
     const settings = await getSettings();
     if (settings.missed_call_text_back_enabled === false) return;
 
-    const messageTemplate = settings.missed_call_template || "Hi! This is Josh's HVAC Services. Sorry we missed your call! How can we help you today?";
+    const messageTemplate = settings.missed_call_template || "Hi! This is Lunar Heating and Cooling. Sorry we missed your call! How can we help you today?";
     const textMessage = messageTemplate.replace("{{name}}", callerName || "there");
 
     console.log(`[MISSED CALL TEXT BACK] Triggered SMS to ${callbackNumber}: "${textMessage}"`);
