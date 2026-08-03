@@ -16,6 +16,15 @@ export class AudioPlaybackQueue {
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
+    // Unlock iOS AudioContext by playing a silent 1-sample buffer
+    try {
+      const buffer = this.ctx.createBuffer(1, 1, this.sampleRate);
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.ctx.destination);
+      source.start(0);
+    } catch (_) {}
+
     this.nextPlayTime = this.ctx.currentTime;
   }
 
