@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, collection, query, orderBy, onSnapshot, updateDoc, doc, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
+import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
 import { Lead, CallType, CallStatus } from "../types.ts";
 import { Search, Filter, AlertCircle, Clock, CheckCircle, XCircle, Trash2, ExternalLink, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, User, Wrench, ThermometerSun } from "lucide-react";
 import { format } from "date-fns";
@@ -71,6 +71,29 @@ export default function Dashboard() {
     }
   };
 
+  const deleteLead = async (leadId: string) => {
+    try {
+      await deleteDoc(doc(db, "leads", leadId));
+      if (selectedLead?.id === leadId) {
+        setSelectedLead(null);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, "leads");
+    }
+  };
+
+  const clearAllLeads = async () => {
+    if (!window.confirm("Are you sure you want to clear all lead entries from the dashboard?")) return;
+    try {
+      for (const lead of leads) {
+        await deleteDoc(doc(db, "leads", lead.id));
+      }
+      setSelectedLead(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, "leads");
+    }
+  };
+
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = 
       (lead.caller_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
@@ -127,7 +150,16 @@ export default function Dashboard() {
               <p className="text-xs sm:text-sm text-slate-400 mt-1">Goal: Never miss another lead for Lunar Heating and Cooling.</p>
             </div>
             <div className="flex gap-2 shrink-0">
-              {leads.length === 0 && (
+              {leads.length > 0 ? (
+                <button
+                  onClick={clearAllLeads}
+                  className="text-xs bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 px-4 py-2.5 rounded-xl transition-colors font-medium min-h-[44px] flex items-center gap-1.5 justify-center"
+                  title="Clear all lead logs from Firestore"
+                >
+                  <Trash2 size={14} />
+                  Clear All Leads
+                </button>
+              ) : (
                 <button
                   onClick={seedData}
                   className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl transition-colors font-medium min-h-[44px] flex items-center justify-center"
@@ -403,9 +435,13 @@ export default function Dashboard() {
                   <CheckCircle size={14} />
                   Archive
                 </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "spam")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 py-3 rounded-xl hover:bg-rose-500/20 transition-all">
+                <button onClick={() => updateStatus(selectedLead.id!, "spam")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-900/50 text-slate-500 border border-slate-800 py-3 rounded-xl hover:bg-slate-800 transition-all">
                   <XCircle size={14} />
                   Spam
+                </button>
+                <button onClick={() => deleteLead(selectedLead.id!)} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 py-3 rounded-xl hover:bg-rose-500/20 transition-all">
+                  <Trash2 size={14} />
+                  Delete
                 </button>
               </div>
 
