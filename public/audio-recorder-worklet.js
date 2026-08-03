@@ -1,18 +1,46 @@
 class AudioRecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.sourceBuffer = [];
+    this.sourceOffset = 0;
+    this.pendingSamples = [];
+    this.targetSampleRate = 16000;
+    this.resampleRatio = sampleRate / this.targetSampleRate;
+  }
+
   process(inputs, outputs, parameters) {
     const input = inputs[0];
     if (input && input[0] && input[0].length > 0) {
       const channelData = input[0]; // Mono channel Float32Array
-      
-      // Convert Float32Array [-1.0, 1.0] to Int16Array [-32768, 32767]
-      const pcm16 = new Int16Array(channelData.length);
-      for (let i = 0; i < channelData.length; i++) {
-        let val = Math.max(-1, Math.min(1, channelData[i]));
-        pcm16[i] = val < 0 ? val * 0x8000 : val * 0x7FFF;
+      for (let i = 0; i < channelData.length; i++) this.sourceBuffer.push(channelData[i]);
+
+      // Linear resampling prevents browsers that ignore the requested
+      // AudioContext rate (often 44.1/48 kHz) from sending mislabeled audio.
+      while (this.sourceBuffer.length >= 2) {
+        const index = Math.floor(this.sourceOffset);
+        if (index + 1 >= this.sourceBuffer.length) break;
+        const fraction = this.sourceOffset - index;
+        const sample = this.sourceBuffer[index] * (1 - fraction) + this.sourceBuffer[index + 1] * fraction;
+        const clamped = Math.max(-1, Math.min(1, sample));
+        this.pendingSamples.push(clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF);
+        this.sourceOffset += this.resampleRatio;
+
+        const consumed = Math.floor(this.sourceOffset);
+        if (consumed > 0) {
+          const consumable = Math.min(consumed, this.sourceBuffer.length - 1);
+          this.sourceBuffer.splice(0, consumable);
+          this.sourceOffset -= consumable;
+        }
       }
-      
-      // Transfer the underlying ArrayBuffer
-      this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
+
+      // Send ~20 ms packets, reducing WebSocket overhead while keeping input
+      // latency low enough for natural turn-taking.
+      const packetSize = 320;
+      while (this.pendingSamples.length >= packetSize) {
+        const packet = this.pendingSamples.splice(0, packetSize);
+        const packetBuffer = new Int16Array(packet).buffer;
+        this.port.postMessage(packetBuffer, [packetBuffer]);
+      }
     }
     return true;
   }

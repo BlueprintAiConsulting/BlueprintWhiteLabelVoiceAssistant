@@ -27,6 +27,7 @@ export class GeminiLiveSession {
   private mediaStream: MediaStream | null = null;
   private audioCtx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
+  private micMuteGain: GainNode | null = null;
   private isConnected: boolean = false;
   private hasGreeted: boolean = false;
   private options: GeminiLiveOptions;
@@ -41,6 +42,7 @@ export class GeminiLiveSession {
     if (this.isConnected) return;
 
     this.conversationState.reset();
+    this.hasGreeted = false;
     this.audioQueue.init();
 
     const accessToken = this.options.accessToken || "";
@@ -255,6 +257,8 @@ export class GeminiLiveSession {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
           sampleRate: 16000
         }
       });
@@ -282,13 +286,23 @@ export class GeminiLiveSession {
               data: base64Data
             }
           }
-        };
+      };
 
         this.ws.send(JSON.stringify(pcmPayload));
       };
 
       source.connect(this.workletNode);
-      this.workletNode.connect(this.audioCtx.destination);
+      // Keep the worklet alive without routing microphone audio back to the
+      // caller's speakers (which creates echo and makes turn-taking feel fake).
+      this.micMuteGain = this.audioCtx.createGain();
+      this.micMuteGain.gain.value = 0;
+      this.workletNode.connect(this.micMuteGain);
+      this.micMuteGain.connect(this.audioCtx.destination);
+      this.audioCtx.onstatechange = () => {
+        if (this.audioCtx?.state === "suspended" && this.isConnected) {
+          void this.audioCtx.resume();
+        }
+      };
     } catch (err) {
       console.error("Error setting up microphone worklet capture:", err);
       this.options.onError?.(err);
@@ -403,7 +417,12 @@ export class GeminiLiveSession {
       this.workletNode.disconnect();
       this.workletNode = null;
     }
+    if (this.micMuteGain) {
+      this.micMuteGain.disconnect();
+      this.micMuteGain = null;
+    }
     if (this.audioCtx) {
+      this.audioCtx.onstatechange = null;
       this.audioCtx.close();
       this.audioCtx = null;
     }

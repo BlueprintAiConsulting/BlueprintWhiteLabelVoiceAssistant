@@ -41,6 +41,8 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("Leave target_number empty");
     expect(prompt).toContain("Never disclose Josh's private phone number");
     expect(prompt).toContain("SPEAKING PACE");
+    expect(prompt).toContain("HUMAN DELIVERY");
+    expect(prompt).toContain("BARGE-IN");
     expect(prompt).toContain("ADDRESS & ZIP CONFIRMATION");
     expect(prompt).toContain("confirmCallerDetails");
   });

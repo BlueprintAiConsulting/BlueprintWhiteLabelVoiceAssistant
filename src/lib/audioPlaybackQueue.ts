@@ -3,6 +3,7 @@ export class AudioPlaybackQueue {
   private sampleRate: number;
   private nextPlayTime: number = 0;
   private activeSources: AudioBufferSourceNode[] = [];
+  private readonly maxBufferedSeconds = 0.8;
 
   constructor(sampleRate: number = 24000) {
     this.sampleRate = sampleRate;
@@ -14,7 +15,7 @@ export class AudioPlaybackQueue {
       this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
     }
     if (this.ctx.state === "suspended") {
-      this.ctx.resume();
+      void this.ctx.resume();
     }
     // Unlock iOS AudioContext by playing a silent 1-sample buffer
     try {
@@ -31,6 +32,14 @@ export class AudioPlaybackQueue {
   public enqueueBase64Pcm(base64Data: string) {
     if (!this.ctx) this.init();
     if (!this.ctx) return;
+
+    if (this.ctx.state === "suspended") void this.ctx.resume();
+
+    // Keep response latency bounded. If a stalled tab accumulated too much
+    // audio, dropping the stale tail is more natural than speaking seconds late.
+    if (this.nextPlayTime - this.ctx.currentTime > this.maxBufferedSeconds) {
+      this.clear();
+    }
 
     try {
       const binaryStr = atob(base64Data);
