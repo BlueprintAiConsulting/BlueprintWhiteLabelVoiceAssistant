@@ -132,8 +132,8 @@ class PhoneSession {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            prefixPaddingMs: 400,
-            silenceDurationMs: 1100
+            prefixPaddingMs: 500,
+            silenceDurationMs: 1400
           }
         },
         tools: [{ functionDeclarations: toolDeclarations() }]

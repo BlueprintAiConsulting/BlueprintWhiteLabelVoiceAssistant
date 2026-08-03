@@ -146,10 +146,10 @@ export class GeminiLiveSession {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            prefixPaddingMs: 400,
+            prefixPaddingMs: 500,
             // Allow natural pauses and trailing ZIP/address digits to finish
             // before Gemini closes the caller's turn.
-            silenceDurationMs: 1100
+            silenceDurationMs: 1400
           }
         },
         tools: [
