@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onAuthStateChanged } from "../firebase.ts";
 import { Settings } from "../types.ts";
-import { Save, Clock, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar } from "lucide-react";
+import { Save, Clock, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
@@ -13,7 +13,10 @@ const DEFAULT_SETTINGS: Settings = {
     days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
   },
   timezone: "America/New_York",
-  service_areas: ["New York City", "Brooklyn", "Queens", "Bronx", "Staten Island"],
+  service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
+  primary_zip_code: "17401",
+  service_radius_miles: 25,
+  service_zip_codes: ["17401", "17402", "17403", "17404", "17406", "17408", "17331", "17327", "17315", "17356", "17601", "17325"],
   transfer_enabled: true,
   transfer_phone_number: "+17175770668",
   on_call_technician_phone: "+17175770668",
@@ -23,7 +26,8 @@ const DEFAULT_SETTINGS: Settings = {
   escalation_timeout_minutes: 15,
   after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
-  receptionist_voice_style: "professional, warm, and helpful",
+  receptionist_voice: "Kore",
+  receptionist_voice_style: "warm, concise, natural female office receptionist",
   prompt_overrides: ""
 };
 
@@ -151,6 +155,75 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* Zip Code Radius & Service Coverage */}
+          <section className="bg-slate-900/60 p-8 rounded-[2.5rem] border border-cyan-500/20 shadow-[0_0_30px_rgba(34,211,238,0.05)] space-y-6 backdrop-blur-md">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-serif italic text-slate-100">Service Radius & Zip Code Boundaries</h2>
+                  <p className="text-xs text-slate-400">Configure base headquarters zip code and service radius coverage.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Base Headquarters Zip Code</label>
+                <input
+                  type="text"
+                  value={settings.primary_zip_code || "17401"}
+                  onChange={(e) => setSettings({ ...settings, primary_zip_code: e.target.value })}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-mono shadow-inner placeholder:text-slate-500"
+                  placeholder="17401"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Service Radius (Miles)</label>
+                <select
+                  value={settings.service_radius_miles || 25}
+                  onChange={(e) => setSettings({ ...settings, service_radius_miles: Number(e.target.value) })}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all cursor-pointer shadow-inner"
+                >
+                  <option value={15}>15 Miles</option>
+                  <option value={25}>25 Miles (Standard)</option>
+                  <option value={35}>35 Miles</option>
+                  <option value={50}>50 Miles</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold font-mono">Covered Zip Codes List</label>
+                <button
+                  type="button"
+                  onClick={() => setSettings({
+                    ...settings,
+                    primary_zip_code: "17401",
+                    service_radius_miles: 25,
+                    service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
+                    service_zip_codes: ["17401", "17402", "17403", "17404", "17406", "17408", "17331", "17327", "17315", "17356", "17601", "17325"]
+                  })}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 underline font-mono cursor-pointer"
+                >
+                  Autofill York, PA Metro Zips (25mi)
+                </button>
+              </div>
+              <input
+                type="text"
+                value={settings.service_zip_codes ? settings.service_zip_codes.join(", ") : "17401, 17402, 17403, 17404, 17406, 17408, 17331, 17327, 17315, 17356, 17601, 17325"}
+                onChange={(e) => setSettings({ ...settings, service_zip_codes: e.target.value.split(",").map(z => z.trim()).filter(Boolean) })}
+                className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-mono placeholder:text-slate-500 shadow-inner"
+                placeholder="17401, 17402, 17403, 17404, 17406..."
+              />
+              <p className="text-[11px] text-slate-500">The AI receptionist checks these zip codes to confirm service availability when callers ask for service.</p>
+            </div>
+          </section>
+
           {/* Company Identity */}
           <section className="bg-slate-900/60 p-8 rounded-[2.5rem] border border-slate-700 shadow-[0_0_30px_rgba(0,0,0,0.5)] space-y-6 backdrop-blur-md">
           <div className="flex items-center gap-3 mb-2">
@@ -169,6 +242,16 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, office_name: e.target.value })}
                 className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all placeholder:text-slate-500 shadow-inner"
                 placeholder="e.g. Blueprint HVAC"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Primary Service Communities</label>
+              <input
+                type="text"
+                value={settings.service_areas ? settings.service_areas.join(", ") : ""}
+                onChange={(e) => setSettings({ ...settings, service_areas: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all placeholder:text-slate-500 shadow-inner font-sans"
+                placeholder="York, Hanover, Lancaster, Gettysburg, Red Lion, Dallastown"
               />
             </div>
             <div className="space-y-1.5">

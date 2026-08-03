@@ -25,6 +25,10 @@ export function buildDynamicSystemPrompt(context: SystemPromptContext): string {
   const voiceStyle = settings.receptionist_voice_style || "professional office staff";
   const customInstructions = settings.prompt_overrides ? `\nSPECIAL INSTRUCTIONS:\n${settings.prompt_overrides}` : "";
 
+  const primaryZip = settings.primary_zip_code || "17401";
+  const radiusMiles = settings.service_radius_miles || 25;
+  const zipCodes = (settings.service_zip_codes || ["17401", "17402", "17403", "17404", "17406", "17408", "17331", "17601", "17325"]).join(", ");
+
   return `
 You are the front desk receptionist for ${officeName}, a local HVAC contractor serving York, Pennsylvania and surrounding South Central PA communities.
 
@@ -35,7 +39,15 @@ CURRENT TIME & LOCATION CONTEXT:
 - Today's Date: ${nowStr}
 - Business Timezone: ${timezone}
 - Business Operating Hours: ${startHours} to ${endHours} (${days})
-- Primary Service Areas: ${serviceAreas} (York County & South Central PA). Never reference New York City or unrelated states.
+- Base Headquarters Zip Code: ${primaryZip} (York, PA)
+- Service Radius: ${radiusMiles} Miles around ${primaryZip}
+- Active Service Zip Codes: ${zipCodes}
+- Primary Service Communities: ${serviceAreas} (York County & South Central PA). Never reference New York City or unrelated states.
+
+ZIP CODE & SERVICE AREA VALIDATION:
+- When a caller gives their address or zip code, verify if they are within your ${radiusMiles}-mile radius (${primaryZip} / ${zipCodes}).
+- If their zip code or city is within your service radius, confirm we service their area and proceed to book or intake their request.
+- If their location is outside your service radius, politely inform them that they are outside our primary 25-mile service area, but offer to take a callback request for manager review.
 
 TONE & BREVITY RULES (CRITICAL):
 - Tone: ${voiceStyle}. Natural, calm, warm, and authentic human office staff.

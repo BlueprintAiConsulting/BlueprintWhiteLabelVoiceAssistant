@@ -54,6 +54,9 @@ export interface Settings {
   business_hours: BusinessHours;
   timezone: string;
   service_areas: string[];
+  primary_zip_code?: string;
+  service_radius_miles?: number;
+  service_zip_codes?: string[];
   transfer_enabled: boolean;
   transfer_phone_number: string;
   on_call_technician_phone?: string;
