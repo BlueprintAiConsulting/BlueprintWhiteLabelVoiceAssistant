@@ -49,11 +49,8 @@ export class GeminiLiveSession {
 
     this.ws = new WebSocket(wsUrl);
 
-    this.ws.onopen = async () => {
-      this.isConnected = true;
+    this.ws.onopen = () => {
       this.sendSetupConfig();
-      await this.initMicrophoneCapture();
-      this.options.onTranscript?.({ role: "system", text: "Connected to Voice Receptionist." });
     };
 
     this.ws.onmessage = async (event) => {
@@ -63,7 +60,7 @@ export class GeminiLiveSession {
           textData = await event.data.text();
         }
         const msg = JSON.parse(textData);
-        this.handleServerMessage(msg);
+        await this.handleServerMessage(msg);
       } catch (err) {
         console.error("Error parsing WebSocket message:", err);
       }
@@ -132,8 +129,14 @@ export class GeminiLiveSession {
             }
           ]
         },
-        voiceActivityDetection: {
-          mode: "VOICE_ACTIVITY_DETECTION_AUTOMATIC"
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            disabled: false,
+            startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+            endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+            prefixPaddingMs: 300,
+            silenceDurationMs: 700
+          }
         },
         tools: [
           {
@@ -217,7 +220,7 @@ export class GeminiLiveSession {
   public sendAudioStreamEnd() {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       try {
-        this.ws.send(JSON.stringify({ clientContent: { turnComplete: true } }));
+        this.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
       } catch (err) {
         console.warn("Error sending audio stream end:", err);
       }
@@ -252,12 +255,10 @@ export class GeminiLiveSession {
 
         const pcmPayload = {
           realtimeInput: {
-            mediaChunks: [
-              {
-                mimeType: "audio/pcm;rate=16000",
-                data: base64Data
-              }
-            ]
+            audio: {
+              mimeType: "audio/pcm;rate=16000",
+              data: base64Data
+            }
           }
         };
 
@@ -278,14 +279,8 @@ export class GeminiLiveSession {
     this.hasGreeted = true;
     this.options.onTurnStateChange?.("receptionist_speaking");
     const initialGreetingPayload = {
-      clientContent: {
-        turns: [
-          {
-            role: "user",
-            parts: [{ text: "[INBOUND CALL CONNECTED] Answer the phone now with your natural greeting." }]
-          }
-        ],
-        turnComplete: true
+      realtimeInput: {
+        text: "[INBOUND CALL CONNECTED] Answer the phone now with your natural greeting."
       }
     };
 
@@ -295,6 +290,9 @@ export class GeminiLiveSession {
   private async handleServerMessage(msg: any) {
     // 0. Setup Complete -> Answer Inbound Call Immediately
     if (msg.setupComplete) {
+      this.isConnected = true;
+      await this.initMicrophoneCapture();
+      this.options.onTranscript?.({ role: "system", text: "Connected to Voice Receptionist." });
       this.triggerInitialGreeting();
       this.options.onTurnStateChange?.("listening");
     }

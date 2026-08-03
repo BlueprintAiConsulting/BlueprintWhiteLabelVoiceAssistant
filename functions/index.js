@@ -67,8 +67,9 @@ exports.issueGeminiEphemeralToken = onRequest(
       }
 
       const payload = {
-        ttl: "1800s",
-        uses: 1
+        uses: 1,
+        expireTime: new Date(now + 30 * 60 * 1000).toISOString(),
+        newSessionExpireTime: new Date(now + 60 * 1000).toISOString()
       };
 
       const googleResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {
@@ -83,7 +84,10 @@ exports.issueGeminiEphemeralToken = onRequest(
       if (!googleResponse.ok) {
         const errorText = await googleResponse.text();
         console.error("Google Auth Tokens Endpoint Error:", googleResponse.status, errorText);
-        res.status(googleResponse.status).json({ error: "GOOGLE_API_ERROR", message: "Failed to generate ephemeral token from Google." });
+        res.status(502).json({
+          error: "GOOGLE_API_ERROR",
+          message: "Google rejected the ephemeral-token request. Check the Gemini API key, API access, and token payload configuration."
+        });
         return;
       }
 
