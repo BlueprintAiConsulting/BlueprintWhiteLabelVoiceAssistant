@@ -43,6 +43,11 @@ export interface Settings {
   service_areas: string[];
   transfer_enabled: boolean;
   transfer_phone_number: string;
+  on_call_technician_phone?: string;
+  auto_transfer_emergencies?: boolean;
+  emergency_dispatch_webhook?: string;
+  sms_alerts_enabled?: boolean;
+  escalation_timeout_minutes?: number;
   after_hours_message: string;
   emergency_keywords: string[];
   receptionist_voice_style: string;

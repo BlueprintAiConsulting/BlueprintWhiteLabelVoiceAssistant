@@ -153,6 +153,32 @@ export class GeminiLiveSession {
                   },
                   required: ["callback_number", "call_type", "emergency_flag"]
                 }
+              },
+              {
+                name: "transferCall",
+                description: "Initiates an immediate live call transfer to an on-call technician or phone extension when an emergency is detected or caller requests live specialist.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    target_number: { type: "STRING", description: "Phone number to transfer to." },
+                    reason: { type: "STRING", description: "Reason for call transfer." },
+                    caller_callback_number: { type: "STRING", description: "Caller phone number." }
+                  },
+                  required: ["reason", "caller_callback_number"]
+                }
+              },
+              {
+                name: "checkAppointmentSlots",
+                description: "Queries available technician time slots for estimates, repairs, or seasonal tune-ups.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    service_type: { type: "STRING", description: "Type of service." },
+                    requested_date: { type: "STRING", description: "Requested date." },
+                    preferred_window: { type: "STRING", description: "'morning' or 'afternoon'" }
+                  },
+                  required: ["service_type"]
+                }
               }
             ]
           }

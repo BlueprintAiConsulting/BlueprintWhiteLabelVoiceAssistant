@@ -113,13 +113,68 @@ export async function createReceptionistChat(): Promise<Chat> {
     }
   };
 
+  const transferCallTool = {
+    name: "transferCall",
+    description: "Initiates an immediate live call transfer to an on-call technician or phone extension when an emergency is detected or caller requests live specialist.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        target_number: { type: Type.STRING, description: "Phone number to transfer the call to." },
+        reason: { type: Type.STRING, description: "Reason for the transfer (e.g. 'Emergency Gas Leak', 'Customer Request')." },
+        caller_callback_number: { type: Type.STRING, description: "The caller's callback number." },
+        emergency_context: { type: Type.STRING, description: "Key details for the receiving technician." }
+      },
+      required: ["reason", "caller_callback_number"]
+    }
+  };
+
+  const checkAppointmentSlotsTool = {
+    name: "checkAppointmentSlots",
+    description: "Queries available technician time slots for estimates, repairs, or seasonal tune-ups.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        service_type: { type: Type.STRING, description: "e.g. 'estimate', 'repair', 'tune_up'" },
+        requested_date: { type: Type.STRING, description: "Requested date (YYYY-MM-DD or day name)." },
+        preferred_window: { type: Type.STRING, description: "'morning' or 'afternoon'" }
+      },
+      required: ["service_type"]
+    }
+  };
+
   return ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
       systemInstruction,
-      tools: [{ functionDeclarations: [saveLeadTool] }]
+      tools: [{ functionDeclarations: [saveLeadTool, transferCallTool, checkAppointmentSlotsTool] }]
     }
   });
+}
+
+export async function dispatchEmergencyAlert(leadData: Partial<Lead>, webhookUrl?: string) {
+  if (!webhookUrl) return;
+  try {
+    const payload = {
+      event: "EMERGENCY_HVAC_DISPATCH",
+      timestamp: new Date().toISOString(),
+      lead: {
+        caller_name: leadData.caller_name || "Unknown",
+        callback_number: leadData.callback_number,
+        property_address: leadData.property_address || "Not specified",
+        emergency_type: leadData.emergency_type || leadData.reason_for_call || "HVAC Emergency",
+        equipment_type: leadData.equipment_type || "Unknown",
+        issue_description: leadData.issue_description || leadData.ai_summary || "Emergency assistance requested"
+      }
+    };
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    console.log("Emergency dispatch webhook triggered successfully.");
+  } catch (err) {
+    console.error("Failed to send emergency dispatch webhook:", err);
+  }
 }
 
 export async function processLead(leadData: Partial<Lead>) {
@@ -133,8 +188,18 @@ export async function processLead(leadData: Partial<Lead>) {
       ...cleanedData,
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
-      call_status: leadData.call_status || "new"
+      call_status: leadData.call_status || (leadData.emergency_flag ? "emergency_follow_up" : "new")
     });
+
+    // If emergency, trigger dispatch webhook if configured in settings
+    if (leadData.emergency_flag) {
+      getSettings().then(settings => {
+        if (settings.emergency_dispatch_webhook) {
+          dispatchEmergencyAlert(leadData, settings.emergency_dispatch_webhook);
+        }
+      });
+    }
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, "leads");

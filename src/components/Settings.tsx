@@ -14,9 +14,14 @@ const DEFAULT_SETTINGS: Settings = {
   },
   timezone: "America/New_York",
   service_areas: ["New York City", "Brooklyn", "Queens", "Bronx", "Staten Island"],
-  transfer_enabled: false,
-  transfer_phone_number: "",
-  after_hours_message: "Thank you for calling Blueprint AI HVAC. Our office is currently closed. Please leave your details and we will get back to you as soon as possible.",
+  transfer_enabled: true,
+  transfer_phone_number: "+17175550199",
+  on_call_technician_phone: "+17175550999",
+  auto_transfer_emergencies: true,
+  emergency_dispatch_webhook: "https://api.blueprint.ai/webhooks/hvac-emergency",
+  sms_alerts_enabled: true,
+  escalation_timeout_minutes: 15,
+  after_hours_message: "Thank you for calling Blueprint AI HVAC. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice_style: "professional, warm, and helpful",
   prompt_overrides: ""
@@ -196,6 +201,71 @@ export default function SettingsPage() {
                   {day.slice(0, 3)}
                 </button>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Emergency Routing & Webhook Dispatch */}
+        <section className="bg-white p-8 rounded-[2.5rem] border border-rose-100 shadow-xl space-y-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-50 rounded-xl text-rose-600">
+                <ShieldAlert size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-serif italic text-stone-800">Emergency Routing & Dispatch Settings</h2>
+                <p className="text-xs text-stone-400">Configure live call transfers and automated emergency alerts for gas leaks & freeze calls.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">On-Call Tech Transfer Phone</label>
+              <input
+                type="text"
+                value={settings.on_call_technician_phone || ""}
+                onChange={(e) => setSettings({ ...settings, on_call_technician_phone: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-5 py-3 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-rose-200 transition-all"
+                placeholder="e.g. +1 (717) 555-0999"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">Emergency Dispatch Webhook URL</label>
+              <input
+                type="url"
+                value={settings.emergency_dispatch_webhook || ""}
+                onChange={(e) => setSettings({ ...settings, emergency_dispatch_webhook: e.target.value })}
+                className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-5 py-3 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-rose-200 transition-all font-mono"
+                placeholder="https://api.blueprint.ai/webhooks/hvac-emergency"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-200">
+              <div>
+                <span className="font-bold text-sm text-stone-800">Auto-Transfer Emergencies</span>
+                <p className="text-xs text-stone-400">AI automatically transfers call when gas leak or freeze risk detected</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.auto_transfer_emergencies !== false}
+                onChange={(e) => setSettings({ ...settings, auto_transfer_emergencies: e.target.checked })}
+                className="w-5 h-5 accent-rose-600 rounded cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-200">
+              <div>
+                <span className="font-bold text-sm text-stone-800">SMS / Pager Notifications</span>
+                <p className="text-xs text-stone-400">Dispatch instant SMS text alert on emergency lead capture</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.sms_alerts_enabled !== false}
+                onChange={(e) => setSettings({ ...settings, sms_alerts_enabled: e.target.checked })}
+                className="w-5 h-5 accent-rose-600 rounded cursor-pointer"
+              />
             </div>
           </div>
         </section>

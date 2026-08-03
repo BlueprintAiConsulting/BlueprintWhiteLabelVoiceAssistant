@@ -84,6 +84,12 @@ export default function Simulator() {
         },
         onToolCall: (toolInfo) => {
           setDebugInfo(prev => [...prev, toolInfo]);
+          if (toolInfo.name === "transferCall") {
+            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${toolInfo.args.target_number || "On-Call Technician"}. Reason: ${toolInfo.args.reason}` }]);
+          }
+          if (toolInfo.name === "checkAppointmentSlots") {
+            setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR CHECK] Checked technician availability for ${toolInfo.args.service_type || "service"}.` }]);
+          }
         },
         onCapturedLead: (lead) => {
           setCapturedLead(lead);
@@ -140,6 +146,12 @@ export default function Simulator() {
             setCapturedLead(call.args);
             await processLead({ ...call.args, transcript: [...transcript, { role: "user", text }, { role: "assistant", text: response.text }] });
             setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
+          }
+          if (call.name === "transferCall") {
+            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${call.args.target_number || "On-Call Technician"}. Reason: ${call.args.reason}` }]);
+          }
+          if (call.name === "checkAppointmentSlots") {
+            setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR CHECK] Checked technician availability for ${call.args.service_type || "service"}.` }]);
           }
         }
       }
