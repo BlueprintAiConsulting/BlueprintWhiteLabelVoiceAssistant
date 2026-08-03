@@ -4,6 +4,7 @@ import { Lead, Settings } from "../types.ts";
 import { executeLiveToolCall } from "./liveToolDispatcher.ts";
 import { buildDynamicSystemPrompt } from "./livePromptBuilder.ts";
 import { ConversationState } from "./conversationState.ts";
+import { CallTelemetry, persistCallTelemetry } from "./observabilityService.ts";
 
 export interface GeminiLiveOptions {
   accessToken?: string;
@@ -32,6 +33,8 @@ export class GeminiLiveSession {
   private hasGreeted: boolean = false;
   private options: GeminiLiveOptions;
   private conversationState = new ConversationState();
+  private telemetry: CallTelemetry | null = null;
+  private telemetryFlushed = false;
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
@@ -43,6 +46,8 @@ export class GeminiLiveSession {
 
     this.conversationState.reset();
     this.hasGreeted = false;
+    this.telemetryFlushed = false;
+    this.telemetry = this.options.settings ? new CallTelemetry(this.options.settings) : null;
     this.audioQueue.init();
 
     const accessToken = this.options.accessToken || "";
@@ -81,6 +86,7 @@ export class GeminiLiveSession {
       const reasonText = event.reason ? `: ${event.reason}` : "";
       const infoText = event.code ? ` (Code ${event.code}${reasonText})` : "";
       this.options.onTranscript?.({ role: "system", text: `Voice call disconnected${infoText}.` });
+      void this.flushTelemetry();
       this.options.onClose?.();
       this.stop();
     };
@@ -363,6 +369,7 @@ export class GeminiLiveSession {
             this.audioQueue.enqueueBase64Pcm(part.inlineData.data);
           }
           if (part.text) {
+            this.telemetry?.recordTranscript({ role: "assistant", text: part.text });
             this.options.onTranscript?.({ role: "assistant", text: part.text });
           }
         }
@@ -373,6 +380,7 @@ export class GeminiLiveSession {
       if (msg.serverContent.interrupted) {
         // User interrupted model! Clear audio queue (Barge-in handling)
         this.audioQueue.clear();
+        this.telemetry?.recordInterruption();
         this.options.onInterrupted?.();
         this.options.onTurnStateChange?.("interrupted");
         setTimeout(() => this.options.onTurnStateChange?.("caller_speaking"), 300);
@@ -397,12 +405,19 @@ export class GeminiLiveSession {
       for (const call of msg.toolCall.functionCalls) {
         this.options.onToolCall?.({ name: call.name, args: call.args });
 
+        const toolStartedAt = performance.now();
         const execution = await executeLiveToolCall(
           { id: call.id, name: call.name, args: call.args },
           defaultSettings,
           this.options.onCapturedLead,
           this.conversationState
         );
+        this.telemetry?.recordTool({
+          name: call.name,
+          latency_ms: performance.now() - toolStartedAt,
+          success: execution.output.success,
+          error: execution.output.error
+        });
 
         // Return tool response back to Gemini for every function call ID
         const responsePayload = {
@@ -424,6 +439,7 @@ export class GeminiLiveSession {
   }
 
   public stop() {
+    void this.flushTelemetry();
     this.sendAudioStreamEnd();
     this.isConnected = false;
     this.audioQueue.close();
@@ -456,6 +472,12 @@ export class GeminiLiveSession {
       }
       this.ws = null;
     }
+  }
+
+  private async flushTelemetry(): Promise<void> {
+    if (this.telemetryFlushed || !this.telemetry) return;
+    this.telemetryFlushed = true;
+    await persistCallTelemetry(this.telemetry.summary());
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
