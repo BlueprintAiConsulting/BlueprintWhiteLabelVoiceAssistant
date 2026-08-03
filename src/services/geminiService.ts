@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, GenerateContentResponse, Chat } from "@google/genai"
 import { db, auth, addDoc, collection, serverTimestamp, handleFirestoreError, OperationType, doc, getDoc } from "../firebase.ts";
 import { Lead, CallType, CallStatus, Settings } from "../types.ts";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy_key_for_build" });
 
 const DEFAULT_SETTINGS: Settings = {
   office_name: "Lunar Heating and Cooling",
