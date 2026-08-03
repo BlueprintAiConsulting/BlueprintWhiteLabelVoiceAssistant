@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Phone, LayoutDashboard, Settings as SettingsIcon, ShieldAlert, ThermometerSun, Calendar, Menu, X, LogIn, LogOut, CheckCircle } from "lucide-react";
-import { auth, googleProvider, signInWithPopup, onAuthStateChanged, User } from "./firebase.ts";
+import { auth, db, doc, setDoc, googleProvider, signInWithPopup, onAuthStateChanged, User } from "./firebase.ts";
 import Dashboard from "./components/Dashboard.tsx";
 import Simulator from "./components/Simulator.tsx";
 import SettingsPage from "./components/Settings.tsx";
@@ -18,8 +18,24 @@ function Sidebar() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+        // Automatically sync admin role in Firestore
+        try {
+          const userRef = doc(db, "users", u.uid);
+          const isAdminUser = u.email === "drewhufnagle@gmail.com";
+          await setDoc(userRef, {
+            email: u.email,
+            displayName: u.displayName,
+            photoURL: u.photoURL,
+            role: isAdminUser ? "admin" : "user",
+            updatedAt: new Date()
+          }, { merge: true });
+        } catch (e) {
+          console.warn("Could not sync user profile:", e);
+        }
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -83,7 +99,12 @@ function Sidebar() {
             <div className="flex items-center gap-2 overflow-hidden">
               <img src={user.photoURL || ""} alt={user.displayName || ""} className="w-8 h-8 rounded-full border border-stone-700" referrerPolicy="no-referrer" />
               <div className="overflow-hidden">
-                <div className="text-xs font-medium text-stone-200 truncate">{user.displayName}</div>
+                <div className="flex items-center gap-1.5 text-xs font-medium text-stone-200 truncate">
+                  <span>{user.displayName}</span>
+                  {user.email === "drewhufnagle@gmail.com" && (
+                    <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500/20 text-emerald-400 font-bold uppercase rounded border border-emerald-500/30">Admin</span>
+                  )}
+                </div>
                 <div className="text-[10px] text-stone-500 truncate">{user.email}</div>
               </div>
             </div>
