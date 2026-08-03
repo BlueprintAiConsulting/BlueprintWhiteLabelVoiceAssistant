@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "lunar-hvac",
     "public": "dist",
     "ignore": [
       "firebase.json",
