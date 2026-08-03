@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { createReceptionistChat, processLead, triggerMissedCallTextBack } from "../services/geminiService.ts";
+import { createReceptionistChat, processLead, triggerMissedCallTextBack, getSettings } from "../services/geminiService.ts";
 import { GeminiLiveSession } from "../services/geminiLiveService.ts";
+import { generateGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
 import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug, Mic, MicOff, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -21,16 +22,17 @@ const SCENARIOS = [
 ];
 
 export default function Simulator() {
-  const [isCalling, setIsCalling] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [userInput, setUserInput] = useState("");
-  const [chat, setChat] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any[]>([]);
-  const [capturedLead, setCapturedLead] = useState<Partial<Lead> | null>(null);
+  const [isCalling, setIsCalling] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [capturedLead, setCapturedLead] = useState<Partial<Lead> | null>(null);
+  const [chat, setChat] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
+
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
 
   const scrollToBottom = () => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,6 +78,8 @@ export default function Simulator() {
     }
   };
 
+  const [turnState, setTurnState] = useState<"listening" | "caller_speaking" | "receptionist_speaking" | "interrupted" | "waiting_for_turn">("listening");
+
   const startVoiceCall = async () => {
     if (isCalling) endCall();
 
@@ -84,19 +88,42 @@ export default function Simulator() {
     setTranscript([]);
     setDebugInfo([]);
     setCapturedLead(null);
+    setTurnState("listening");
 
     try {
-      const apiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY as string;
-      if (!apiKey || apiKey.includes("dummy")) {
-        setTranscript(prev => [...prev, { role: "system", text: "Error: Missing Gemini API Key. Please add it in the Settings tab." }]);
-        setIsLoading(false);
-        setIsVoiceMode(false);
-        return;
+      let activeSettings;
+      try {
+        activeSettings = await getSettings();
+        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}".` }]);
+      } catch (sErr) {
+        setTranscript(prev => [...prev, { role: "system", text: "[SETTINGS WARNING] Could not fetch Firestore config. Operating on fallback system settings." }]);
       }
+
+      // Request short-lived ephemeral access token from backend endpoint
+      const tokenRes = await generateGeminiEphemeralToken("user_auth_101", activeSettings || {} as any);
+      setTranscript(prev => [...prev, { role: "system", text: `[SECURITY ENCRYPTED] Issued short-lived Live ephemeral token (Model: ${tokenRes.model}, Expires: ${tokenRes.expires_in_seconds}s).` }]);
+
       const session = new GeminiLiveSession({
-        apiKey,
+        accessToken: tokenRes.access_token,
+        settings: activeSettings,
         onTranscript: (entry) => {
-          setTranscript(prev => [...prev, entry]);
+          setTranscript(prev => {
+            if (entry.role === "assistant" && prev.length > 0 && prev[prev.length - 1].role === "assistant") {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                role: "assistant",
+                text: updated[updated.length - 1].text + entry.text
+              };
+              return updated;
+            }
+            return [...prev, entry];
+          });
+        },
+        onTurnStateChange: (state) => {
+          setTurnState(state);
+        },
+        onInterrupted: () => {
+          setTranscript(prev => [...prev, { role: "system", text: "[BARGE-IN INTERRUPT] Caller interrupted receptionist playback." }]);
         },
         onToolCall: (toolInfo) => {
           setDebugInfo(prev => [...prev, toolInfo]);
@@ -105,6 +132,9 @@ export default function Simulator() {
           }
           if (toolInfo.name === "checkAppointmentSlots") {
             setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR CHECK] Checked technician availability for ${toolInfo.args.service_type || "service"}.` }]);
+          }
+          if (toolInfo.name === "bookAppointment") {
+            setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR BOOKING] Scheduled appointment slot: ${toolInfo.args.appointment_start}.` }]);
           }
         },
         onCapturedLead: (lead) => {
@@ -192,34 +222,23 @@ export default function Simulator() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-stone-50 p-8 gap-8 overflow-hidden">
+    <div className="flex flex-col h-full bg-transparent p-8 gap-8 overflow-hidden relative z-10">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-4xl font-serif italic text-stone-800">Call Simulator</h1>
+          <h1 className="text-4xl font-serif italic text-slate-100">Call Simulator</h1>
           <div className="flex items-center gap-3 mt-1">
-            <p className="text-stone-500">Test the AI receptionist with live voice or text scenarios.</p>
-            {(() => {
-              const k = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY;
-              const isConfigured = k && !k.includes("dummy");
-              return isConfigured ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-mono font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Key Active (...{k.slice(-4)})
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  No API Key Set (Add in Settings)
-                </span>
-              );
-            })()}
+            <p className="text-slate-400">Test the AI receptionist with live voice or text scenarios.</p>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[11px] font-mono font-bold shadow-[0_0_8px_rgba(34,211,238,0.2)]">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+              VOICE SERVICE READY (EPHEMERAL TOKENS ENCRYPTED)
+            </span>
           </div>
         </div>
         <div className="flex gap-3">
           {isCalling ? (
             <button
               onClick={endCall}
-              className="flex items-center gap-2 bg-rose-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+              className="flex items-center gap-2 bg-rose-500/20 text-rose-400 border border-rose-500/50 px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-rose-500/30 transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)]"
             >
               <PhoneOff size={16} />
               Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})
@@ -229,7 +248,7 @@ export default function Simulator() {
               <button
                 onClick={simulateMissedCall}
                 disabled={isLoading}
-                className="flex items-center gap-2 bg-amber-600 text-white px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 disabled:opacity-50"
+                className="flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-amber-500/20 transition-all shadow-[0_0_10px_rgba(245,158,11,0.1)] disabled:opacity-50"
               >
                 <MessageSquare size={16} />
                 Simulate Missed-Call Text Back
@@ -237,15 +256,16 @@ export default function Simulator() {
               <button
                 onClick={startVoiceCall}
                 disabled={isLoading}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+                className="flex items-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-cyan-500/30 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] disabled:opacity-50 relative overflow-hidden group"
               >
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-400/30 to-cyan-500/0 translate-x-[-100%] group-hover:animate-[shimmer_2s_infinite]"></div>
                 <Mic size={16} />
                 Voice Call (Mic)
               </button>
               <button
                 onClick={() => startCall()}
                 disabled={isLoading}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
+                className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-emerald-500/20 transition-all shadow-[0_0_10px_rgba(16,185,129,0.1)] disabled:opacity-50"
               >
                 <Phone size={16} />
                 Text Call
@@ -259,7 +279,7 @@ export default function Simulator() {
         {/* Left: Scenarios */}
         <div className="flex flex-col gap-6 overflow-y-auto pr-2">
           <section className="space-y-3">
-            <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">Quick Launch Scenarios</h2>
+            <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 font-bold">Quick Launch Scenarios</h2>
             <div className="grid grid-cols-1 gap-2">
               {SCENARIOS.map((scenario) => (
                 <button
@@ -267,62 +287,62 @@ export default function Simulator() {
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
                   className={cn(
-                    "flex items-center gap-3 p-4 bg-white border border-stone-200 rounded-2xl hover:border-stone-400 hover:shadow-md transition-all text-left group disabled:opacity-50",
-                    scenario.id === "emergency" && "border-rose-100 hover:border-rose-300"
+                    "flex items-center gap-3 p-4 bg-slate-900/40 border border-slate-700/50 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/30 hover:shadow-[0_0_10px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 backdrop-blur-sm",
+                    scenario.id === "emergency" && "border-rose-500/20 hover:border-rose-500/40 hover:shadow-[0_0_10px_rgba(244,63,94,0.1)]"
                   )}
                 >
                   <div className={cn(
-                    "p-2 rounded-xl transition-colors",
-                    scenario.id === "emergency" ? "bg-rose-50 text-rose-600" : "bg-stone-50 text-stone-600 group-hover:bg-stone-100"
+                    "p-2 rounded-xl transition-colors shadow-inner",
+                    scenario.id === "emergency" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700 group-hover:border-cyan-500/50"
                   )}>
                     <scenario.icon size={20} />
                   </div>
                   <div>
-                    <div className="font-bold text-sm text-stone-800">{scenario.label}</div>
-                    <div className="text-[10px] text-stone-400 line-clamp-1 italic mt-0.5">"{scenario.prompt}"</div>
+                    <div className="font-bold text-sm text-slate-200">{scenario.label}</div>
+                    <div className="text-[10px] text-slate-400 line-clamp-1 italic mt-0.5">"{scenario.prompt}"</div>
                   </div>
                 </button>
               ))}
             </div>
           </section>
 
-          <section className="p-5 bg-stone-800 rounded-2xl text-white space-y-4 shadow-xl">
-            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-500 font-bold">Simulation Context</h3>
+          <section className="p-5 bg-slate-900/60 border border-slate-700 rounded-2xl text-slate-200 space-y-4 shadow-xl backdrop-blur-sm">
+            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-500 font-bold">Simulation Context</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-stone-400">Time of Day</span>
-                <span className="font-bold text-emerald-400">Business Hours</span>
+                <span className="text-slate-400">Time of Day</span>
+                <span className="font-bold text-cyan-300">Business Hours</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-stone-400">AI Personality</span>
+                <span className="text-slate-400">AI Personality</span>
                 <span className="font-bold">Professional Office</span>
               </div>
               <div className="pt-2 flex gap-2">
-                <button className="flex-1 text-[10px] font-bold uppercase py-2 border border-stone-600 rounded-lg hover:bg-stone-700 transition-colors">Toggle Hours</button>
+                <button className="flex-1 text-[10px] font-bold uppercase py-2 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">Toggle Hours</button>
               </div>
             </div>
           </section>
         </div>
 
         {/* Center: Transcript */}
-        <div className="lg:col-span-2 flex flex-col bg-white border border-stone-200 rounded-[2rem] shadow-2xl overflow-hidden relative">
-          <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center">
+        <div className="lg:col-span-2 flex flex-col bg-slate-900/40 border border-slate-700 rounded-[2rem] shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden relative backdrop-blur-md">
+          <div className="p-6 border-b border-slate-800 bg-slate-800/40 flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-stone-300")} />
-              <span className="text-sm font-bold text-stone-600 uppercase tracking-widest">{isCalling ? "Call in Progress" : "Line Ready"}</span>
+              <div className={cn("w-3 h-3 rounded-full shadow-[0_0_5px_rgba(0,0,0,0.5)]", isCalling ? "bg-cyan-400 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.8)]" : "bg-slate-600")} />
+              <span className="text-sm font-bold text-slate-300 uppercase tracking-widest font-mono">{isCalling ? "Call in Progress" : "Line Ready"}</span>
             </div>
-            {isCalling && <div className="px-3 py-1 bg-stone-200 rounded-full text-[10px] font-mono text-stone-600">00:42</div>}
+            {isCalling && <div className="px-3 py-1 bg-cyan-950 border border-cyan-900 rounded-full text-[10px] font-mono text-cyan-400 shadow-inner">00:42</div>}
           </div>
 
           <div className="flex-1 overflow-y-auto p-8 space-y-6">
             <AnimatePresence initial={false}>
               {transcript.length === 0 && !isCalling && (
-                <div className="h-full flex flex-col items-center justify-center text-stone-300 gap-6 opacity-50">
-                  <div className="w-24 h-24 bg-stone-50 rounded-full flex items-center justify-center">
-                    <Phone size={48} strokeWidth={1} />
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-6 opacity-50">
+                  <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 shadow-inner">
+                    <Phone size={48} strokeWidth={1} className="text-cyan-500/50" />
                   </div>
                   <div className="text-center space-y-1">
-                    <p className="text-lg font-serif italic text-stone-400">Ready for testing</p>
+                    <p className="text-lg font-mono italic text-slate-400">SYSTEM.READY</p>
                     <p className="text-xs">Select a scenario on the left to simulate a call.</p>
                   </div>
                 </div>
@@ -339,16 +359,16 @@ export default function Simulator() {
                   )}
                 >
                   {entry.role !== "system" && (
-                    <span className="text-[9px] uppercase font-bold tracking-widest text-stone-400 mb-1.5 px-1">
-                      {entry.role === "assistant" ? "Receptionist" : "Caller"}
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500 mb-1.5 px-1 font-mono">
+                      {entry.role === "assistant" ? "AI Receptionist" : "Caller"}
                     </span>
                   )}
                   <div
                     className={cn(
-                      "px-5 py-3 rounded-2xl text-sm leading-relaxed shadow-sm",
-                      entry.role === "user" ? "bg-stone-800 text-white rounded-tr-none" : 
-                      entry.role === "assistant" ? "bg-stone-100 text-stone-800 rounded-tl-none border border-stone-200/50" :
-                      "bg-amber-50 text-amber-800 italic text-[11px] border border-amber-100 rounded-lg text-center"
+                      "px-5 py-3 rounded-2xl text-sm leading-relaxed shadow-md backdrop-blur-sm border",
+                      entry.role === "user" ? "bg-slate-800/80 text-cyan-50 rounded-tr-none border-slate-700" : 
+                      entry.role === "assistant" ? "bg-cyan-900/20 text-cyan-200 rounded-tl-none border-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.05)]" :
+                      "bg-amber-500/10 text-amber-300 italic text-[11px] border border-amber-500/20 rounded-lg text-center"
                     )}
                   >
                     {entry.text}
@@ -357,73 +377,92 @@ export default function Simulator() {
               ))}
             </AnimatePresence>
             {isLoading && (
-              <div className="flex gap-1.5 items-center px-5 py-3 bg-stone-50 rounded-2xl w-fit border border-stone-100">
-                <div className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <div className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <div className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" />
+              <div className="flex gap-1.5 items-center px-5 py-3 bg-slate-800/50 rounded-2xl w-fit border border-slate-700/50">
+                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
               </div>
             )}
             <div ref={transcriptEndRef} />
           </div>
 
-          <div className="p-6 bg-stone-50/50 border-t border-stone-100">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage(userInput);
-              }}
-              className="flex gap-3"
-            >
-              <input
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                disabled={!isCalling || isLoading}
-                placeholder={isCalling ? "Type your response..." : "Select a scenario to start"}
-                className="flex-1 bg-white border border-stone-200 rounded-2xl px-6 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-stone-200 focus:border-stone-400 transition-all disabled:opacity-50 shadow-inner"
-              />
-              <button
-                type="submit"
-                disabled={!isCalling || isLoading || !userInput.trim()}
-                className="p-3 bg-stone-800 text-white rounded-2xl hover:bg-stone-700 transition-all disabled:opacity-50 shadow-lg active:scale-95"
+          <div className="p-6 bg-slate-900/60 border-t border-slate-800">
+            {isVoiceMode ? (
+              <div className="flex items-center justify-between px-6 py-3 bg-slate-800/80 border border-slate-700 rounded-2xl font-mono text-xs shadow-inner">
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    "w-2.5 h-2.5 rounded-full",
+                    turnState === "receptionist_speaking" && "bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]",
+                    turnState === "caller_speaking" && "bg-emerald-400 animate-ping shadow-[0_0_10px_rgba(52,211,153,0.8)]",
+                    turnState === "interrupted" && "bg-amber-400 animate-bounce shadow-[0_0_10px_rgba(251,191,36,0.8)]",
+                    turnState === "listening" && "bg-slate-500",
+                    turnState === "waiting_for_turn" && "bg-indigo-400 animate-pulse"
+                  )} />
+                  <span className="font-bold uppercase tracking-wider text-slate-200">
+                    VAD STATUS: {turnState.replace("_", " ")}
+                  </span>
+                </div>
+                <span className="text-slate-400 italic text-[11px]">Automatic Voice Activity Detection & Barge-In Active</span>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage(userInput);
+                }}
+                className="flex gap-3"
               >
-                <Send size={20} />
-              </button>
-            </form>
+                <input
+                  type="text"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  disabled={!isCalling || isLoading}
+                  placeholder={isCalling ? "Type your response..." : "Select a scenario to start"}
+                  className="flex-1 bg-slate-800/50 border border-slate-700 rounded-2xl px-6 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all disabled:opacity-50 shadow-inner text-slate-200 placeholder:text-slate-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!isCalling || isLoading || !userInput.trim()}
+                  className="p-3 bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 rounded-2xl hover:bg-cyan-600/40 transition-all disabled:opacity-50 shadow-[0_0_10px_rgba(34,211,238,0.1)] active:scale-95"
+                >
+                  <Send size={20} />
+                </button>
+              </form>
+            )}
           </div>
         </div>
 
         {/* Right: Debug & Captured */}
         <div className="flex flex-col gap-6 overflow-hidden">
-          <div className="flex-1 bg-stone-900 text-stone-300 p-6 rounded-3xl border border-stone-800 overflow-hidden flex flex-col shadow-2xl">
-            <div className="flex items-center gap-2 mb-4 text-[10px] font-mono text-stone-500 uppercase tracking-[0.2em] font-bold">
+          <div className="flex-1 bg-slate-900/60 text-slate-300 p-6 rounded-3xl border border-slate-800 overflow-hidden flex flex-col shadow-inner backdrop-blur-md">
+            <div className="flex items-center gap-2 mb-4 text-[10px] font-mono text-cyan-500 uppercase tracking-[0.2em] font-bold">
               <Bug size={14} />
-              AI Reasoning
+              AI Reasoning Terminal
             </div>
             <div className="flex-1 overflow-y-auto font-mono text-[10px] space-y-3 scrollbar-hide">
-              {debugInfo.length === 0 && <span className="opacity-20 italic">Awaiting AI tool calls...</span>}
+              {debugInfo.length === 0 && <span className="opacity-40 italic text-slate-500">Awaiting AI tool calls...</span>}
               {debugInfo.map((info, i) => (
-                <div key={i} className="border-l-2 border-emerald-500/30 pl-3 py-1 bg-white/5 rounded-r-lg">
-                  <span className="text-emerald-400 font-bold">tool:</span> {info.name}
-                  <pre className="text-stone-400 mt-2 whitespace-pre-wrap">{JSON.stringify(info.args, null, 2)}</pre>
+                <div key={i} className="border-l-2 border-cyan-500/50 pl-3 py-2 bg-slate-800/30 rounded-r-lg">
+                  <span className="text-cyan-400 font-bold">tool:</span> {info.name}
+                  <pre className="text-slate-400 mt-2 whitespace-pre-wrap leading-relaxed">{JSON.stringify(info.args, null, 2)}</pre>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="h-1/2 bg-white p-6 rounded-3xl border border-stone-200 overflow-hidden flex flex-col shadow-xl">
-            <div className="flex items-center gap-2 mb-4 text-[10px] font-mono text-stone-400 uppercase tracking-[0.2em] font-bold">
+          <div className="h-1/2 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 overflow-hidden flex flex-col shadow-inner backdrop-blur-md">
+            <div className="flex items-center gap-2 mb-4 text-[10px] font-mono text-cyan-500 uppercase tracking-[0.2em] font-bold">
               <AlertCircle size={14} />
-              Captured Data
+              Captured Payload
             </div>
-            <div className="flex-1 overflow-y-auto text-xs space-y-3">
-              {!capturedLead && <span className="opacity-30 italic">Lead data will appear here.</span>}
+            <div className="flex-1 overflow-y-auto text-xs space-y-3 font-mono">
+              {!capturedLead && <span className="opacity-40 italic text-slate-500">Data payload will appear here.</span>}
               {capturedLead && (
                 <div className="space-y-2">
                   {Object.entries(capturedLead).map(([key, value]) => (
-                    <div key={key} className="flex flex-col border-b border-stone-50 pb-1">
-                      <span className="text-[9px] font-bold text-stone-400 uppercase tracking-tighter">{key.replace("_", " ")}</span>
-                      <span className="text-stone-800 font-medium">{String(value)}</span>
+                    <div key={key} className="flex flex-col border-b border-slate-800/50 pb-2">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">{key.replace("_", " ")}</span>
+                      <span className="text-slate-300 font-medium text-sm mt-0.5">{String(value)}</span>
                     </div>
                   ))}
                 </div>

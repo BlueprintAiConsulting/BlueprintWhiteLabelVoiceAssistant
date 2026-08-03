@@ -12,13 +12,13 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const STATUS_COLORS: Record<CallStatus, string> = {
-  new: "bg-blue-50 text-blue-700 border-blue-100",
-  contacted: "bg-amber-50 text-amber-700 border-amber-100",
-  booked: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  closed: "bg-stone-50 text-stone-600 border-stone-100",
-  spam: "bg-rose-50 text-rose-700 border-rose-100",
-  emergency_follow_up: "bg-rose-600 text-white border-rose-700 shadow-sm animate-pulse",
-  after_hours_follow_up: "bg-purple-50 text-purple-700 border-purple-100"
+  new: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  contacted: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  booked: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  closed: "bg-slate-800 text-slate-400 border-slate-700",
+  spam: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  emergency_follow_up: "bg-rose-600/20 text-rose-400 border-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.5)] animate-pulse",
+  after_hours_follow_up: "bg-purple-500/10 text-purple-400 border-purple-500/20"
 };
 
 const TYPE_ICONS: Record<CallType, any> = {
@@ -114,23 +114,23 @@ export default function Dashboard() {
   const textBackCount = leads.filter(l => l.text_back_sent).length;
 
   return (
-    <div className="flex h-full bg-stone-50 overflow-hidden">
+    <div className="flex h-full bg-transparent overflow-hidden">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-stone-200 p-6 flex flex-col gap-4">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+        <header className="bg-slate-900/40 backdrop-blur-md border-b border-slate-800 p-6 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="bg-emerald-100 text-emerald-800 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded-md">Stage 1 Active</span>
-                <h1 className="text-2xl font-serif italic text-stone-800">Lead Engine Dashboard</h1>
+              <div className="flex items-center gap-3">
+                <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono text-[10px] uppercase font-bold px-2.5 py-0.5 rounded shadow-[0_0_8px_rgba(34,211,238,0.2)]">System Active</span>
+                <h1 className="text-2xl font-serif italic text-slate-100">Lead Engine Dashboard</h1>
               </div>
-              <p className="text-sm text-stone-500">Goal: Never miss another lead for Lunar Heating and Cooling.</p>
+              <p className="text-sm text-slate-400 mt-1">Goal: Never miss another lead for Lunar Heating and Cooling.</p>
             </div>
             <div className="flex gap-2">
               {leads.length === 0 && (
                 <button
                   onClick={seedData}
-                  className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-1.5 rounded-md transition-colors"
+                  className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-4 py-2 rounded-lg transition-colors font-medium"
                 >
                   Seed Demo Data
                 </button>
@@ -139,83 +139,86 @@ export default function Dashboard() {
           </div>
 
           {/* Stage 1 Metric Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold">Total Inbound Leads</span>
-              <p className="text-2xl font-bold text-stone-800 mt-1">{leads.length}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+            <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>Total Inbound</span>
+              <p className="text-3xl font-light text-slate-200 mt-1">{leads.length}</p>
             </div>
-            <div className="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/60">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-600 font-bold">Missed-Call Text Backs</span>
-              <p className="text-2xl font-bold text-amber-900 mt-1">{textBackCount}</p>
+            <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 backdrop-blur-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-full blur-xl -mr-8 -mt-8 group-hover:bg-amber-500/20 transition-all"></div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Missed-Call Texts</span>
+              <p className="text-3xl font-light text-amber-100 mt-1">{textBackCount}</p>
             </div>
-            <div className="bg-rose-50/60 p-3.5 rounded-2xl border border-rose-200/60">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 font-bold">Emergency Calls Routed</span>
-              <p className="text-2xl font-bold text-rose-900 mt-1">{emergencyCount}</p>
+            <div className="bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 backdrop-blur-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-rose-500/10 rounded-full blur-xl -mr-8 -mt-8 group-hover:bg-rose-500/20 transition-all"></div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-rose-500 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.8)]"></span>Emergency Routed</span>
+              <p className="text-3xl font-light text-rose-100 mt-1">{emergencyCount}</p>
             </div>
-            <div className="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/60">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 font-bold">Appointments Booked</span>
-              <p className="text-2xl font-bold text-emerald-900 mt-1">{bookedCount}</p>
+            <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 backdrop-blur-sm relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl -mr-8 -mt-8 group-hover:bg-emerald-500/20 transition-all"></div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-500 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></span>Appointments</span>
+              <p className="text-3xl font-light text-emerald-100 mt-1">{bookedCount}</p>
             </div>
           </div>
         </header>
 
         <div className="p-6 flex-1 overflow-y-auto">
           <div className="flex gap-4 mb-6">
-            <div className="flex items-center gap-2 bg-white border border-stone-200 px-3 py-1.5 rounded-lg">
-              <Filter size={14} className="text-stone-400" />
+            <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 px-4 py-2 rounded-lg backdrop-blur-sm">
+              <Filter size={14} className="text-cyan-500" />
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                className="text-sm bg-transparent focus:outline-none"
+                className="text-sm bg-transparent focus:outline-none text-slate-300 font-medium"
               >
-                <option value="all">All Types</option>
-                <option value="estimate_request">Estimate Request</option>
-                <option value="emergency">Emergency</option>
-                <option value="repair_request">Repair Request</option>
-                <option value="maintenance_request">Maintenance</option>
-                <option value="existing_customer">Existing Customer</option>
-                <option value="general_office">General Office</option>
-                <option value="spam">Spam</option>
+                <option value="all" className="bg-slate-900">All Types</option>
+                <option value="estimate_request" className="bg-slate-900">Estimate Request</option>
+                <option value="emergency" className="bg-slate-900">Emergency</option>
+                <option value="repair_request" className="bg-slate-900">Repair Request</option>
+                <option value="maintenance_request" className="bg-slate-900">Maintenance</option>
+                <option value="existing_customer" className="bg-slate-900">Existing Customer</option>
+                <option value="general_office" className="bg-slate-900">General Office</option>
+                <option value="spam" className="bg-slate-900">Spam</option>
               </select>
             </div>
-            <div className="flex items-center gap-2 bg-white border border-stone-200 px-3 py-1.5 rounded-lg">
-              <Clock size={14} className="text-stone-400" />
+            <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 px-4 py-2 rounded-lg backdrop-blur-sm">
+              <Clock size={14} className="text-cyan-500" />
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="text-sm bg-transparent focus:outline-none"
+                className="text-sm bg-transparent focus:outline-none text-slate-300 font-medium"
               >
-                <option value="all">All Statuses</option>
-                <option value="new">New</option>
-                <option value="contacted">Contacted</option>
-                <option value="booked">Booked</option>
-                <option value="closed">Closed</option>
-                <option value="spam">Spam</option>
-                <option value="emergency_follow_up">Emergency</option>
-                <option value="after_hours_follow_up">After Hours</option>
+                <option value="all" className="bg-slate-900">All Statuses</option>
+                <option value="new" className="bg-slate-900">New</option>
+                <option value="contacted" className="bg-slate-900">Contacted</option>
+                <option value="booked" className="bg-slate-900">Booked</option>
+                <option value="closed" className="bg-slate-900">Closed</option>
+                <option value="spam" className="bg-slate-900">Spam</option>
+                <option value="emergency_follow_up" className="bg-slate-900">Emergency</option>
+                <option value="after_hours_follow_up" className="bg-slate-900">After Hours</option>
               </select>
             </div>
           </div>
 
-          <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm shadow-xl">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-stone-50 border-b border-stone-200">
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-stone-500">Type</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-stone-500">Caller</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-stone-500">Summary & Preview</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-stone-500">Status</th>
-                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-stone-500">Time</th>
+                <tr className="bg-slate-800/50 border-b border-slate-800">
+                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Type</th>
+                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Caller</th>
+                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Summary & Preview</th>
+                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Status</th>
+                  <th className="p-4 text-[10px] font-mono uppercase tracking-widest text-slate-500">Time</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="p-12 text-center text-stone-400 italic">Loading leads...</td>
+                    <td colSpan={5} className="p-12 text-center text-slate-500 font-mono text-sm">LOADING LEADS...</td>
                   </tr>
                 ) : filteredLeads.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-12 text-center text-stone-400 italic">No leads found matching your criteria.</td>
+                    <td colSpan={5} className="p-12 text-center text-slate-500 font-mono text-sm">NO LEADS MATCHING CRITERIA</td>
                   </tr>
                 ) : (
                   filteredLeads.map((lead) => {
@@ -228,26 +231,26 @@ export default function Dashboard() {
                         key={lead.id}
                         onClick={() => setSelectedLead(lead)}
                         className={cn(
-                          "border-b border-stone-100 hover:bg-stone-50 transition-colors cursor-pointer group",
-                          selectedLead?.id === lead.id && "bg-stone-50",
-                          isEmergency && "bg-rose-50/30 border-l-4 border-l-rose-600"
+                          "border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors cursor-pointer group",
+                          selectedLead?.id === lead.id && "bg-slate-800/60 border-l-2 border-l-cyan-500",
+                          isEmergency && "bg-rose-900/10 border-l-2 border-l-rose-500"
                         )}
                       >
-                        <td className="p-4">
+                        <td className="p-4 pl-6">
                           <div className="flex items-center gap-2">
-                            <div className={cn("p-1.5 rounded-md", isEmergency ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-600")}>
+                            <div className={cn("p-2 rounded-lg shadow-inner", isEmergency ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700")}>
                               <Icon size={16} />
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm font-medium text-stone-800">{lead.caller_name || "Unknown"}</div>
-                          <div className="text-xs text-stone-500">{lead.callback_number}</div>
+                          <div className="text-sm font-medium text-slate-200">{lead.caller_name || "Unknown"}</div>
+                          <div className="text-[11px] font-mono text-slate-500 mt-0.5">{lead.callback_number}</div>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm text-stone-700 font-medium line-clamp-1">{lead.ai_summary || "No summary"}</div>
+                          <div className="text-sm text-slate-300 font-medium line-clamp-1">{lead.ai_summary || "No summary"}</div>
                           {lastMessage && (
-                            <div className="text-[11px] text-stone-400 italic line-clamp-1 mt-0.5">
+                            <div className="text-[11px] text-slate-500 line-clamp-1 mt-1">
                               "{lastMessage}"
                             </div>
                           )}
@@ -273,25 +276,25 @@ export default function Dashboard() {
       {/* Detail Panel */}
       <AnimatePresence>
         {selectedLead && (
-          <motion.div
+            <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            className="w-[450px] bg-white border-l border-stone-200 shadow-2xl flex flex-col z-20"
+            className="w-[450px] bg-slate-900/90 backdrop-blur-xl border-l border-slate-700 shadow-2xl flex flex-col z-20"
           >
-            <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/40">
               <div className="flex items-center gap-3">
-                <div className={cn("p-2 rounded-lg", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-600 text-white" : "bg-stone-800 text-white")}>
+                <div className={cn("p-2 rounded-lg shadow-inner", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700")}>
                   {React.createElement(TYPE_ICONS[selectedLead.call_type], { size: 20 })}
                 </div>
                 <div>
-                  <h2 className="text-lg font-serif italic text-stone-800">Lead Detail</h2>
-                  <p className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">
+                  <h2 className="text-lg font-serif italic text-slate-100">Lead Detail</h2>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold font-mono mt-0.5">
                     ID: {selectedLead.id?.slice(-6)}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setSelectedLead(null)} className="text-stone-400 hover:text-stone-800 transition-colors">
+              <button onClick={() => setSelectedLead(null)} className="text-slate-500 hover:text-slate-300 transition-colors">
                 <XCircle size={24} />
               </button>
             </div>
@@ -300,10 +303,10 @@ export default function Dashboard() {
               {/* Header Info */}
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-medium text-stone-900">{selectedLead.caller_name || "Unknown Caller"}</h3>
-                  <div className="flex items-center gap-2 text-stone-500">
-                    <Phone size={14} />
-                    <span className="text-base font-mono">{selectedLead.callback_number}</span>
+                  <h3 className="text-2xl font-medium text-slate-100">{selectedLead.caller_name || "Unknown Caller"}</h3>
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Phone size={14} className="text-cyan-500" />
+                    <span className="text-base font-mono text-cyan-400">{selectedLead.callback_number}</span>
                   </div>
                 </div>
                 <span className={cn("text-[10px] uppercase font-bold px-3 py-1 rounded-full tracking-widest border shadow-sm", STATUS_COLORS[selectedLead.call_status])}>
@@ -313,51 +316,51 @@ export default function Dashboard() {
 
               {/* Quick Actions */}
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => updateStatus(selectedLead.id!, "contacted")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-stone-700 border border-stone-200 py-3 rounded-xl hover:bg-stone-50 transition-all shadow-sm">
+                <button onClick={() => updateStatus(selectedLead.id!, "contacted")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-xl hover:bg-slate-700 transition-all shadow-sm">
                   <Phone size={14} />
                   Contacted
                 </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "booked")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-md">
+                <button onClick={() => updateStatus(selectedLead.id!, "booked")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 py-3 rounded-xl hover:bg-cyan-600/30 transition-all shadow-[0_0_10px_rgba(34,211,238,0.1)]">
                   <Calendar size={14} />
                   Book Appointment
                 </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "closed")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-stone-500 border border-stone-100 py-3 rounded-xl hover:bg-stone-50 transition-all">
+                <button onClick={() => updateStatus(selectedLead.id!, "closed")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-slate-900/50 text-slate-500 border border-slate-800 py-3 rounded-xl hover:bg-slate-800 transition-all">
                   <CheckCircle size={14} />
                   Archive
                 </button>
-                <button onClick={() => updateStatus(selectedLead.id!, "spam")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-rose-500 border border-rose-100 py-3 rounded-xl hover:bg-rose-50 transition-all">
+                <button onClick={() => updateStatus(selectedLead.id!, "spam")} className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 py-3 rounded-xl hover:bg-rose-500/20 transition-all">
                   <XCircle size={14} />
                   Spam
                 </button>
               </div>
 
               {/* Details Grid */}
-              <div className="grid grid-cols-1 gap-6 bg-stone-50 p-6 rounded-2xl border border-stone-100">
+              <div className="grid grid-cols-1 gap-6 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 shadow-inner">
                 <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold">Property Address</div>
-                  <div className="text-sm text-stone-800 flex items-center gap-2">
-                    <MapPin size={14} className="text-stone-400" />
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Property Address</div>
+                  <div className="text-sm text-slate-300 flex items-center gap-2">
+                    <MapPin size={14} className="text-cyan-500/70" />
                     {selectedLead.property_address || "Not provided"}
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold">Equipment</div>
-                  <div className="text-sm text-stone-800 flex items-center gap-2">
-                    <Wrench size={14} className="text-stone-400" />
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Equipment</div>
+                  <div className="text-sm text-slate-300 flex items-center gap-2">
+                    <Wrench size={14} className="text-cyan-500/70" />
                     {selectedLead.equipment_type || "Unknown"}
                     {selectedLead.maintenance_agreement && (
-                      <span className="ml-2 text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">Maintenance Plan</span>
+                      <span className="ml-2 text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_5px_rgba(34,211,238,0.2)]">Maintenance Plan</span>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold">Appointment Request</div>
-                  <div className="text-sm text-stone-800 flex items-center gap-2">
-                    <Calendar size={14} className="text-stone-400" />
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Appointment Request</div>
+                  <div className="text-sm text-slate-300 flex items-center gap-2">
+                    <Calendar size={14} className="text-cyan-500/70" />
                     {selectedLead.preferred_appointment_date ? (
-                      <span className="font-medium">
+                      <span className="font-medium text-cyan-100">
                         {selectedLead.preferred_appointment_date}
                         {selectedLead.preferred_time_window && ` @ ${selectedLead.preferred_time_window}`}
                       </span>
@@ -366,8 +369,8 @@ export default function Dashboard() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold">AI Summary</div>
-                  <div className="text-sm text-stone-700 leading-relaxed italic">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">AI Summary</div>
+                  <div className="text-sm text-slate-400 leading-relaxed italic border-l-2 border-slate-700 pl-3">
                     "{selectedLead.ai_summary || "No summary available."}"
                   </div>
                 </div>
@@ -376,19 +379,22 @@ export default function Dashboard() {
               {/* Transcript */}
               {selectedLead.transcript && selectedLead.transcript.length > 0 && (
                 <div className="space-y-4">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-stone-400 font-bold">Conversation History</div>
-                  <div className="space-y-4">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
+                    Conversation Terminal
+                  </div>
+                  <div className="space-y-4 font-mono text-xs">
                     {selectedLead.transcript.map((entry, i) => (
                       <div key={i} className={cn(
                         "flex flex-col gap-1",
                         entry.role === "user" ? "items-end" : "items-start"
                       )}>
-                        <span className="text-[9px] uppercase tracking-tighter text-stone-400 font-bold">
-                          {entry.role === "assistant" ? "Receptionist" : "Caller"}
+                        <span className="text-[9px] uppercase tracking-tighter text-slate-500 font-bold">
+                          {entry.role === "assistant" ? "AI Receptionist" : "Caller"}
                         </span>
                         <div className={cn(
-                          "px-4 py-2 rounded-2xl text-xs max-w-[90%]",
-                          entry.role === "user" ? "bg-stone-800 text-white rounded-tr-none" : "bg-stone-100 text-stone-700 rounded-tl-none"
+                          "px-4 py-2.5 rounded-lg max-w-[90%] border backdrop-blur-sm",
+                          entry.role === "user" ? "bg-slate-800/80 text-cyan-100 border-slate-700" : "bg-cyan-900/20 text-cyan-300 border-cyan-500/20"
                         )}>
                           {entry.text}
                         </div>

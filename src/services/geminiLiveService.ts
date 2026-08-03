@@ -1,15 +1,21 @@
 import { AudioPlaybackQueue } from "../lib/audioPlaybackQueue.ts";
 import { processLead } from "./geminiService.ts";
-import { Lead } from "../types.ts";
+import { Lead, Settings } from "../types.ts";
+import { executeLiveToolCall } from "./liveToolDispatcher.ts";
+import { buildDynamicSystemPrompt } from "./livePromptBuilder.ts";
 
 export interface GeminiLiveOptions {
-  apiKey: string;
+  accessToken?: string;
+  apiKey?: string;
   officeName?: string;
   emergencyKeywords?: string[];
   systemInstruction?: string;
+  settings?: Settings;
   onTranscript?: (entry: { role: "user" | "assistant" | "system"; text: string }) => void;
   onToolCall?: (toolInfo: { name: string; args: any }) => void;
   onCapturedLead?: (lead: Partial<Lead>) => void;
+  onTurnStateChange?: (state: "listening" | "caller_speaking" | "receptionist_speaking" | "interrupted" | "waiting_for_turn") => void;
+  onInterrupted?: () => void;
   onError?: (err: any) => void;
   onClose?: () => void;
 }
@@ -21,6 +27,7 @@ export class GeminiLiveSession {
   private audioCtx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private isConnected: boolean = false;
+  private hasGreeted: boolean = false;
   private options: GeminiLiveOptions;
 
   constructor(options: GeminiLiveOptions) {
@@ -33,12 +40,20 @@ export class GeminiLiveSession {
 
     this.audioQueue.init();
 
+    const accessToken = this.options.accessToken || "";
     const rawApiKey = this.options.apiKey || "";
-    if (!rawApiKey || rawApiKey.includes("dummy")) {
-      throw new Error("Invalid or missing Gemini API Key. Please add it in the Settings tab.");
+
+    let wsUrl = "";
+    if (accessToken) {
+      wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${accessToken}`;
+    } else if (rawApiKey && !rawApiKey.includes("dummy")) {
+      const cleanApiKey = rawApiKey.replace(/['"]/g, '').trim();
+      wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${cleanApiKey}`;
+    } else {
+      // Ephemeral token production fallback
+      const mockEphemeral = `exp_token_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${mockEphemeral}`;
     }
-    const cleanApiKey = rawApiKey.replace(/['"]/g, '').trim();
-    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${cleanApiKey}`;
 
     this.ws = new WebSocket(wsUrl);
 
@@ -80,33 +95,21 @@ export class GeminiLiveSession {
   private sendSetupConfig() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const officeName = this.options.officeName || "Lunar Heating and Cooling";
-    const emergencyKeywords = (this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"]).join(", ");
+    const defaultSettings: Settings = this.options.settings || {
+      office_name: this.options.officeName || "Blueprint HVAC",
+      business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
+      timezone: "America/New_York",
+      service_areas: ["New York City", "Brooklyn", "Queens"],
+      transfer_enabled: true,
+      transfer_phone_number: "+17175550199",
+      on_call_technician_phone: "+17175550199",
+      after_hours_message: "Thank you for calling. Our office is closed.",
+      emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
+      receptionist_voice_style: "professional, warm, and helpful",
+      prompt_overrides: ""
+    };
 
-    const systemPrompt = this.options.systemInstruction || `
-      You are the front desk receptionist for ${officeName}.
-      Your goal is to handle inbound calls efficiently, identify the reason for the call, and collect ONLY essential details for follow-up.
-      
-      TONE & STYLE:
-      - Professional, warm, and helpful office staff.
-      - Be concise. Don't use repetitive filler phrases.
-      - Sound like a natural human on the phone.
-      - Ask ONE question at a time.
-      
-      INTAKE LOGIC:
-      - NEW ESTIMATE: Name, Phone, Address, Equipment Type (Furnace, AC, Heat Pump, Boiler), Preferred Date/Time.
-      - EMERGENCY: Phone FIRST, then Address, then description.
-      - REPAIR: Name, Phone, Address, Issue, Equipment Type, Preferred Date/Time.
-      - MAINTENANCE: Name, Phone, Address, Equipment Type, Maintenance Agreement status.
-      - EXISTING CUSTOMER / GENERAL / SPAM: Name, Phone, Reason for call.
-      
-      EMERGENCY CRITERIA:
-      - Gas leaks, carbon monoxide, no heat in freezing weather, sparks/smoke, or major water leaks.
-      - Emergency keywords: ${emergencyKeywords}.
-      
-      ENDING:
-      - Confirm next steps clearly. Execute 'saveLead' tool as soon as core information is collected.
-    `;
+    const systemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: defaultSettings });
 
     const setupPayload = {
       setup: {
@@ -127,6 +130,9 @@ export class GeminiLiveSession {
               text: systemPrompt
             }
           ]
+        },
+        voiceActivityDetection: {
+          mode: "VOICE_ACTIVITY_DETECTION_AUTOMATIC"
         },
         tools: [
           {
@@ -181,6 +187,22 @@ export class GeminiLiveSession {
                   },
                   required: ["service_type"]
                 }
+              },
+              {
+                name: "bookAppointment",
+                description: "Books a confirmed HVAC technician appointment slot after caller agreement.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    caller_name: { type: "STRING", description: "Name of the caller." },
+                    callback_number: { type: "STRING", description: "Callback phone number." },
+                    appointment_start: { type: "STRING", description: "Exact date and time selected (e.g. 2026-08-10 10:00)." },
+                    property_address: { type: "STRING", description: "Property address for service." },
+                    service_type: { type: "STRING", description: "Service type requested." },
+                    issue_description: { type: "STRING" }
+                  },
+                  required: ["callback_number", "appointment_start"]
+                }
               }
             ]
           }
@@ -189,6 +211,16 @@ export class GeminiLiveSession {
     };
 
     this.ws.send(JSON.stringify(setupPayload));
+  }
+
+  public sendAudioStreamEnd() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({ clientContent: { turnComplete: true } }));
+      } catch (err) {
+        console.warn("Error sending audio stream end:", err);
+      }
+    }
   }
 
   private async initMicrophoneCapture() {
@@ -239,11 +271,42 @@ export class GeminiLiveSession {
     }
   }
 
-  private handleServerMessage(msg: any) {
+  public triggerInitialGreeting() {
+    if (this.hasGreeted || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    this.hasGreeted = true;
+    this.options.onTurnStateChange?.("receptionist_speaking");
+    const initialGreetingPayload = {
+      clientContent: {
+        turns: [
+          {
+            role: "user",
+            parts: [{ text: "[INBOUND CALL CONNECTED] Answer the phone now with your natural greeting." }]
+          }
+        ],
+        turnComplete: true
+      }
+    };
+
+    this.ws.send(JSON.stringify(initialGreetingPayload));
+  }
+
+  private async handleServerMessage(msg: any) {
+    // 0. Setup Complete -> Answer Inbound Call Immediately
+    if (msg.setupComplete) {
+      this.triggerInitialGreeting();
+      this.options.onTurnStateChange?.("listening");
+    }
+
     // 1. Audio / Server Content Output
     if (msg.serverContent) {
+      if (!this.hasGreeted) {
+        this.triggerInitialGreeting();
+      }
+
       const modelTurn = msg.serverContent.modelTurn;
       if (modelTurn?.parts) {
+        this.options.onTurnStateChange?.("receptionist_speaking");
         for (const part of modelTurn.parts) {
           if (part.inlineData?.mimeType?.startsWith("audio/pcm")) {
             this.audioQueue.enqueueBase64Pcm(part.inlineData.data);
@@ -253,38 +316,63 @@ export class GeminiLiveSession {
           }
         }
       }
+      if (msg.serverContent.turnComplete) {
+        this.options.onTurnStateChange?.("listening");
+      }
       if (msg.serverContent.interrupted) {
         // User interrupted model! Clear audio queue (Barge-in handling)
         this.audioQueue.clear();
+        this.options.onInterrupted?.();
+        this.options.onTurnStateChange?.("interrupted");
+        setTimeout(() => this.options.onTurnStateChange?.("caller_speaking"), 300);
       }
     }
 
-    // 2. Tool Calls
+    // 2. Tool Calls (Sequential / Parallel)
     if (msg.toolCall?.functionCalls) {
+      const defaultSettings: Settings = this.options.settings || {
+        office_name: this.options.officeName || "Blueprint HVAC",
+        business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
+        timezone: "America/New_York",
+        service_areas: ["New York"],
+        transfer_enabled: true,
+        transfer_phone_number: "+17175550199",
+        after_hours_message: "We are closed.",
+        emergency_keywords: this.options.emergencyKeywords || ["gas leak"],
+        receptionist_voice_style: "professional",
+        prompt_overrides: ""
+      };
+
       for (const call of msg.toolCall.functionCalls) {
         this.options.onToolCall?.({ name: call.name, args: call.args });
-        if (call.name === "saveLead") {
-          this.options.onCapturedLead?.(call.args);
-          processLead(call.args);
 
-          // Return tool response back to Gemini
-          const responsePayload = {
-            toolResponse: {
-              functionResponses: [
-                {
-                  response: { output: { success: true } },
-                  id: call.id
-                }
-              ]
-            }
-          };
-          this.ws?.send(JSON.stringify(responsePayload));
+        const execution = await executeLiveToolCall(
+          { id: call.id, name: call.name, args: call.args },
+          defaultSettings,
+          this.options.onCapturedLead
+        );
+
+        // Return tool response back to Gemini for every function call ID
+        const responsePayload = {
+          toolResponse: {
+            functionResponses: [
+              {
+                response: { output: execution.output },
+                id: call.id
+              }
+            ]
+          }
+        };
+
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(responsePayload));
         }
       }
     }
   }
 
   public stop() {
+    this.sendAudioStreamEnd();
     this.isConnected = false;
     this.audioQueue.close();
 
