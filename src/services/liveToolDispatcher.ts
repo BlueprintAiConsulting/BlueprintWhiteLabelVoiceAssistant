@@ -4,6 +4,7 @@ import { getAvailableAppointmentSlots, bookAppointmentSlot } from "./calendarSer
 import { ConversationState } from "./conversationState.ts";
 import { triageHvacIssue } from "./hvacIntelligence.ts";
 import { buildHumanEscalationPlan } from "./humanEscalationService.ts";
+import { executeWarmTransfer } from "./twilioBridgeService.ts";
 
 export interface ToolCallPayload {
   id: string;
@@ -221,6 +222,31 @@ export async function executeLiveToolCall(
               fallback_message: plan.fallback_message,
               mandatory_instruction: plan.mandatory_instruction || null,
               message: plan.mandatory_instruction || plan.fallback_message
+            }
+          };
+        }
+
+        const transferResult = await executeWarmTransfer(
+          args.caller_callback_number || args.callback_number || "",
+          transferTarget,
+          plan.summary,
+          settings
+        );
+        if (!transferResult.success) {
+          return {
+            toolName: name,
+            callId: id,
+            output: {
+              success: false,
+              transferred: false,
+              error: "TRANSFER_PROVIDER_UNAVAILABLE",
+              route: plan.route,
+              priority: plan.priority,
+              handoff_summary: plan.summary,
+              fallback_required_fields: plan.fallback_required_fields,
+              fallback_message: plan.fallback_message,
+              mandatory_instruction: plan.mandatory_instruction || null,
+              message: plan.mandatory_instruction || transferResult.message
             }
           };
         }

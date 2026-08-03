@@ -27,6 +27,16 @@ export function normalizePhoneNumber(phone: string): string {
   return phone.startsWith("+") ? phone : `+${digits}`;
 }
 
+function isTwilioServerConfigured(settings: Settings): boolean {
+  if (process.env.NODE_ENV === "test") return true;
+  return Boolean(
+    settings.twilio_enabled === true &&
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    (process.env.TWILIO_PHONE_NUMBER || settings.twilio_phone_number)
+  );
+}
+
 /**
  * Validates Twilio HTTP webhook signatures using server Auth Token.
  * Prevents unauthorized requests to telephony endpoints.
@@ -102,7 +112,7 @@ export async function handleInboundTwilioCall(
   settings: Settings
 ): Promise<{ twiml: string; caller_id: string; is_existing_customer: boolean; message: string }> {
   const normalizedPhone = normalizePhoneNumber(params.From);
-  const isTwilioEnabled = settings.twilio_enabled !== false && Boolean(process.env.TWILIO_ACCOUNT_SID || settings.twilio_phone_number || process.env.NODE_ENV === "test");
+  const isTwilioEnabled = isTwilioServerConfigured(settings);
 
   if (!isTwilioEnabled) {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Thank you for calling. Telephony integration is not currently active.</Say><Hangup/></Response>`;
@@ -144,13 +154,13 @@ export async function executeWarmTransfer(
   callSummary: string,
   settings: Settings
 ): Promise<{ success: boolean; target_phone: string; message: string }> {
-  const isConfigured = settings.transfer_enabled && Boolean(technicianPhone);
+  const isConfigured = settings.transfer_enabled && Boolean(technicianPhone) && isTwilioServerConfigured(settings);
 
   if (!isConfigured) {
     return {
       success: false,
       target_phone: technicianPhone,
-      message: "Live transfer is not configured or disabled in settings. Collect callback number instead."
+      message: "Live transfer provider is not configured or disabled in Settings. Collect callback number instead."
     };
   }
 
@@ -179,6 +189,10 @@ export async function triggerTwilioMissedCallSMS(
 ): Promise<{ sent: boolean; message: string }> {
   if (settings.missed_call_text_back_enabled === false) {
     return { sent: false, message: "Missed call text back is disabled in Settings." };
+  }
+
+  if (!isTwilioServerConfigured(settings)) {
+    return { sent: false, message: "Twilio SMS provider is not configured on the server. Record the missed call and offer a callback." };
   }
 
   const template = settings.missed_call_template || "Hi {{name}}! Sorry we missed your call. How can we help you today?";

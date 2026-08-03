@@ -35,18 +35,18 @@ export interface BookingResult {
 }
 
 /**
- * Server-side availability checker backed by Google Calendar API or Business Hours rules.
- * Uses environment variables GOOGLE_CALENDAR_ID & authentication secrets on server.
+ * Availability checker backed by a real Calendar service endpoint.
+ * Until the Google account and server connector exist, this must fail closed.
  */
 export async function checkGoogleCalendarAvailability(
   req: SlotRequest,
   settings: Settings
 ): Promise<SlotResponse> {
   const calendarId = process.env.GOOGLE_CALENDAR_ID || settings.calendar_id || "";
-  const googlePrivateKey = process.env.GOOGLE_PRIVATE_KEY || "";
+  const calendarServiceUrl = process.env.GOOGLE_CALENDAR_SERVICE_URL || "";
 
   // 1. Check if Google Calendar integration is configured on server
-  const isCalendarConfigured = Boolean(calendarId && (googlePrivateKey || process.env.NODE_ENV === "test"));
+  const isCalendarConfigured = Boolean(calendarId && (process.env.NODE_ENV === "test" || calendarServiceUrl));
 
   if (!isCalendarConfigured) {
     return {
@@ -56,7 +56,17 @@ export async function checkGoogleCalendarAvailability(
     };
   }
 
-  // 2. Parse business hours and calculate slots
+  // 2. Test mode uses deterministic slots; production must use the real
+  // provider so the receptionist never reports invented availability.
+  if (process.env.NODE_ENV !== "test") {
+    return {
+      configured: false,
+      available_slots: [],
+      message: "Google Calendar connector is not configured. Offer a callback instead."
+    };
+  }
+
+  // 3. Parse business hours and calculate deterministic test slots
   const durationMinutes = settings.appointment_duration_minutes || 60;
   const bufferMinutes = settings.appointment_buffer_minutes || 15;
   const businessStart = settings.business_hours?.start || "09:00";
@@ -110,7 +120,6 @@ export async function bookGoogleCalendarAppointment(
   settings: Settings
 ): Promise<BookingResult> {
   const calendarId = process.env.GOOGLE_CALENDAR_ID || settings.calendar_id || "";
-  const googlePrivateKey = process.env.GOOGLE_PRIVATE_KEY || "";
 
   // 1. Idempotency Check: prevent double booking if caller confirms same slot repeatedly
   const idempotencyKey = req.idempotency_key || `${req.callback_number}_${req.appointment_start}`;
@@ -119,7 +128,8 @@ export async function bookGoogleCalendarAppointment(
   }
 
   // 2. Check configuration
-  const isConfigured = Boolean(calendarId && (googlePrivateKey || process.env.NODE_ENV === "test"));
+  const calendarServiceUrl = process.env.GOOGLE_CALENDAR_SERVICE_URL || "";
+  const isConfigured = Boolean(calendarId && (process.env.NODE_ENV === "test" || calendarServiceUrl));
 
   if (!isConfigured) {
     const failureResult: BookingResult = {
@@ -132,10 +142,23 @@ export async function bookGoogleCalendarAppointment(
     return failureResult;
   }
 
-  // 3. Create Google Calendar Event ID
+  // 3. Test mode returns a deterministic mock event. Production must wait for
+  // the real Calendar connector rather than claiming a booking occurred.
+  if (process.env.NODE_ENV !== "test") {
+    const failureResult: BookingResult = {
+      success: false,
+      booking_status: "failed_callback_offered",
+      message: "Google Calendar connector is not configured. Offer caller a callback instead.",
+      error: "CALENDAR_CONNECTOR_NOT_CONFIGURED"
+    };
+    idempotencyStore.set(idempotencyKey, failureResult);
+    return failureResult;
+  }
+
+  // 4. Create deterministic test event ID
   const eventId = `gcal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-  // 4. Save/Update Lead in Firestore
+  // 5. Save/Update Lead in Firestore
   let leadId = "";
   try {
     const leadData: Partial<Lead> = {
@@ -165,7 +188,7 @@ export async function bookGoogleCalendarAppointment(
     console.error("Error creating Firestore appointment record:", err);
   }
 
-  // 5. Send SMS Confirmation via Twilio if enabled and credentials exist
+  // 6. Send SMS Confirmation via Twilio if enabled and credentials exist
   let smsSent = false;
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioToken = process.env.TWILIO_AUTH_TOKEN;
