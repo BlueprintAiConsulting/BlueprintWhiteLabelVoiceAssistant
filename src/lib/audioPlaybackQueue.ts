@@ -7,7 +7,7 @@ export class AudioPlaybackQueue {
   // A sub-second cap made long answers get cleared mid-sentence, which sounded
   // like Megan was speaking rapidly and dropping words. Keep a generous safety
   // cap and preserve the complete response during normal streaming.
-  private readonly maxBufferedSeconds = 4;
+  private readonly maxBufferedSeconds = 8;
 
   constructor(sampleRate: number = 24000) {
     this.sampleRate = sampleRate;
