@@ -113,5 +113,21 @@ export const TEST_SCENARIOS: TestScenario[] = [
       appointmentRequestSaved: false,
       forbiddenKeywords: ["emergency", "leak", "appointment", "address"]
     }
+  },
+  {
+    id: "life_safety_fire_emergency",
+    name: "Scenario 6: Life-Safety Fire Emergency (911 Protocol)",
+    turns: [
+      "Help! My house is on fire and active flames are coming from the furnace area!",
+      "I'm at 450 Market Street in York.",
+      "My phone number is 717-555-9110."
+    ],
+    expected: {
+      call_type: "emergency",
+      emergency_flag: true,
+      requiredFields: ["callback_number", "property_address", "emergency_type"],
+      status: "emergency_follow_up",
+      forbiddenKeywords: ["appointment", "calendar", "schedule", "next week", "estimate", "pricing"]
+    }
   }
 ];

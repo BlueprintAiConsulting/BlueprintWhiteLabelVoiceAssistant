@@ -34,7 +34,7 @@ export async function runScenario(scenario: TestScenario): Promise<TestResult> {
     const chat = await createReceptionistChat();
     
     // Initial greeting
-    const greeting = await chat.sendMessage({ message: "Hello, I'm calling the roofing company." });
+    const greeting = await chat.sendMessage({ message: "Hello, I'm calling Lunar Heating and Cooling." });
     transcript.push({ role: "assistant", text: greeting.text });
     
     // Send scenario turns
@@ -67,11 +67,11 @@ export async function runScenario(scenario: TestScenario): Promise<TestResult> {
         
         // Find the turn that most likely defined the call type
         const typeKeywords: Record<string, string[]> = {
-          "estimate_request": ["estimate", "quote", "new roof", "replacement"],
-          "emergency": ["leak", "emergency", "storm", "urgent", "water"],
-          "repair": ["repair", "fix", "patch", "hole"],
-          "existing_customer": ["status", "update", "check on", "existing"],
-          "general_inquiry": ["question", "info", "hours", "address"]
+          "estimate_request": ["estimate", "quote", "new furnace", "ac replacement", "heat pump", "replacement"],
+          "emergency": ["leak", "emergency", "gas", "no heat", "sparks", "fire", "carbon monoxide", "urgent"],
+          "repair_request": ["repair", "fix", "ac", "furnace", "blowing warm", "blowing cold", "not working"],
+          "maintenance_request": ["tune-up", "tuneup", "maintenance", "service plan", "spring"],
+          "general_office": ["question", "info", "hours", "harrisburg", "estimates", "cover"]
         };
         const keywords = typeKeywords[scenario.expected.call_type] || [];
         const relevantTurn = transcript.find(t => 
