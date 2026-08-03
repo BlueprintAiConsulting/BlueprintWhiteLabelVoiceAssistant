@@ -4,7 +4,8 @@ import { GeminiLiveSession } from "../services/geminiLiveService.ts";
 import { requestGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
 import { auth } from "../firebase.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck } from "lucide-react";
+import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, Waveform } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -16,6 +17,7 @@ function cn(...inputs: ClassValue[]) {
 const SCENARIOS = [
   { id: "estimate", label: "New Estimate Request", icon: Home, prompt: "Hi, I'm looking to get a quote for a new AC unit." },
   { id: "emergency", label: "Emergency No Heat", icon: ShieldAlert, prompt: "Help! My furnace stopped working and it's freezing in here!" },
+  { id: "noise_diag", label: "Furnace Sound Diagnostic", icon: Volume2, prompt: "Listen to my furnace! It's making a high-pitched screeching sound when the heat turns on." },
   { id: "repair", label: "Repair Request", icon: AlertCircle, prompt: "My AC is blowing warm air." },
   { id: "maintenance", label: "Maintenance Plan", icon: Clock, prompt: "I'd like to schedule my spring tune-up." },
   { id: "general", label: "General Office Question", icon: HelpCircle, prompt: "What are your office hours today?" },
@@ -39,6 +41,7 @@ export default function Simulator() {
   const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
   const [selectedPersona, setSelectedPersona] = useState(PERSONAS[0]);
   const [callDuration, setCallDuration] = useState(0);
+  const [transferDetails, setTransferDetails] = useState<{ target: string; reason: string; status: string } | null>(null);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
@@ -68,6 +71,7 @@ export default function Simulator() {
 
   useEffect(() => {
     return () => {
+      callTransferAudioFX.stopRingback();
       if (liveSessionRef.current) {
         liveSessionRef.current.stop();
         liveSessionRef.current = null;
@@ -92,6 +96,7 @@ export default function Simulator() {
       setTranscript([]);
       setDebugInfo([]);
       setCapturedLead(null);
+      setTransferDetails(null);
 
       const response = await newChat.sendMessage({ message: "Hello, I'm calling Lunar Heating and Cooling." });
       setTranscript([{ role: "assistant", text: response.text }]);
@@ -116,6 +121,7 @@ export default function Simulator() {
     setTranscript([]);
     setDebugInfo([]);
     setCapturedLead(null);
+    setTransferDetails(null);
     setTurnState("listening");
 
     if (!auth.currentUser) {
@@ -129,7 +135,7 @@ export default function Simulator() {
       let activeSettings;
       try {
         activeSettings = await getSettings();
-        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}". Persona: ${selectedPersona.name}` }]);
+        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}". Active Voice: ${selectedPersona.voice} (${selectedPersona.name})` }]);
       } catch (sErr) {
         setTranscript(prev => [...prev, { role: "system", text: "[SETTINGS WARNING] Could not fetch Firestore config. Operating on fallback system settings." }]);
       }
@@ -172,7 +178,17 @@ export default function Simulator() {
         onToolCall: (toolInfo) => {
           setDebugInfo(prev => [...prev, toolInfo]);
           if (toolInfo.name === "transferCall") {
-            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${toolInfo.args.target_number || "On-Call Technician"}. Reason: ${toolInfo.args.reason}` }]);
+            const targetNum = toolInfo.args.target_number || "+1 (717) 577-0668";
+            callTransferAudioFX.startRingback();
+            setTransferDetails({
+              target: targetNum,
+              reason: toolInfo.args.reason || "On-Call Technician Dispatch",
+              status: "ringing"
+            });
+            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${targetNum}. Playing US PSTN Ringback tone...` }]);
+          }
+          if (toolInfo.name === "diagnoseHvacSound") {
+            setTranscript(prev => [...prev, { role: "system", text: `[ACOUSTIC DIAGNOSTIC ENGINE] Analyzed unit audio: ${toolInfo.args.sound_characteristics || "Mechanical noise"}. Probable cause identified.` }]);
           }
           if (toolInfo.name === "checkAppointmentSlots") {
             setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR CHECK] Checked technician availability for ${toolInfo.args.service_type || "service"}.` }]);
@@ -182,8 +198,8 @@ export default function Simulator() {
           }
         },
         onCapturedLead: (lead) => {
-          setCapturedLead(lead);
-          setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
+          setCapturedLead(prev => ({ ...prev, ...lead }));
+          setTranscript(prev => [...prev, { role: "system", text: "Lead telemetry captured and saved to database." }]);
         },
         onError: (err: any) => {
           console.error("Voice mode error:", err);
@@ -191,6 +207,7 @@ export default function Simulator() {
           setTranscript(prev => [...prev, { role: "system", text: `Voice connection error ${detail ? `: ${detail}` : "(Check API key or microphone permissions)"}` }]);
         },
         onClose: () => {
+          callTransferAudioFX.stopRingback();
           setIsCalling(false);
           setIsVoiceMode(false);
         }
@@ -213,11 +230,13 @@ export default function Simulator() {
     const mockNumber = `(717) 555-${Math.floor(1000 + Math.random() * 9000)}`;
     setTranscript([{ role: "system", text: `[MISSED CALL] Incoming call from ${mockNumber} was unanswered.` }]);
     await triggerMissedCallTextBack(mockNumber, "Valued Caller");
-    setTranscript(prev => [...prev, { role: "system", text: `[AUTOMATED SMS SENT] Text-back message successfully dispatched to ${mockNumber}. Lead recorded on Dashboard.` }]);
+    setTranscript(prev => [...prev, { role: "system", text: `[AUTOMATED SMS DISPATCHED] Text-back message successfully sent to ${mockNumber}. Lead recorded on Dashboard.` }]);
     setIsLoading(false);
   };
 
   const endCall = () => {
+    callTransferAudioFX.stopRingback();
+    setTransferDetails(null);
     if (liveSessionRef.current) {
       liveSessionRef.current.stop();
       liveSessionRef.current = null;
@@ -243,15 +262,22 @@ export default function Simulator() {
         for (const call of response.functionCalls) {
           setDebugInfo(prev => [...prev, { name: call.name, args: call.args }]);
           if (call.name === "saveLead") {
-            setCapturedLead(call.args);
+            setCapturedLead(prev => ({ ...prev, ...call.args }));
             await processLead({ ...call.args, transcript: [...transcript, { role: "user", text }, { role: "assistant", text: response.text }] });
             setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
           }
           if (call.name === "transferCall") {
-            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${call.args.target_number || "On-Call Technician"}. Reason: ${call.args.reason}` }]);
+            const targetNum = call.args.target_number || "+1 (717) 577-0668";
+            callTransferAudioFX.startRingback();
+            setTransferDetails({
+              target: targetNum,
+              reason: call.args.reason || "On-Call Technician Dispatch",
+              status: "ringing"
+            });
+            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${targetNum}. Playing US PSTN Ringback tone...` }]);
           }
-          if (call.name === "checkAppointmentSlots") {
-            setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR CHECK] Checked technician availability for ${call.args.service_type || "service"}.` }]);
+          if (call.name === "diagnoseHvacSound") {
+            setTranscript(prev => [...prev, { role: "system", text: `[ACOUSTIC DIAGNOSTIC ENGINE] Analyzed unit noise: ${call.args.probable_cause || "Mechanical Fault"}.` }]);
           }
         }
       }
@@ -270,6 +296,59 @@ export default function Simulator() {
       {/* Background radial glow spots */}
       <div className="absolute top-0 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Live Call Transfer HUD Ringback Overlay */}
+      <AnimatePresence>
+        {transferDetails && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute inset-x-6 top-16 z-50 p-6 bg-slate-900/95 border border-rose-500/50 rounded-3xl shadow-[0_0_50px_rgba(244,63,94,0.4)] backdrop-blur-2xl text-center space-y-4"
+          >
+            <div className="flex items-center justify-center gap-4">
+              <div className="p-3.5 bg-rose-500/20 text-rose-400 rounded-2xl animate-bounce border border-rose-500/40">
+                <PhoneCall size={26} />
+              </div>
+              <div className="text-left">
+                <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2 font-serif italic">
+                  WARM CALL TRANSFER IN PROGRESS
+                  <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping" />
+                </h3>
+                <p className="text-xs font-mono text-cyan-300">Routing to: {transferDetails.target} • Reason: {transferDetails.reason}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center gap-2 text-xs font-mono text-slate-300 bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800/80">
+              <Radio size={16} className="text-cyan-400 animate-pulse" />
+              <span>Synthesizing PSTN Dual-Tone Ringback (440Hz + 480Hz)...</span>
+            </div>
+
+            <div className="flex justify-center gap-3 pt-1">
+              <button
+                onClick={() => {
+                  callTransferAudioFX.stopRingback();
+                  setTransferDetails(null);
+                }}
+                className="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-bold uppercase transition-all min-h-[40px]"
+              >
+                Cancel Transfer
+              </button>
+              <button
+                onClick={() => {
+                  callTransferAudioFX.stopRingback();
+                  callTransferAudioFX.playDTMF(941, 1336, 180);
+                  setTransferDetails(prev => prev ? { ...prev, status: "connected" } : null);
+                  setTranscript(prev => [...prev, { role: "system", text: "[LIVE CALL CONNECTED] Technician (+1-717-577-0668) answered warm transfer." }]);
+                }}
+                className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-5 py-2.5 rounded-xl font-bold uppercase transition-all shadow-[0_0_15px_rgba(16,185,129,0.25)] min-h-[40px]"
+              >
+                Simulate Tech Answer (DTMF)
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Top Bar Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4 shrink-0 relative z-10">
@@ -370,12 +449,14 @@ export default function Simulator() {
                   disabled={isLoading}
                   className={cn(
                     "flex items-center gap-3 p-3.5 bg-slate-900/70 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 backdrop-blur-xl shadow-md",
-                    scenario.id === "emergency" && "border-rose-500/30 hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-950/10"
+                    scenario.id === "emergency" && "border-rose-500/30 hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-950/10",
+                    scenario.id === "noise_diag" && "border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] bg-amber-950/10"
                   )}
                 >
                   <div className={cn(
                     "p-2.5 rounded-xl transition-colors shadow-inner shrink-0",
-                    scenario.id === "emergency" ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "bg-slate-800 text-cyan-400 border border-slate-700 group-hover:border-cyan-500/50"
+                    scenario.id === "emergency" ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : 
+                    scenario.id === "noise_diag" ? "bg-amber-500/20 text-amber-400 border border-amber-500/40" : "bg-slate-800 text-cyan-400 border border-slate-700 group-hover:border-cyan-500/50"
                   )}>
                     <scenario.icon size={18} />
                   </div>
@@ -547,6 +628,27 @@ export default function Simulator() {
 
         {/* Right Column: Live Function Call Debugger & Captured Lead Card */}
         <div className="flex flex-col gap-5 overflow-y-auto pl-1">
+          {/* Acoustic Sound Diagnostic Visualizer */}
+          {capturedLead?.sound_diagnosis && (
+            <section className="bg-amber-950/20 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-2.5">
+              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400 font-bold flex items-center gap-1.5">
+                <Volume2 size={14} className="animate-pulse" />
+                Acoustic Sound Diagnosis
+              </h3>
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
+                <div className="font-bold text-amber-200 capitalize">
+                  {capturedLead.sound_diagnosis.sound_type.replace(/_/g, ' ')}
+                </div>
+                <div className="text-slate-300 text-[11px]">
+                  <span className="text-slate-400 font-mono font-semibold">Fault:</span> {capturedLead.sound_diagnosis.probable_cause}
+                </div>
+                <div className="text-slate-400 text-[10px] italic border-t border-slate-800/80 pt-1.5">
+                  <span className="text-amber-400 font-mono font-semibold">Action:</span> {capturedLead.sound_diagnosis.recommended_action}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Captured Lead Telemetry Card */}
           <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3">
             <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400 font-bold flex items-center gap-1.5">
@@ -594,7 +696,7 @@ export default function Simulator() {
                 ))
               ) : (
                 <div className="p-4 text-center text-slate-500 font-mono text-[11px] bg-slate-950/40 rounded-xl border border-slate-800/60">
-                  Awaiting function calls (e.g. checkAppointmentSlots, saveLead, transferCall)...
+                  Awaiting function calls (e.g. diagnoseHvacSound, transferCall, saveLead)...
                 </div>
               )}
             </div>

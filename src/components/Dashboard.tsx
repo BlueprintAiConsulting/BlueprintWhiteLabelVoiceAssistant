@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
 import { Lead, CallType, CallStatus } from "../types.ts";
-import { Search, Filter, Clock, CheckCircle, XCircle, Trash2, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, Wrench, ThermometerSun, ChevronRight, Activity } from "lucide-react";
+import { Search, Filter, Clock, CheckCircle, XCircle, Trash2, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, Wrench, ThermometerSun, ChevronRight, Activity, Volume2 } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -557,6 +557,24 @@ export default function Dashboard() {
                       ) : "No specific time requested"}
                     </div>
                   </div>
+
+                  {selectedLead.sound_diagnosis && (
+                    <div className="space-y-1.5 p-3.5 bg-amber-950/20 rounded-xl border border-amber-500/30">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold flex items-center gap-1.5">
+                        <Volume2 size={14} />
+                        Acoustic Sound Diagnosis
+                      </div>
+                      <div className="text-sm font-semibold text-slate-100 capitalize">
+                        {selectedLead.sound_diagnosis.sound_type.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        <span className="text-slate-400 font-mono">Probable Cause:</span> {selectedLead.sound_diagnosis.probable_cause}
+                      </div>
+                      <div className="text-xs text-amber-300/90 italic pt-1 border-t border-amber-500/20">
+                        <span className="font-mono not-italic font-bold">Tech Action:</span> {selectedLead.sound_diagnosis.recommended_action}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">AI Triage Summary</div>

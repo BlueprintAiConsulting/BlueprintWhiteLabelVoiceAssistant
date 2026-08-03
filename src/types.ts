@@ -6,6 +6,21 @@ export interface TranscriptEntry {
   text: string;
 }
 
+export interface SoundDiagnosis {
+  sound_type: string;
+  probable_cause: string;
+  severity: 'critical' | 'warning' | 'routine';
+  recommended_action: string;
+  acoustic_frequency_hz?: number;
+}
+
+export interface CallTransferDetails {
+  target_number: string;
+  reason: string;
+  status: 'initiating' | 'ringing' | 'connected' | 'failed';
+  initiated_at?: string;
+}
+
 export interface Lead {
   id?: string;
   caller_name?: string;
@@ -39,6 +54,8 @@ export interface Lead {
   call_status: CallStatus;
   transfer_attempted?: boolean;
   transfer_result?: string;
+  sound_diagnosis?: SoundDiagnosis;
+  call_transfer_details?: CallTransferDetails;
   created_at: any; // Firestore Timestamp
   updated_at?: any; // Firestore Timestamp
 }

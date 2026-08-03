@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, GenerateContentResponse, Chat } from "@google/genai";
 import { db, auth, addDoc, collection, serverTimestamp, handleFirestoreError, OperationType, doc, getDoc } from "../firebase.ts";
 import { Lead, CallType, CallStatus, Settings } from "../types.ts";
+import { analyzeHvacSound } from "./hvacIntelligence.ts";
 
 
 const DEFAULT_SETTINGS: Settings = {
@@ -98,7 +99,16 @@ export async function createReceptionistChat(): Promise<any> {
         call_status: isEmergency ? "emergency_follow_up" : "new"
       };
 
-      if (turnsHistory.length >= 2 || nameMatch || phoneMatch || isEmergency) {
+      if (fullText.includes("squeal") || fullText.includes("screech") || fullText.includes("rattle") || fullText.includes("hiss") || fullText.includes("knock") || fullText.includes("sound") || fullText.includes("noise")) {
+        const soundAnalysis = analyzeHvacSound(fullText);
+        leadData.sound_diagnosis = soundAnalysis;
+        functionCalls.push({
+          name: "diagnoseHvacSound",
+          args: soundAnalysis
+        });
+      }
+
+      if (turnsHistory.length >= 2 || nameMatch || phoneMatch || isEmergency || leadData.sound_diagnosis) {
         functionCalls.push({
           name: "saveLead",
           args: leadData

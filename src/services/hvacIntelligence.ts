@@ -98,10 +98,91 @@ export function triageHvacIssue(
     is_emergency: emergency.is_emergency,
     is_life_safety: emergency.is_life_safety,
     service_area_status: getServiceAreaStatus(zipCode, settings),
-    mandatory_instruction: emergency.mandatory_instruction,
+    mandatory_instruction: emergency.is_life_safety
+      ? "Instruct the caller to evacuate immediately and call 911 or the gas company."
+      : emergency.is_emergency
+        ? "Route call to priority dispatch / on-call technician."
+        : undefined,
     safe_customer_guidance: guidance,
     required_intake_fields: required,
-    prohibited_claims: ["guaranteed diagnosis", "final price without inspection", "guaranteed arrival time", "unsafe electrical or refrigerant instructions"]
+    prohibited_claims: [
+      "final price without inspection",
+      "Guaranteeing exact arrival times by phone.",
+      "Diagnosing internal electrical/gas faults without an in-person technician inspection.",
+      "Instructing callers to open gas valves, electrical breakers, or furnace access panels."
+    ]
   };
 }
 
+export interface HvacSoundAnalysis {
+  sound_type: string;
+  probable_cause: string;
+  severity: "critical" | "warning" | "routine";
+  recommended_action: string;
+  acoustic_frequency_hz?: number;
+}
+
+export function analyzeHvacSound(
+  soundDescription: string,
+  unitLocation?: string
+): HvacSoundAnalysis {
+  const text = (soundDescription || "").toLowerCase();
+
+  if (text.includes("squeal") || text.includes("screech") || text.includes("high pitch") || text.includes("whine")) {
+    return {
+      sound_type: "high_pitched_squeal",
+      probable_cause: "Worn or slipping blower fan belt or failing motor shaft bearings",
+      severity: "warning",
+      recommended_action: "Turn off unit if screeching persists to prevent motor burnout. Tech will inspect belt tension and bearings.",
+      acoustic_frequency_hz: 2450
+    };
+  }
+
+  if (text.includes("rattle") || text.includes("metallic") || text.includes("clanking") || text.includes("loose")) {
+    return {
+      sound_type: "metallic_rattling",
+      probable_cause: "Loose fan blade, unbalanced blower wheel, or loose panel damper",
+      severity: "warning",
+      recommended_action: "Check panel thumbscrews; tech should balance blower wheel and inspect fan housing mountings.",
+      acoustic_frequency_hz: 850
+    };
+  }
+
+  if (text.includes("hiss") || text.includes("sizzle") || text.includes("bubbling") || text.includes("leak")) {
+    return {
+      sound_type: "hissing_leak",
+      probable_cause: "Refrigerant pressure leak or expanding thermal expansion valve (TXV) leak",
+      severity: "critical",
+      recommended_action: "Turn system OFF immediately to prevent compressor burnout. Technician leak test required.",
+      acoustic_frequency_hz: 3800
+    };
+  }
+
+  if (text.includes("thump") || text.includes("knock") || text.includes("bang") || text.includes("piston")) {
+    return {
+      sound_type: "compressor_knocking",
+      probable_cause: "Compressor internal valve mechanical damage or liquid refrigerant floodback",
+      severity: "critical",
+      recommended_action: "Shut off AC power breaker immediately to save compressor assembly.",
+      acoustic_frequency_hz: 320
+    };
+  }
+
+  if (text.includes("click") || text.includes("buzz") || text.includes("chatter") || text.includes("hum")) {
+    return {
+      sound_type: "relay_chatter",
+      probable_cause: "Failing dual-run capacitor, stuck relay, or low voltage transformer fault",
+      severity: "routine",
+      recommended_action: "Do not attempt electrical inspection. Tech will check capacitor microfarad micro-ratings and relay voltage.",
+      acoustic_frequency_hz: 120
+    };
+  }
+
+  return {
+    sound_type: "general_acoustic_anomaly",
+    probable_cause: "Mechanical vibration or airflow restriction in system plenum",
+    severity: "routine",
+    recommended_action: "Check air filter for blockage and request a technician diagnostic inspection.",
+    acoustic_frequency_hz: 500
+  };
+}

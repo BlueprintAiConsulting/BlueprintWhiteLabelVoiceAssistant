@@ -247,6 +247,18 @@ export class GeminiLiveSession {
                 }
               },
               {
+                name: "diagnoseHvacSound",
+                description: "Analyzes acoustic characteristics of strange HVAC noises (squealing, metallic rattling, hissing, compressor knocking, relay clicking) to identify probable mechanical faults.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    sound_characteristics: { type: "STRING", description: "Audible sound characteristics (e.g. screeching, rattling, hissing, knocking)." },
+                    unit_location: { type: "STRING", description: "Indoor furnace, outdoor condenser, ductwork, etc." }
+                  },
+                  required: ["sound_characteristics"]
+                }
+              },
+              {
                 name: "bookAppointment",
                 description: "Books a confirmed HVAC technician appointment slot after caller agreement.",
                 parameters: {

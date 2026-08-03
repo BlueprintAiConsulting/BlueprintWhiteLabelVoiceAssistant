@@ -2,7 +2,7 @@ import { Settings, Lead } from "../types.ts";
 import { processLead } from "./geminiService.ts";
 import { getAvailableAppointmentSlots, bookAppointmentSlot } from "./calendarService.ts";
 import { ConversationState } from "./conversationState.ts";
-import { triageHvacIssue } from "./hvacIntelligence.ts";
+import { triageHvacIssue, analyzeHvacSound } from "./hvacIntelligence.ts";
 import { buildHumanEscalationPlan } from "./humanEscalationService.ts";
 import { executeWarmTransfer } from "./twilioBridgeService.ts";
 
@@ -267,6 +267,25 @@ export async function executeLiveToolCall(
             message: ownerRequest
               ? "Call transfer initiated to the business owner."
               : `Call transfer initiated to ${transferTarget}.`
+          }
+        };
+      }
+
+      case "diagnoseHvacSound": {
+        const soundAnalysis = analyzeHvacSound(
+          args.sound_characteristics || args.issue_description || "",
+          args.unit_location
+        );
+        onCapturedLead?.({
+          sound_diagnosis: soundAnalysis
+        });
+        return {
+          toolName: name,
+          callId: id,
+          output: {
+            success: true,
+            ...soundAnalysis,
+            message: `Acoustic sound analyzed: ${soundAnalysis.probable_cause}. Recommendation: ${soundAnalysis.recommended_action}`
           }
         };
       }
