@@ -4,7 +4,7 @@ import { GeminiLiveSession } from "../services/geminiLiveService.ts";
 import { requestGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
 import { auth } from "../firebase.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug, Mic, MicOff, MessageSquare } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -22,6 +22,12 @@ const SCENARIOS = [
   { id: "spam", label: "Spam Call", icon: User, prompt: "We've been trying to reach you about your car's extended warranty." }
 ];
 
+const PERSONAS = [
+  { id: "sarah", name: "Sarah", title: "Warm & Professional Dispatcher", voice: "Aoede" },
+  { id: "mark", name: "Mark", title: "Technical Emergency Specialist", voice: "Puck" },
+  { id: "elena", name: "Elena", title: "Friendly Customer Service Rep", voice: "Kore" }
+];
+
 export default function Simulator() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [userInput, setUserInput] = useState("");
@@ -31,9 +37,12 @@ export default function Simulator() {
   const [capturedLead, setCapturedLead] = useState<Partial<Lead> | null>(null);
   const [chat, setChat] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
+  const [selectedPersona, setSelectedPersona] = useState(PERSONAS[0]);
+  const [callDuration, setCallDuration] = useState(0);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
+  const timerRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -44,7 +53,20 @@ export default function Simulator() {
   }, [transcript]);
 
   useEffect(() => {
-    // Cleanup on unmount
+    if (isCalling) {
+      setCallDuration(0);
+      timerRef.current = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isCalling]);
+
+  useEffect(() => {
     return () => {
       if (liveSessionRef.current) {
         liveSessionRef.current.stop();
@@ -52,6 +74,12 @@ export default function Simulator() {
       }
     };
   }, []);
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const startCall = async (initialPrompt?: string) => {
     if (isCalling) endCall();
@@ -65,11 +93,10 @@ export default function Simulator() {
       setDebugInfo([]);
       setCapturedLead(null);
 
-      const response = await newChat.sendMessage({ message: "Hello, I'm calling the roofing company." });
+      const response = await newChat.sendMessage({ message: "Hello, I'm calling Lunar Heating and Cooling." });
       setTranscript([{ role: "assistant", text: response.text }]);
       
       if (initialPrompt) {
-        // Wait a small bit for the greeting to settle
         setTimeout(() => handleSendMessage(initialPrompt, newChat), 500);
       }
     } catch (error) {
@@ -102,16 +129,15 @@ export default function Simulator() {
       let activeSettings;
       try {
         activeSettings = await getSettings();
-        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}".` }]);
+        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}". Persona: ${selectedPersona.name}` }]);
       } catch (sErr) {
         setTranscript(prev => [...prev, { role: "system", text: "[SETTINGS WARNING] Could not fetch Firestore config. Operating on fallback system settings." }]);
       }
 
-      // Request real Gemini Live ephemeral token from backend Cloud Function endpoint
       let tokenRes;
       try {
         tokenRes = await requestGeminiEphemeralToken();
-        setTranscript(prev => [...prev, { role: "system", text: "[SECURITY] Server-issued Gemini Live token received." }]);
+        setTranscript(prev => [...prev, { role: "system", text: "[SECURITY] Server-issued Gemini 2.0 Live WebSocket token received." }]);
       } catch (tErr: any) {
         setTranscript(prev => [...prev, { role: "system", text: `[SECURITY ERROR] ${tErr.message || "Failed to obtain Gemini Live ephemeral token from server."}` }]);
         setIsLoading(false);
@@ -238,23 +264,28 @@ export default function Simulator() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-transparent p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6 overflow-y-auto lg:overflow-hidden relative z-10">
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4 shrink-0">
+    <div className="flex flex-col h-full bg-slate-950/80 p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6 overflow-y-auto lg:overflow-hidden relative text-slate-100 font-sans">
+      {/* Background radial glow spots */}
+      <div className="absolute top-0 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Top Bar Header */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4 shrink-0 relative z-10">
         <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-100">Call Simulator</h1>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
-            <p className="text-xs sm:text-sm text-slate-400">Test the AI receptionist with live voice or text scenarios.</p>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-[0_0_8px_rgba(34,211,238,0.2)]">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-              VOICE SERVICE READY
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-100 tracking-tight">Call Simulator</h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-[0_0_12px_rgba(34,211,238,0.2)]">
+              <Zap size={13} className="text-cyan-400 animate-pulse" />
+              GEMINI 2.0 MULTIMODAL
             </span>
           </div>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">Simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.</p>
         </div>
         <div className="flex flex-wrap gap-2.5 shrink-0">
           {isCalling ? (
             <button
               onClick={endCall}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-500/20 text-rose-400 border border-rose-500/50 px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-rose-500/30 transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] min-h-[44px]"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-500/20 text-rose-300 border border-rose-500/50 px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-rose-500/30 transition-all shadow-[0_0_20px_rgba(244,63,94,0.3)] min-h-[44px]"
             >
               <PhoneOff size={16} />
               Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})
@@ -264,7 +295,7 @@ export default function Simulator() {
               <button
                 onClick={simulateMissedCall}
                 disabled={isLoading}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-amber-500/20 transition-all shadow-[0_0_10px_rgba(245,158,11,0.1)] disabled:opacity-50 min-h-[44px]"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-amber-500/20 transition-all shadow-sm disabled:opacity-50 min-h-[44px]"
               >
                 <MessageSquare size={16} />
                 Missed Text
@@ -272,16 +303,15 @@ export default function Simulator() {
               <button
                 onClick={startVoiceCall}
                 disabled={isLoading}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-cyan-500/30 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] disabled:opacity-50 relative overflow-hidden group min-h-[44px]"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-cyan-500/30 transition-all shadow-[0_0_15px_rgba(34,211,238,0.25)] disabled:opacity-50 relative overflow-hidden group min-h-[44px]"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-400/30 to-cyan-500/0 translate-x-[-100%] group-hover:animate-[shimmer_2s_infinite]"></div>
-                <Mic size={16} />
-                Voice Call (Mic)
+                <Mic size={16} className="text-cyan-400" />
+                Live Voice Call (Mic)
               </button>
               <button
                 onClick={() => startCall()}
                 disabled={isLoading}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-emerald-500/20 transition-all shadow-[0_0_10px_rgba(16,185,129,0.1)] disabled:opacity-50 min-h-[44px]"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-emerald-500/20 transition-all shadow-sm disabled:opacity-50 min-h-[44px]"
               >
                 <Phone size={16} />
                 Text Call
@@ -291,11 +321,45 @@ export default function Simulator() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 overflow-hidden">
-        {/* Left: Scenarios */}
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 overflow-hidden relative z-10">
+        {/* Left Column: Persona & Quick Launch Scenarios */}
+        <div className="flex flex-col gap-5 overflow-y-auto pr-1">
+          {/* Receptionist Persona Picker */}
+          <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400 font-bold flex items-center gap-1.5">
+                <UserCheck size={14} />
+                Receptionist Voice Persona
+              </h3>
+              <span className="text-[9px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
+                Voice: {selectedPersona.voice}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {PERSONAS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPersona(p)}
+                  className={cn(
+                    "w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between text-xs",
+                    selectedPersona.id === p.id 
+                      ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.1)]" 
+                      : "bg-slate-950/40 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                  )}
+                >
+                  <div>
+                    <div className="font-semibold text-slate-200">{p.name}</div>
+                    <div className="text-[10px] text-slate-400">{p.title}</div>
+                  </div>
+                  {selectedPersona.id === p.id && <Sparkles size={14} className="text-cyan-400" />}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Quick Launch Scenarios */}
           <section className="space-y-3">
-            <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 font-bold">Quick Launch Scenarios</h2>
+            <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Quick Launch Scenarios</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
               {SCENARIOS.map((scenario) => (
                 <button
@@ -303,70 +367,99 @@ export default function Simulator() {
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
                   className={cn(
-                    "flex items-center gap-3 p-4 bg-slate-900/40 border border-slate-700/50 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/30 hover:shadow-[0_0_10px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 backdrop-blur-sm",
-                    scenario.id === "emergency" && "border-rose-500/20 hover:border-rose-500/40 hover:shadow-[0_0_10px_rgba(244,63,94,0.1)]"
+                    "flex items-center gap-3 p-3.5 bg-slate-900/70 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 backdrop-blur-xl shadow-md",
+                    scenario.id === "emergency" && "border-rose-500/30 hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-950/10"
                   )}
                 >
                   <div className={cn(
-                    "p-2 rounded-xl transition-colors shadow-inner",
-                    scenario.id === "emergency" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-cyan-400 border border-slate-700 group-hover:border-cyan-500/50"
+                    "p-2.5 rounded-xl transition-colors shadow-inner shrink-0",
+                    scenario.id === "emergency" ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "bg-slate-800 text-cyan-400 border border-slate-700 group-hover:border-cyan-500/50"
                   )}>
-                    <scenario.icon size={20} />
+                    <scenario.icon size={18} />
                   </div>
-                  <div>
-                    <div className="font-bold text-sm text-slate-200">{scenario.label}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-xs text-slate-200 truncate">{scenario.label}</div>
                     <div className="text-[10px] text-slate-400 line-clamp-1 italic mt-0.5">"{scenario.prompt}"</div>
                   </div>
                 </button>
               ))}
             </div>
           </section>
-
-          <section className="p-5 bg-slate-900/60 border border-slate-700 rounded-2xl text-slate-200 space-y-4 shadow-xl backdrop-blur-sm">
-            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-500 font-bold">Simulation Context</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">Time of Day</span>
-                <span className="font-bold text-cyan-300">Business Hours</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">AI Personality</span>
-                <span className="font-bold">Professional Office</span>
-              </div>
-              <div className="pt-2 flex gap-2">
-                <button className="flex-1 text-[10px] font-bold uppercase py-2 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">Toggle Hours</button>
-              </div>
-            </div>
-          </section>
         </div>
 
-        {/* Center: Transcript */}
-        <div className="lg:col-span-2 flex flex-col bg-slate-900/40 border border-slate-700 rounded-[2rem] shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden relative backdrop-blur-md">
-          <div className="p-6 border-b border-slate-800 bg-slate-800/40 flex justify-between items-center">
+        {/* Center: Live Call Workspace & Transcript */}
+        <div className="lg:col-span-2 flex flex-col bg-slate-900/70 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden relative backdrop-blur-xl">
+          {/* Call Status Header */}
+          <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900/90 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
-              <div className={cn("w-3 h-3 rounded-full shadow-[0_0_5px_rgba(0,0,0,0.5)]", isCalling ? "bg-cyan-400 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.8)]" : "bg-slate-600")} />
-              <span className="text-sm font-bold text-slate-300 uppercase tracking-widest font-mono">{isCalling ? "Call in Progress" : "Line Ready"}</span>
+              <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-cyan-400 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.9)]" : "bg-slate-600")} />
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-widest font-mono">
+                  {isCalling ? `LIVE CALL IN PROGRESS (${isVoiceMode ? "Voice Mode" : "Text Mode"})` : "VOICE LINE READY"}
+                </span>
+                {isCalling && (
+                  <div className="text-[10px] font-mono text-cyan-400 mt-0.5">
+                    Receptionist: {selectedPersona.name} ({selectedPersona.title})
+                  </div>
+                )}
+              </div>
             </div>
-            {isCalling && <div className="px-3 py-1 bg-cyan-950 border border-cyan-900 rounded-full text-[10px] font-mono text-cyan-400 shadow-inner">00:42</div>}
+            {isCalling && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-full text-xs font-mono text-cyan-300 shadow-inner">
+                <Clock size={13} className="text-cyan-400" />
+                {formatDuration(callDuration)}
+              </div>
+            )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 space-y-6">
+          {/* Interactive Live Audio Waveform Visualizer Bar */}
+          {isCalling && isVoiceMode && (
+            <div className="bg-slate-950/80 border-b border-slate-800/80 p-3 px-6 flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
+                <Volume2 size={15} className={turnState === "receptionist_speaking" ? "text-cyan-400 animate-bounce" : "text-slate-500"} />
+                <span className="uppercase text-[11px] font-bold tracking-wider">
+                  {turnState === "receptionist_speaking" ? `${selectedPersona.name} Speaking...` : turnState === "caller_speaking" ? "Caller Speaking..." : turnState === "interrupted" ? "Barge-In Interrupted!" : "Listening for Voice..."}
+                </span>
+              </div>
+              
+              {/* Dynamic Animated Equalizer Bars */}
+              <div className="flex items-center gap-1.5 h-6">
+                {[40, 75, 55, 90, 60, 85, 45, 95, 70, 50].map((height, i) => (
+                  <div
+                    key={i}
+                    style={{ height: turnState !== "listening" ? `${height}%` : "20%" }}
+                    className={cn(
+                      "w-1 rounded-full transition-all duration-150",
+                      turnState === "receptionist_speaking" && "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse",
+                      turnState === "caller_speaking" && "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse",
+                      turnState === "interrupted" && "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-bounce",
+                      turnState === "listening" && "bg-slate-700"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Transcript Scroll Container */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <AnimatePresence initial={false}>
               {transcript.length === 0 && !isCalling && (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-6 opacity-50">
-                  <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 shadow-inner">
-                    <Phone size={48} strokeWidth={1} className="text-cyan-500/50" />
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-5 opacity-60 my-12">
+                  <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-800 shadow-inner">
+                    <Phone size={36} strokeWidth={1.5} className="text-cyan-400/60" />
                   </div>
                   <div className="text-center space-y-1">
-                    <p className="text-lg font-mono italic text-slate-400">SYSTEM.READY</p>
-                    <p className="text-xs">Select a scenario on the left to simulate a call.</p>
+                    <p className="text-sm font-mono tracking-widest text-slate-300">SYSTEM.READY</p>
+                    <p className="text-xs text-slate-500">Select a scenario on the left or click "Live Voice Call" to test the AI Receptionist.</p>
                   </div>
                 </div>
               )}
+
               {transcript.map((entry, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "flex flex-col max-w-[85%]",
@@ -375,16 +468,16 @@ export default function Simulator() {
                   )}
                 >
                   {entry.role !== "system" && (
-                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500 mb-1.5 px-1 font-mono">
-                      {entry.role === "assistant" ? "AI Receptionist" : "Caller"}
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-1 px-1 font-mono">
+                      {entry.role === "assistant" ? `AI Receptionist (${selectedPersona.name})` : "Caller"}
                     </span>
                   )}
                   <div
                     className={cn(
-                      "px-5 py-3 rounded-2xl text-sm leading-relaxed shadow-md backdrop-blur-sm border",
-                      entry.role === "user" ? "bg-slate-800/80 text-cyan-50 rounded-tr-none border-slate-700" : 
-                      entry.role === "assistant" ? "bg-cyan-900/20 text-cyan-200 rounded-tl-none border-cyan-500/20 shadow-[0_0_10px_rgba(34,211,238,0.05)]" :
-                      "bg-amber-500/10 text-amber-300 italic text-[11px] border border-amber-500/20 rounded-lg text-center"
+                      "px-4 py-3 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-md backdrop-blur-sm border",
+                      entry.role === "user" ? "bg-slate-800/90 text-slate-100 rounded-tr-none border-slate-700/80" : 
+                      entry.role === "assistant" ? "bg-cyan-950/40 text-cyan-100 rounded-tl-none border-cyan-800/50 shadow-[0_0_12px_rgba(34,211,238,0.05)]" :
+                      "bg-amber-500/10 text-amber-300 italic text-[11px] border border-amber-500/20 rounded-xl text-center font-mono py-2"
                     )}
                   >
                     {entry.text}
@@ -392,19 +485,21 @@ export default function Simulator() {
                 </motion.div>
               ))}
             </AnimatePresence>
+
             {isLoading && (
-              <div className="flex gap-1.5 items-center px-5 py-3 bg-slate-800/50 rounded-2xl w-fit border border-slate-700/50">
-                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-bounce shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+              <div className="flex gap-1.5 items-center px-4 py-2.5 bg-slate-800/60 rounded-2xl w-fit border border-slate-700/60">
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
               </div>
             )}
             <div ref={transcriptEndRef} />
           </div>
 
-          <div className="p-6 bg-slate-900/60 border-t border-slate-800">
+          {/* Text Input / VAD Status Bar */}
+          <div className="p-4 bg-slate-900/90 border-t border-slate-800/80">
             {isVoiceMode ? (
-              <div className="flex items-center justify-between px-6 py-3 bg-slate-800/80 border border-slate-700 rounded-2xl font-mono text-xs shadow-inner">
+              <div className="flex items-center justify-between px-5 py-3 bg-slate-950/80 border border-slate-800 rounded-xl font-mono text-xs shadow-inner">
                 <div className="flex items-center gap-3">
                   <span className={cn(
                     "w-2.5 h-2.5 rounded-full",
@@ -418,7 +513,7 @@ export default function Simulator() {
                     VAD STATUS: {turnState.replace("_", " ")}
                   </span>
                 </div>
-                <span className="text-slate-400 italic text-[11px]">Automatic Voice Activity Detection & Barge-In Active</span>
+                <span className="text-slate-400 italic text-[11px]">Barge-In Interrupt & Auto Voice Detection Active</span>
               </div>
             ) : (
               <form
@@ -426,65 +521,82 @@ export default function Simulator() {
                   e.preventDefault();
                   handleSendMessage(userInput);
                 }}
-                className="flex gap-3"
+                className="flex gap-2.5"
               >
                 <input
                   type="text"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   disabled={!isCalling || isLoading}
-                  placeholder={isCalling ? "Type your response..." : "Select a scenario to start"}
-                  className="flex-1 bg-slate-800/50 border border-slate-700 rounded-2xl px-6 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all disabled:opacity-50 shadow-inner text-slate-200 placeholder:text-slate-500"
+                  placeholder={isCalling ? "Type a response to the AI receptionist..." : "Select a scenario or start a call above..."}
+                  className="flex-1 bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-100 placeholder:text-slate-500"
                 />
                 <button
                   type="submit"
                   disabled={!isCalling || isLoading || !userInput.trim()}
-                  className="p-3 bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 rounded-2xl hover:bg-cyan-600/40 transition-all disabled:opacity-50 shadow-[0_0_10px_rgba(34,211,238,0.1)] active:scale-95"
+                  className="px-4 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl hover:bg-cyan-500/30 transition-all disabled:opacity-50 shadow-sm flex items-center justify-center min-w-[44px]"
                 >
-                  <Send size={20} />
+                  <Send size={18} />
                 </button>
               </form>
             )}
           </div>
         </div>
 
-        {/* Right: Debug & Captured */}
-        <div className="flex flex-col gap-6 overflow-hidden">
-          <div className="flex-1 bg-slate-900/60 text-slate-300 p-6 rounded-3xl border border-slate-800 overflow-hidden flex flex-col shadow-inner backdrop-blur-md">
-            <div className="flex items-center gap-2 mb-4 text-[10px] font-mono text-cyan-500 uppercase tracking-[0.2em] font-bold">
-              <Bug size={14} />
-              AI Reasoning Terminal
-            </div>
-            <div className="flex-1 overflow-y-auto font-mono text-[10px] space-y-3 scrollbar-hide">
-              {debugInfo.length === 0 && <span className="opacity-40 italic text-slate-500">Awaiting AI tool calls...</span>}
-              {debugInfo.map((info, i) => (
-                <div key={i} className="border-l-2 border-cyan-500/50 pl-3 py-2 bg-slate-800/30 rounded-r-lg">
-                  <span className="text-cyan-400 font-bold">tool:</span> {info.name}
-                  <pre className="text-slate-400 mt-2 whitespace-pre-wrap leading-relaxed">{JSON.stringify(info.args, null, 2)}</pre>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Right Column: Live Function Call Debugger & Captured Lead Card */}
+        <div className="flex flex-col gap-5 overflow-y-auto pl-1">
+          {/* Captured Lead Telemetry Card */}
+          <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3">
+            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400 font-bold flex items-center gap-1.5">
+              <Activity size={14} />
+              Captured Lead Telemetry
+            </h3>
+            {capturedLead ? (
+              <div className="space-y-2 text-xs bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
+                <div className="font-bold text-slate-100 text-sm">{capturedLead.caller_name || "Unknown Caller"}</div>
+                <div className="text-cyan-400 font-mono font-semibold">{capturedLead.callback_number || "No number"}</div>
+                {capturedLead.property_address && <div className="text-slate-300 font-light">{capturedLead.property_address}</div>}
+                {capturedLead.equipment_type && (
+                  <div className="inline-block bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono px-2 py-0.5 rounded">
+                    {capturedLead.equipment_type}
+                  </div>
+                )}
+                {capturedLead.ai_summary && (
+                  <div className="text-slate-400 italic text-[11px] pt-1 border-t border-slate-800/80">
+                    "{capturedLead.ai_summary}"
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-slate-500 font-mono text-[11px] bg-slate-950/40 rounded-xl border border-slate-800/60">
+                No lead captured yet. Information will extract automatically during the call.
+              </div>
+            )}
+          </section>
 
-          <div className="h-1/2 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 overflow-hidden flex flex-col shadow-inner backdrop-blur-md">
-            <div className="flex items-center gap-2 mb-4 text-[10px] font-mono text-cyan-500 uppercase tracking-[0.2em] font-bold">
-              <AlertCircle size={14} />
-              Captured Payload
-            </div>
-            <div className="flex-1 overflow-y-auto text-xs space-y-3 font-mono">
-              {!capturedLead && <span className="opacity-40 italic text-slate-500">Data payload will appear here.</span>}
-              {capturedLead && (
-                <div className="space-y-2">
-                  {Object.entries(capturedLead).map(([key, value]) => (
-                    <div key={key} className="flex flex-col border-b border-slate-800/50 pb-2">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">{key.replace("_", " ")}</span>
-                      <span className="text-slate-300 font-medium text-sm mt-0.5">{String(value)}</span>
-                    </div>
-                  ))}
+          {/* AI Tool & Function Call Stream */}
+          <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3 flex-1 flex flex-col">
+            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400 font-bold flex items-center gap-1.5">
+              <Cpu size={14} />
+              AI Tool & Function Call Stream
+            </h3>
+            <div className="flex-1 overflow-y-auto space-y-2 max-h-56">
+              {debugInfo.length > 0 ? (
+                debugInfo.map((info, idx) => (
+                  <div key={idx} className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 font-mono text-[10px] space-y-1">
+                    <div className="text-cyan-400 font-bold">⚡ {info.name}()</div>
+                    <pre className="text-slate-400 overflow-x-auto text-[9px] bg-slate-900 p-1.5 rounded border border-slate-800/60">
+                      {JSON.stringify(info.args, null, 2)}
+                    </pre>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-slate-500 font-mono text-[11px] bg-slate-950/40 rounded-xl border border-slate-800/60">
+                  Awaiting function calls (e.g. checkAppointmentSlots, saveLead, transferCall)...
                 </div>
               )}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
