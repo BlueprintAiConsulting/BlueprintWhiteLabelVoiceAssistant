@@ -105,7 +105,11 @@ export class GeminiLiveSession {
       prompt_overrides: ""
     };
 
-    const selectedVoice = defaultSettings.receptionist_voice || "Kore";
+    // Enforce female receptionist voice ("Kore") unconditionally for voice call mode
+    let selectedVoice = defaultSettings.receptionist_voice || "Kore";
+    if (selectedVoice === "Puck" || selectedVoice === "Charon" || selectedVoice === "Fenrir" || !selectedVoice) {
+      selectedVoice = "Kore";
+    }
     const systemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: defaultSettings });
 
     const setupPayload = {

@@ -10,6 +10,8 @@ import QADashboard from "./components/QADashboard.tsx";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+import logoImg from "./assets/logo.jpg";
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -70,7 +72,7 @@ function Sidebar() {
       <div className="p-6 border-b border-slate-800/80 mb-4">
         <div className="flex items-center gap-3">
           <img
-            src="/blueprint-ai-logo.jpg"
+            src={logoImg}
             alt="Blueprint AI Consulting Co. Logo"
             className="w-10 h-10 rounded-xl border border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.3)] object-cover"
           />
