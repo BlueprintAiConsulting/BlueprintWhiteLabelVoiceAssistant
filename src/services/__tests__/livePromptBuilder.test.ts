@@ -39,6 +39,9 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("OWNER & MANAGER CALL HANDLING");
     expect(prompt).toContain("Leave target_number empty");
     expect(prompt).toContain("Never disclose Josh's private phone number");
+    expect(prompt).toContain("SPEAKING PACE");
+    expect(prompt).toContain("ADDRESS & ZIP CONFIRMATION");
+    expect(prompt).toContain("address_confirmed and zip_code_confirmed");
   });
 
   it("updates generated system prompt when Settings change", () => {

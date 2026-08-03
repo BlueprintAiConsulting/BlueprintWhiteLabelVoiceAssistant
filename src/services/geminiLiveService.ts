@@ -134,8 +134,10 @@ export class GeminiLiveSession {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            prefixPaddingMs: 300,
-            silenceDurationMs: 700
+            prefixPaddingMs: 400,
+            // Allow natural pauses and trailing ZIP/address digits to finish
+            // before Gemini closes the caller's turn.
+            silenceDurationMs: 1100
           }
         },
         tools: [
@@ -156,7 +158,9 @@ export class GeminiLiveSession {
                     },
                     emergency_flag: { type: "BOOLEAN", description: "True if emergency call." },
                     emergency_type: { type: "STRING" },
-                    property_address: { type: "STRING" },
+                    property_address: { type: "STRING", description: "Full service address only after the caller confirms the complete read-back, including ZIP code." },
+                    address_confirmed: { type: "BOOLEAN", description: "True only after the receptionist reads back the complete street address, city, state, and ZIP and the caller says it is correct." },
+                    zip_code_confirmed: { type: "BOOLEAN", description: "True only after the receptionist repeats every ZIP digit and the caller confirms it." },
                     equipment_type: { type: "STRING", description: "e.g., Furnace, AC, Heat Pump" },
                     issue_description: { type: "STRING" },
                     preferred_appointment_date: { type: "STRING" },
