@@ -42,7 +42,8 @@ export function evaluateEmergencySafeguard(
   const text = (reasonText || "").toLowerCase();
   const keywords = settings.emergency_keywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "flooding"];
 
-  const isLifeSafety = text.includes("fire") || text.includes("on fire") || text.includes("flames") || text.includes("gas leak") || text.includes("carbon monoxide") || text.includes("smoke") || text.includes("sparks");
+  const gasOdor = text.includes("gas leak") || text.includes("gas smell") || text.includes("smell gas") || text.includes("smell of gas");
+  const isLifeSafety = text.includes("fire") || text.includes("on fire") || text.includes("flames") || gasOdor || text.includes("carbon monoxide") || text.includes("smoke") || text.includes("sparks");
   const isEmergency = isLifeSafety || text.includes("no heat") || text.includes("stopped heating") || text.includes("freezing") || text.includes("flooding") || keywords.some(k => text.includes(k.toLowerCase()));
 
   if (isLifeSafety) {

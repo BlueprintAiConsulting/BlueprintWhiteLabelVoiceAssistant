@@ -150,6 +150,21 @@ export class GeminiLiveSession {
           {
             functionDeclarations: [
               {
+                name: "triageHvacIssue",
+                description: "Classifies an HVAC issue, checks configured service-area ZIPs, identifies life-safety emergencies, and returns safe intake guidance. Use before collecting detailed service information or scheduling.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    issue_description: { type: "STRING", description: "The caller's own description of the HVAC issue or request." },
+                    reason_for_call: { type: "STRING", description: "Short reason for the call." },
+                    call_type: { type: "STRING", description: "Known call type if already clear." },
+                    equipment_type: { type: "STRING", description: "Furnace, AC, heat pump, boiler, thermostat, or other equipment." },
+                    zip_code: { type: "STRING", description: "Caller service ZIP code, if provided." }
+                  },
+                  required: ["issue_description"]
+                }
+              },
+              {
                 name: "confirmCallerDetails",
                 description: "Records an explicit caller confirmation after the receptionist reads back the full address/ZIP or the exact appointment slot and the caller says it is correct. Never call this before the caller explicitly confirms.",
                 parameters: {

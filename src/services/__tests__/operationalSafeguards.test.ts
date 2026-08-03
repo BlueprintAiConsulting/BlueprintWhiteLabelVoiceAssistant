@@ -40,6 +40,12 @@ describe("Operational Safeguards Tests", () => {
     expect(res.allow_arrival_time_promise).toBe(false);
   });
 
+  it("treats a gas odor report as life-safety even without the word leak", () => {
+    const res = evaluateEmergencySafeguard("There is a gas smell near the furnace", mockSettings);
+    expect(res.is_life_safety).toBe(true);
+    expect(res.mandatory_instruction).toContain("call 911");
+  });
+
   it("triggers mandatory 911 evacuation instruction immediately when house is on fire or flames detected", () => {
     const res = evaluateEmergencySafeguard("Help! My house is on fire and smoke is everywhere", mockSettings);
 

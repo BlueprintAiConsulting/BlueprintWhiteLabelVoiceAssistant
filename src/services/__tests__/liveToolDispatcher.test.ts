@@ -41,6 +41,49 @@ describe("Live Tool Dispatcher Unit Tests", () => {
     expect(res.output.lead_id).toBeDefined();
   });
 
+  it("returns safe HVAC triage guidance for life-safety issues", async () => {
+    const res = await executeLiveToolCall(
+      {
+        id: "triage_1",
+        name: "triageHvacIssue",
+        args: { issue_description: "I smell gas near the furnace", zip_code: "17401" }
+      },
+      mockSettings
+    );
+
+    expect(res.output.success).toBe(true);
+    expect(res.output.is_life_safety).toBe(true);
+    expect(res.output.mandatory_instruction).toContain("call 911");
+  });
+
+  it("normalizes a mislabeled gas-odor lead into an emergency", async () => {
+    const state = new ConversationState();
+    const address = "12 Main St, York, PA 17401";
+    await executeLiveToolCall({ id: "confirm_gas", name: "confirmCallerDetails", args: {
+      confirmation_type: "address", full_address: address, zip_code: "17401"
+    } }, mockSettings, undefined, state);
+    const res = await executeLiveToolCall(
+      {
+        id: "save_gas",
+        name: "saveLead",
+        args: {
+          callback_number: "+15550001111",
+          property_address: address,
+          call_type: "repair_request",
+          issue_description: "There is a gas smell near the furnace",
+          emergency_flag: false
+        }
+      },
+      mockSettings,
+      undefined,
+      state
+    );
+
+    expect(res.output.success).toBe(true);
+    expect(res.output.call_type).toBe("emergency");
+    expect(res.output.emergency_flag).toBe(true);
+  });
+
   it("executes checkAppointmentSlots and returns availability slots", async () => {
     const res = await executeLiveToolCall(
       {

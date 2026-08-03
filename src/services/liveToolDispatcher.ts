@@ -2,6 +2,7 @@ import { Settings, Lead } from "../types.ts";
 import { processLead } from "./geminiService.ts";
 import { getAvailableAppointmentSlots, bookAppointmentSlot } from "./calendarService.ts";
 import { ConversationState } from "./conversationState.ts";
+import { triageHvacIssue } from "./hvacIntelligence.ts";
 
 export interface ToolCallPayload {
   id: string;
@@ -32,6 +33,24 @@ export async function executeLiveToolCall(
 
   try {
     switch (name) {
+      case "triageHvacIssue": {
+        const triage = triageHvacIssue(
+          `${args?.issue_description || ""} ${args?.reason_for_call || ""}`,
+          settings,
+          args?.zip_code,
+          args?.call_type
+        );
+        return {
+          toolName: name,
+          callId: id,
+          output: {
+            success: true,
+            ...triage,
+            message: triage.mandatory_instruction || triage.safe_customer_guidance
+          }
+        };
+      }
+
       case "confirmCallerDetails": {
         const confirmation = conversationState.confirmCallerDetails(args || {});
         return {
@@ -61,10 +80,25 @@ export async function executeLiveToolCall(
           };
         }
 
-        onCapturedLead?.(args);
+        const triage = triageHvacIssue(
+          `${args?.issue_description || ""} ${args?.reason_for_call || ""}`,
+          settings,
+          args?.zip_code,
+          args?.call_type
+        );
+        const normalizedLead = triage.is_emergency && args.call_type !== "spam"
+          ? {
+              ...args,
+              call_type: "emergency",
+              emergency_flag: true,
+              emergency_type: args.emergency_type || (triage.is_life_safety ? "Life Safety HVAC Emergency" : "Priority HVAC Emergency")
+            }
+          : args;
+
+        onCapturedLead?.(normalizedLead);
         let leadId = `lead_${Date.now()}`;
         try {
-          const created = await processLead(args);
+          const created = await processLead(normalizedLead);
           if (typeof created === "string") leadId = created;
         } catch (dbErr) {
           console.warn("Firestore saveLead notice:", dbErr);
@@ -77,6 +111,9 @@ export async function executeLiveToolCall(
           output: {
             success: true,
             lead_id: leadId,
+            call_type: normalizedLead.call_type,
+            emergency_flag: Boolean(normalizedLead.emergency_flag),
+            mandatory_instruction: triage.mandatory_instruction || null,
             message: "Lead details successfully saved."
           }
         };
@@ -161,6 +198,7 @@ export async function executeLiveToolCall(
 
       case "transferCall": {
         const transferReason = typeof args.reason === "string" ? args.reason : "";
+        const triage = triageHvacIssue(transferReason, settings);
         const ownerRequest = /\b(josh|owner|manager|boss|person in charge|proprietor)\b/i.test(transferReason);
         const ownerTarget = settings.owner_phone_number || settings.transfer_phone_number || settings.on_call_technician_phone;
         const transferTarget = ownerRequest
@@ -176,7 +214,7 @@ export async function executeLiveToolCall(
               success: false,
               transferred: false,
               error: "TRANSFER_NOT_CONFIGURED",
-              message: "Live call transfer provider is not configured. Collect callback phone number and inform caller an emergency technician will call back immediately."
+              message: triage.mandatory_instruction || "Live call transfer provider is not configured. Collect callback phone number and inform caller an emergency technician will call back immediately."
             }
           };
         }
@@ -189,6 +227,7 @@ export async function executeLiveToolCall(
             transferred: true,
             route: ownerRequest ? "owner" : "on_call_technician",
             target_number: transferTarget,
+            mandatory_instruction: triage.mandatory_instruction || null,
             message: ownerRequest
               ? "Call transfer initiated to the business owner."
               : `Call transfer initiated to ${transferTarget}.`

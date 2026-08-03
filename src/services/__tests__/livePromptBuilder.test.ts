@@ -43,6 +43,8 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("SPEAKING PACE");
     expect(prompt).toContain("HUMAN DELIVERY");
     expect(prompt).toContain("BARGE-IN");
+    expect(prompt).toContain("HVAC-SPECIFIC INTAKE & SAFETY");
+    expect(prompt).toContain("triageHvacIssue");
     expect(prompt).toContain("ADDRESS & ZIP CONFIRMATION");
     expect(prompt).toContain("confirmCallerDetails");
   });
