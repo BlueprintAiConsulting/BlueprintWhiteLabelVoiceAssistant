@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { createReceptionistChat, processLead } from "../services/geminiService.ts";
+import { createReceptionistChat, processLead, triggerMissedCallTextBack } from "../services/geminiService.ts";
 import { GeminiLiveSession } from "../services/geminiLiveService.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug, Mic, MicOff } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug, Mic, MicOff, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -117,6 +117,15 @@ export default function Simulator() {
     }
   };
 
+  const simulateMissedCall = async () => {
+    setIsLoading(true);
+    const mockNumber = `(717) 555-${Math.floor(1000 + Math.random() * 9000)}`;
+    setTranscript([{ role: "system", text: `[MISSED CALL] Incoming call from ${mockNumber} was unanswered.` }]);
+    await triggerMissedCallTextBack(mockNumber, "Valued Caller");
+    setTranscript(prev => [...prev, { role: "system", text: `[AUTOMATED SMS SENT] Text-back message successfully dispatched to ${mockNumber}. Lead recorded on Dashboard.` }]);
+    setIsLoading(false);
+  };
+
   const endCall = () => {
     if (liveSessionRef.current) {
       liveSessionRef.current.stop();
@@ -184,9 +193,17 @@ export default function Simulator() {
           ) : (
             <>
               <button
+                onClick={simulateMissedCall}
+                disabled={isLoading}
+                className="flex items-center gap-2 bg-amber-600 text-white px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 disabled:opacity-50"
+              >
+                <MessageSquare size={16} />
+                Simulate Missed-Call Text Back
+              </button>
+              <button
                 onClick={startVoiceCall}
                 disabled={isLoading}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+                className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
               >
                 <Mic size={16} />
                 Voice Call (Mic)

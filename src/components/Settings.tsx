@@ -270,6 +270,42 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Missed-Call Text Back */}
+        <section className="bg-white p-8 rounded-[2.5rem] border border-amber-100 shadow-xl space-y-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                <Phone size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-serif italic text-stone-800">Missed-Call Text Back Settings</h2>
+                <p className="text-xs text-stone-400">Never lose an unanswered call. Automatically text back dropped or missed callers immediately.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-stone-600">Auto Text-Back Enabled</span>
+              <input
+                type="checkbox"
+                checked={settings.missed_call_text_back_enabled !== false}
+                onChange={(e) => setSettings({ ...settings, missed_call_text_back_enabled: e.target.checked })}
+                className="w-5 h-5 accent-amber-600 rounded cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">SMS Text-Back Message Template</label>
+            <textarea
+              rows={3}
+              value={settings.missed_call_template || "Hi! This is Josh's HVAC Services. Sorry we missed your call! How can we help you today?"}
+              onChange={(e) => setSettings({ ...settings, missed_call_template: e.target.value })}
+              className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-4 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all font-sans resize-none"
+              placeholder="Hi! This is Josh's HVAC Services. Sorry we missed your call..."
+            />
+            <p className="text-[11px] text-stone-400">Use <code className="bg-stone-100 px-1 py-0.5 rounded font-mono text-stone-600">{"{{name}}"}</code> to insert customer's name if available.</p>
+          </div>
+        </section>
+
         {/* AI Personality */}
         <section className="bg-stone-900 p-8 rounded-[2.5rem] text-white shadow-2xl space-y-6 lg:col-span-2">
           <div className="flex items-center gap-3 mb-2">

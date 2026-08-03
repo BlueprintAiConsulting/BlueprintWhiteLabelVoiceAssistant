@@ -147,13 +147,61 @@ export async function createReceptionistChat(): Promise<Chat> {
     }
   };
 
+  const bookAppointmentTool = {
+    name: "bookAppointment",
+    description: "Finalizes an HVAC service appointment booking with date, time window, and address, locking it into the schedule.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        caller_name: { type: Type.STRING, description: "Customer name." },
+        callback_number: { type: Type.STRING, description: "Phone number." },
+        appointment_date: { type: Type.STRING, description: "Confirmed appointment date." },
+        time_window: { type: Type.STRING, description: "Time window (e.g. '8:00 AM - 12:00 PM', 'Morning', 'Afternoon')." },
+        service_type: { type: Type.STRING, description: "Type of service (e.g. 'AC Repair', 'Furnace Estimate', 'Tune-Up')." },
+        property_address: { type: Type.STRING, description: "Service property address." }
+      },
+      required: ["callback_number", "appointment_date", "time_window", "service_type"]
+    }
+  };
+
   return ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
       systemInstruction,
-      tools: [{ functionDeclarations: [saveLeadTool, transferCallTool, checkAppointmentSlotsTool] }]
+      tools: [{ functionDeclarations: [saveLeadTool, transferCallTool, checkAppointmentSlotsTool, bookAppointmentTool] }]
     }
   });
+}
+
+export async function triggerMissedCallTextBack(callbackNumber: string, callerName?: string) {
+  try {
+    const settings = await getSettings();
+    if (settings.missed_call_text_back_enabled === false) return;
+
+    const messageTemplate = settings.missed_call_template || "Hi! This is Josh's HVAC Services. Sorry we missed your call! How can we help you today?";
+    const textMessage = messageTemplate.replace("{{name}}", callerName || "there");
+
+    console.log(`[MISSED CALL TEXT BACK] Triggered SMS to ${callbackNumber}: "${textMessage}"`);
+
+    // Record missed call lead in database
+    await addDoc(collection(db, "leads"), {
+      callback_number: callbackNumber,
+      caller_name: callerName || "Missed Caller",
+      reason_for_call: "Missed Call - Automated Text Back Sent",
+      call_type: "general_office",
+      call_status: "new",
+      text_back_sent: true,
+      text_back_timestamp: serverTimestamp(),
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+      transcript: [{ role: "system", text: `[AUTOMATED SMS SENT] "${textMessage}" to ${callbackNumber}` }]
+    });
+
+    return true;
+  } catch (err) {
+    console.error("Error triggering missed call text back:", err);
+    return false;
+  }
 }
 
 export async function dispatchEmergencyAlert(leadData: Partial<Lead>, webhookUrl?: string) {

@@ -20,7 +20,10 @@ export interface Lead {
   issue_description?: string;
   preferred_appointment_date?: string;
   preferred_time_window?: string;
+  booked_appointment_slot?: string;
   maintenance_agreement?: boolean;
+  text_back_sent?: boolean;
+  text_back_timestamp?: any;
   ai_summary?: string;
   transcript: TranscriptEntry[];
   call_status: CallStatus;
@@ -47,6 +50,10 @@ export interface Settings {
   auto_transfer_emergencies?: boolean;
   emergency_dispatch_webhook?: string;
   sms_alerts_enabled?: boolean;
+  missed_call_text_back_enabled?: boolean;
+  missed_call_template?: string;
+  auto_booking_enabled?: boolean;
+  available_slot_windows?: string[];
   escalation_timeout_minutes?: number;
   after_hours_message: string;
   emergency_keywords: string[];

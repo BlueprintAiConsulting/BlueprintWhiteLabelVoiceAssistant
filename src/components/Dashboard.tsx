@@ -109,33 +109,52 @@ export default function Dashboard() {
     }
   };
 
+  const bookedCount = leads.filter(l => l.call_status === "booked").length;
+  const emergencyCount = leads.filter(l => l.emergency_flag).length;
+  const textBackCount = leads.filter(l => l.text_back_sent).length;
+
   return (
     <div className="flex h-full bg-stone-50 overflow-hidden">
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-stone-200 p-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-serif italic text-stone-800">Call Logs</h1>
-            <p className="text-sm text-stone-500">Real-time inbound lead tracking.</p>
+        <header className="bg-white border-b border-stone-200 p-6 flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="bg-emerald-100 text-emerald-800 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded-md">Stage 1 Active</span>
+                <h1 className="text-2xl font-serif italic text-stone-800">Lead Engine Dashboard</h1>
+              </div>
+              <p className="text-sm text-stone-500">Goal: Never miss another lead for Josh's HVAC Services.</p>
+            </div>
+            <div className="flex gap-2">
+              {leads.length === 0 && (
+                <button
+                  onClick={seedData}
+                  className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-1.5 rounded-md transition-colors"
+                >
+                  Seed Demo Data
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex gap-2">
-            {leads.length === 0 && (
-              <button
-                onClick={seedData}
-                className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 px-3 py-1.5 rounded-md transition-colors"
-              >
-                Seed Demo Data
-              </button>
-            )}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
-              <input
-                type="text"
-                placeholder="Search by name, phone, address..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-stone-400 transition-colors w-72"
-              />
+
+          {/* Stage 1 Metric Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold">Total Inbound Leads</span>
+              <p className="text-2xl font-bold text-stone-800 mt-1">{leads.length}</p>
+            </div>
+            <div className="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/60">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-600 font-bold">Missed-Call Text Backs</span>
+              <p className="text-2xl font-bold text-amber-900 mt-1">{textBackCount}</p>
+            </div>
+            <div className="bg-rose-50/60 p-3.5 rounded-2xl border border-rose-200/60">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 font-bold">Emergency Calls Routed</span>
+              <p className="text-2xl font-bold text-rose-900 mt-1">{emergencyCount}</p>
+            </div>
+            <div className="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/60">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-600 font-bold">Appointments Booked</span>
+              <p className="text-2xl font-bold text-emerald-900 mt-1">{bookedCount}</p>
             </div>
           </div>
         </header>
