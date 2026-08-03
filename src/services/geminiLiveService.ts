@@ -33,12 +33,8 @@ export class GeminiLiveSession {
 
     this.audioQueue.init();
 
-    const apiKey = this.options.apiKey;
-    if (!apiKey || apiKey.includes("dummy")) {
-      throw new Error("Invalid or missing Gemini API Key");
-    }
-
-    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+    const cleanApiKey = apiKey.replace(/['"]/g, '').trim();
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${cleanApiKey}`;
 
     this.ws = new WebSocket(wsUrl);
 
@@ -67,9 +63,11 @@ export class GeminiLiveSession {
       this.options.onError?.(err);
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (event: CloseEvent) => {
       this.isConnected = false;
-      this.options.onTranscript?.({ role: "system", text: "Voice call disconnected." });
+      const reasonText = event.reason ? `: ${event.reason}` : "";
+      const infoText = event.code ? ` (Code ${event.code}${reasonText})` : "";
+      this.options.onTranscript?.({ role: "system", text: `Voice call disconnected${infoText}.` });
       this.options.onClose?.();
       this.stop();
     };

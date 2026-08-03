@@ -111,9 +111,10 @@ export default function Simulator() {
           setCapturedLead(lead);
           setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
         },
-        onError: (err) => {
+        onError: (err: any) => {
           console.error("Voice mode error:", err);
-          setTranscript(prev => [...prev, { role: "system", text: "Voice connection error. Make sure your API key is valid." }]);
+          const detail = err?.message || (typeof err === "string" ? err : "");
+          setTranscript(prev => [...prev, { role: "system", text: `Voice connection error ${detail ? `: ${detail}` : "(Check API key or microphone permissions)"}` }]);
         },
         onClose: () => {
           setIsCalling(false);
