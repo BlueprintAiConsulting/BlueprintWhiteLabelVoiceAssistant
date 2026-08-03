@@ -12,6 +12,7 @@ const baseSettings: Settings = {
   on_call_technician_phone: "+12145550199",
   after_hours_message: "Apex Air is closed. Call back tomorrow.",
   emergency_keywords: ["gas leak", "carbon monoxide", "freon leak"],
+  approved_learning_rules: ["Ask one question at a time and confirm the address."],
   receptionist_voice_style: "enthusiastic and professional",
   prompt_overrides: "Always mention our free maintenance inspection with every estimate."
 };
@@ -46,6 +47,7 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("HVAC-SPECIFIC INTAKE & SAFETY");
     expect(prompt).toContain("triageHvacIssue");
     expect(prompt).toContain("HUMAN HANDOFF");
+    expect(prompt).toContain("ADMIN-APPROVED LEARNING RULES");
     expect(prompt).toContain("ADDRESS & ZIP CONFIRMATION");
     expect(prompt).toContain("confirmCallerDetails");
   });

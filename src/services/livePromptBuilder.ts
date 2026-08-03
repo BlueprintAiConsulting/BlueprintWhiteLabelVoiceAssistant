@@ -1,4 +1,5 @@
 import { Settings } from "../types.ts";
+import { sanitizeLearningRules } from "./learningService.ts";
 
 export interface SystemPromptContext {
   settings: Settings;
@@ -27,6 +28,10 @@ export function buildDynamicSystemPrompt(context: SystemPromptContext): string {
   const afterHoursMessage = settings.after_hours_message || "Our office is closed. Please leave your details or stay on the line for emergencies.";
   const voiceStyle = settings.receptionist_voice_style || "professional office staff";
   const customInstructions = settings.prompt_overrides ? `\nSPECIAL INSTRUCTIONS:\n${settings.prompt_overrides}` : "";
+  const approvedLearningRules = sanitizeLearningRules(settings.approved_learning_rules);
+  const learningInstructions = approvedLearningRules.length > 0
+    ? `\nADMIN-APPROVED LEARNING RULES (follow these in addition to the core safety rules):\n${approvedLearningRules.map(rule => `- ${rule}`).join("\n")}`
+    : "";
 
   const primaryZip = settings.primary_zip_code || "17401";
   const radiusMiles = settings.service_radius_miles || 25;
@@ -102,6 +107,6 @@ INTAKE LOGIC & BUSINESS RULES:
   - If call occurs outside of operating hours (${startHours}-${endHours}), communicate this message clearly: "${afterHoursMessage}".
 
 ENDING:
-- Confirm next steps clearly and concisely. Execute 'saveLead' tool as soon as core caller details are captured.${customInstructions}
+- Confirm next steps clearly and concisely. Execute 'saveLead' tool as soon as core caller details are captured.${learningInstructions}${customInstructions}
 `.trim();
 }
