@@ -146,10 +146,12 @@ export class GeminiLiveSession {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            prefixPaddingMs: 500,
-            // Allow natural pauses and trailing ZIP/address digits to finish
-            // before Gemini closes the caller's turn.
-            silenceDurationMs: 1400
+            // Require sustained medium-level speech before a barge-in is
+            // committed; low room noise should not cut off Megan mid-sentence.
+            prefixPaddingMs: 1000,
+            // Allow 1.6 seconds of natural pause/noise so addresses, ZIP codes,
+            // and second-turn answers finish before Gemini closes the turn.
+            silenceDurationMs: 1600
           }
         },
         tools: [

@@ -88,6 +88,7 @@ class PhoneSession {
     this.twilioAudioQueue = [];
     this.twilioAudioTimer = null;
     this.pcm24kRemainder = Buffer.alloc(0);
+    this.inputGateOpen = false;
     this.keepAlive = setInterval(() => {
       if (this.gemini && this.gemini.readyState === WebSocket.OPEN) this.gemini.ping();
     }, 20000);
@@ -132,8 +133,10 @@ class PhoneSession {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            prefixPaddingMs: 500,
-            silenceDurationMs: 1400
+            // Require sustained medium-level speech before barge-in; low phone
+            // line noise should not interrupt Megan.
+            prefixPaddingMs: 1000,
+            silenceDurationMs: 1600
           }
         },
         tools: [{ functionDeclarations: toolDeclarations() }]
@@ -153,8 +156,9 @@ class PhoneSession {
     }
     if (message.event === "media" && message.media?.payload) {
       if (this.gemini?.readyState === WebSocket.OPEN) {
-        const pcm = mulaw8kToPcm16k(Buffer.from(message.media.payload, "base64"));
-        this.gemini.send(JSON.stringify({ realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: pcm.toString("base64") } } }));
+        const gated = gatePhonePcm(mulaw8kToPcm16k(Buffer.from(message.media.payload, "base64")), this.inputGateOpen);
+        this.inputGateOpen = gated.gateOpen;
+        this.gemini.send(JSON.stringify({ realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: gated.audio.toString("base64") } } }));
       }
     }
     if (message.event === "stop") this.close();
@@ -383,6 +387,20 @@ function mulaw8kToPcm16k(input) {
     output.writeInt16LE(decoded, i * 4 + 2);
   }
   return output;
+}
+
+function gatePhonePcm(input, wasOpen) {
+  let energy = 0;
+  for (let i = 0; i < input.length; i += 2) {
+    const sample = input.readInt16LE(i);
+    energy += sample * sample;
+  }
+  const rms = Math.sqrt(energy / Math.max(1, input.length / 2));
+  const open = wasOpen ? rms >= 330 : rms >= 590;
+  if (open) return { audio: input, gateOpen: true };
+  const gated = Buffer.allocUnsafe(input.length);
+  for (let i = 0; i < input.length; i += 2) gated.writeInt16LE(Math.round(input.readInt16LE(i) * 0.05), i);
+  return { audio: gated, gateOpen: false };
 }
 
 function pcm24kToMulaw8k(input) {
