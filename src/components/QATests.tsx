@@ -60,18 +60,18 @@ export default function QATests() {
   const selectedResult = selectedScenarioId ? results[selectedScenarioId] : null;
 
   return (
-    <div className="flex h-full bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full bg-slate-950 text-slate-100 overflow-hidden relative">
       {/* Sidebar: Scenarios List */}
-      <div className="w-80 border-r border-slate-800/80 bg-slate-900/60 backdrop-blur-xl flex flex-col">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+      <div className="w-full md:w-80 max-h-[35vh] md:max-h-none border-b md:border-b-0 md:border-r border-slate-800/80 bg-slate-900/60 backdrop-blur-xl flex flex-col shrink-0">
+        <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center shrink-0">
           <div>
-            <h1 className="text-xl font-serif italic text-slate-100">QA Tests</h1>
+            <h1 className="text-lg sm:text-xl font-serif italic text-slate-100">QA Tests</h1>
             <p className="text-[10px] uppercase tracking-widest text-cyan-400 font-mono font-bold">Automated Scenarios</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={clearResults}
-              className="p-2 text-slate-400 hover:text-rose-400 transition-all rounded-lg hover:bg-slate-800"
+              className="p-2 text-slate-400 hover:text-rose-400 transition-all rounded-lg hover:bg-slate-800 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Clear All Results"
             >
               <Trash2 size={16} />
@@ -79,15 +79,16 @@ export default function QATests() {
             <button
               onClick={runAllTests}
               disabled={isRunning}
-              className="p-2 bg-cyan-500 text-slate-950 rounded-lg hover:bg-cyan-400 transition-all font-bold disabled:opacity-50 shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+              className="px-3 py-2 bg-cyan-500 text-slate-950 rounded-xl hover:bg-cyan-400 transition-all font-bold disabled:opacity-50 shadow-[0_0_15px_rgba(34,211,238,0.3)] min-h-[44px] flex items-center gap-1.5 text-xs uppercase tracking-wider"
               title="Run All Tests"
             >
-              <Play size={16} fill="currentColor" />
+              <Play size={14} fill="currentColor" />
+              <span>Run All</span>
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
           {TEST_SCENARIOS.map((scenario) => {
             const result = results[scenario.id];
             const isSelected = selectedScenarioId === scenario.id;

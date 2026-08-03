@@ -3,7 +3,7 @@ import { TEST_SCENARIOS } from "../src/lib/testScenarios.ts";
 import { runScenario } from "../src/lib/testRunner.ts";
 
 async function runSmokeTests() {
-  console.log("\n🚀 Starting Smoke Tests for Blueprint AI Roofing Receptionist...\n");
+  console.log("\n🚀 Starting Smoke Tests for Blueprint HVAC AI Voice Assistant...\n");
   console.log("------------------------------------------------------------");
 
   let passedAll = true;

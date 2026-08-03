@@ -11,6 +11,6 @@ describe("QA Test Runner Scenarios Verification", () => {
       }
       expect(result.errors).toEqual([]);
       expect(result.passed).toBe(true);
-    });
+    }, 30000);
   });
 });

@@ -1,6 +1,6 @@
-# Blueprint AI Roofing Receptionist
+# Blueprint HVAC AI Voice Assistant
 
-An internal MVP for Blueprint AI. This roofing-company AI receptionist handles inbound calls, captures leads, flags emergencies, collects appointment requests, and displays everything in a simple admin dashboard.
+An internal MVP for Blueprint AI. This HVAC-company AI receptionist handles inbound calls, captures leads, flags emergencies, collects appointment requests, and displays everything in a simple admin dashboard.
 
 ## Features
 

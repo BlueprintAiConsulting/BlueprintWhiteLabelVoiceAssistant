@@ -63,7 +63,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Test connection
+// Test connection in client environments
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
@@ -73,7 +73,9 @@ async function testConnection() {
     }
   }
 }
-testConnection();
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
+  testConnection();
+}
 
 export { 
   signInWithPopup, 

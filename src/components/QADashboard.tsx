@@ -114,20 +114,20 @@ export default function QADashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 p-8 gap-8 overflow-y-auto">
+    <div className="flex flex-col h-full bg-slate-950 p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto">
       {/* Header */}
-      <div className="flex justify-between items-end border-b border-slate-800 pb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end border-b border-slate-800 pb-5 gap-3 shrink-0">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
-              <ShieldCheck size={24} />
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20 shrink-0">
+              <ShieldCheck size={22} />
             </div>
-            <h1 className="text-3xl font-serif italic text-slate-100">QA Receptionist Performance Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif italic text-slate-100">QA Receptionist Performance Dashboard</h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">Audit AI receptionist calls, review problem flags, and measure conversion quality.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 rounded-full font-mono text-xs font-bold">
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 rounded-full font-mono text-[10px] sm:text-xs font-bold">
             ADMIN AUTHORIZED ACCESS
           </span>
         </div>

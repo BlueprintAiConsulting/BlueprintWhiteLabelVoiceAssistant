@@ -1,7 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { executeLiveToolCall } from "../liveToolDispatcher.ts";
 import { ConversationState } from "../conversationState.ts";
 import { Settings } from "../../types.ts";
+
+vi.mock("../geminiService.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../geminiService.ts")>();
+  return {
+    ...original,
+    processLead: vi.fn().mockResolvedValue("lead_12345")
+  };
+});
 
 const mockSettings: Settings = {
   office_name: "Blueprint HVAC",

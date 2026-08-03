@@ -97,16 +97,16 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-transparent p-8 gap-8 overflow-y-auto relative z-10">
-      <header className="flex justify-between items-end">
+    <div className="flex flex-col h-full bg-transparent p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto relative z-10">
+      <header className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 shrink-0">
         <div>
-          <h1 className="text-4xl font-serif italic text-slate-100">HVAC Office Settings</h1>
-          <p className="text-slate-400 mt-1">Ordered by immediate revenue & operational value to your business.</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-100">HVAC Office Settings</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">Ordered by immediate revenue & operational value to your business.</p>
         </div>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-3 bg-cyan-500 text-slate-950 px-8 py-3 rounded-full font-bold uppercase tracking-widest text-xs hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] disabled:opacity-50 active:scale-95 cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 bg-cyan-500 text-slate-950 px-6 sm:px-8 py-3 rounded-full font-bold uppercase tracking-widest text-xs hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] disabled:opacity-50 active:scale-95 cursor-pointer min-h-[44px]"
         >
           {isSaving ? (
             <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
