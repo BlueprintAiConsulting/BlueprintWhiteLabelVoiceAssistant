@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "gen-lang-client-0107556457",
     "public": "dist",
     "ignore": [
       "firebase.json",
@@ -13,5 +12,8 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }

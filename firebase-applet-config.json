@@ -1,10 +1,10 @@
 {
-  "projectId": "gen-lang-client-0107556457",
-  "appId": "1:698488553106:web:9d128fbf0f2604150cf04b",
-  "apiKey": "AIzaSyBjQdK6gs8WqIBqlAA9Mjx-QG0BcVKEhTo",
-  "authDomain": "gen-lang-client-0107556457.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-8cdb9639-0de8-4858-ae1b-78e22b549ffc",
-  "storageBucket": "gen-lang-client-0107556457.firebasestorage.app",
-  "messagingSenderId": "698488553106",
-  "measurementId": ""
+  "projectId": "blueprint-operations",
+  "appId": "1:1055948083267:web:a019dc91de16c2d367c4f6",
+  "apiKey": "AIzaSyDGaK7iwPiXzNJ9YbPL4R3Yr9QSCW9tspE",
+  "authDomain": "blueprint-operations.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "blueprint-operations.firebasestorage.app",
+  "messagingSenderId": "1055948083267",
+  "measurementId": "G-206D5JPB6V"
 }
