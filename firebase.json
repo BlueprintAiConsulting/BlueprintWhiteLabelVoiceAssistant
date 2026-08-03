@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "site": "lunar-hvac",
     "public": "dist",
@@ -19,6 +22,11 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/api/gemini-ephemeral-token",
+        "function": "issueGeminiEphemeralToken",
+        "region": "us-central1"
+      },
       {
         "source": "**",
         "destination": "/index.html"

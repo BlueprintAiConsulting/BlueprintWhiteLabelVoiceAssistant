@@ -361,6 +361,67 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+
+        {/* Post-Service Reviews & Automated SMS Follow-Ups */}
+        <section className="bg-slate-900/60 p-8 rounded-[2.5rem] border border-cyan-500/30 shadow-[0_0_30px_rgba(34,211,238,0.05)] space-y-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20">
+                <Globe size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-serif italic text-slate-100">Post-Service Google Reviews & Reminders</h2>
+                <p className="text-xs text-slate-400">Automate 5-star review request SMS 2 hours after job completion & 24h prior appointment reminders.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-300">Automated Reviews</span>
+              <input
+                type="checkbox"
+                checked={settings.review_request_enabled !== false}
+                onChange={(e) => setSettings({ ...settings, review_request_enabled: e.target.checked })}
+                className="w-5 h-5 accent-cyan-500 rounded cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Google Business Review Link</label>
+              <input
+                type="text"
+                value={settings.google_review_link || "https://g.page/r/lunar-hvac-york-pa/review"}
+                onChange={(e) => setSettings({ ...settings, google_review_link: e.target.value })}
+                className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-mono shadow-inner placeholder:text-slate-500"
+                placeholder="https://g.page/r/lunar-hvac-york-pa/review"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Review Delay (Hours Post-Job)</label>
+              <select
+                value={settings.review_delay_hours || 2}
+                onChange={(e) => setSettings({ ...settings, review_delay_hours: Number(e.target.value) })}
+                className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all appearance-none shadow-inner"
+              >
+                <option value={1}>1 Hour Post-Service</option>
+                <option value={2}>2 Hours Post-Service (Recommended)</option>
+                <option value={4}>4 Hours Post-Service</option>
+                <option value={24}>24 Hours Post-Service</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Custom SMS Review Template</label>
+            <input
+              type="text"
+              value={settings.review_sms_template || "Hi {{name}}, thank you for choosing {{office}}! How was your HVAC service today? Please leave us a 5-star Google review: {{link}}"}
+              onChange={(e) => setSettings({ ...settings, review_sms_template: e.target.value })}
+              className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-mono shadow-inner placeholder:text-slate-500"
+            />
+          </div>
+        </section>
         </div>
 
         {/* Business Hours */}

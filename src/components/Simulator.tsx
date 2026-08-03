@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createReceptionistChat, processLead, triggerMissedCallTextBack, getSettings } from "../services/geminiService.ts";
 import { GeminiLiveSession } from "../services/geminiLiveService.ts";
-import { generateGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
+import { requestGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
+import { auth } from "../firebase.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
 import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug, Mic, MicOff, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -90,6 +91,13 @@ export default function Simulator() {
     setCapturedLead(null);
     setTurnState("listening");
 
+    if (!auth.currentUser) {
+      setTranscript(prev => [...prev, { role: "system", text: "[SECURITY ERROR] You must be logged in as an authorized admin to start Voice Call mode. Please log in using the Admin Login button." }]);
+      setIsLoading(false);
+      setIsVoiceMode(false);
+      return;
+    }
+
     try {
       let activeSettings;
       try {
@@ -99,9 +107,17 @@ export default function Simulator() {
         setTranscript(prev => [...prev, { role: "system", text: "[SETTINGS WARNING] Could not fetch Firestore config. Operating on fallback system settings." }]);
       }
 
-      // Request short-lived ephemeral access token from backend endpoint
-      const tokenRes = await generateGeminiEphemeralToken("user_auth_101", activeSettings || {} as any);
-      setTranscript(prev => [...prev, { role: "system", text: `[SECURITY ENCRYPTED] Issued short-lived Live ephemeral token (Model: ${tokenRes.model}, Expires: ${tokenRes.expires_in_seconds}s).` }]);
+      // Request real Gemini Live ephemeral token from backend Cloud Function endpoint
+      let tokenRes;
+      try {
+        tokenRes = await requestGeminiEphemeralToken();
+        setTranscript(prev => [...prev, { role: "system", text: "[SECURITY] Server-issued Gemini Live token received." }]);
+      } catch (tErr: any) {
+        setTranscript(prev => [...prev, { role: "system", text: `[SECURITY ERROR] ${tErr.message || "Failed to obtain Gemini Live ephemeral token from server."}` }]);
+        setIsLoading(false);
+        setIsVoiceMode(false);
+        return;
+      }
 
       const session = new GeminiLiveSession({
         accessToken: tokenRes.access_token,

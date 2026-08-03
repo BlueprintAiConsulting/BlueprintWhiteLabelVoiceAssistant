@@ -72,6 +72,11 @@ export interface Settings {
   twilio_transfer_number?: string;
   recording_consent_required?: boolean;
   recording_retention_days?: number;
+  review_request_enabled?: boolean;
+  google_review_link?: string;
+  review_delay_hours?: number;
+  appointment_reminder_enabled?: boolean;
+  review_sms_template?: string;
   available_slot_windows?: string[];
   escalation_timeout_minutes?: number;
   after_hours_message: string;

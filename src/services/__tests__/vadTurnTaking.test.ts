@@ -13,7 +13,7 @@ describe("VAD & Turn-Taking Integration Tests", () => {
     };
 
     const session = new GeminiLiveSession({
-      apiKey: "test_key",
+      accessToken: "test_token_123",
       onTurnStateChange: (st) => states.push(st),
       onInterrupted: () => {
         interruptedCalled = true;
@@ -55,7 +55,7 @@ describe("VAD & Turn-Taking Integration Tests", () => {
       close: () => {}
     };
 
-    const session = new GeminiLiveSession({ apiKey: "test_key" });
+    const session = new GeminiLiveSession({ accessToken: "test_token_123" });
     (session as any).ws = mockWs;
 
     session.stop();

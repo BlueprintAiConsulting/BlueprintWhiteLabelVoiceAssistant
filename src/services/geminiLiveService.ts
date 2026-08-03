@@ -41,19 +41,11 @@ export class GeminiLiveSession {
     this.audioQueue.init();
 
     const accessToken = this.options.accessToken || "";
-    const rawApiKey = this.options.apiKey || "";
-
-    let wsUrl = "";
-    if (accessToken) {
-      wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${accessToken}`;
-    } else if (rawApiKey && !rawApiKey.includes("dummy")) {
-      const cleanApiKey = rawApiKey.replace(/['"]/g, '').trim();
-      wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${cleanApiKey}`;
-    } else {
-      // Ephemeral token production fallback
-      const mockEphemeral = `exp_token_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${mockEphemeral}`;
+    if (!accessToken) {
+      throw new Error("UNAUTHORIZED: Missing Gemini Live access_token. Please log in to request a token.");
     }
+
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${accessToken}`;
 
     this.ws = new WebSocket(wsUrl);
 
@@ -113,7 +105,7 @@ export class GeminiLiveSession {
 
     const setupPayload = {
       setup: {
-        model: "models/gemini-2.0-flash-exp",
+        model: "models/gemini-3.1-flash-live-preview",
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
