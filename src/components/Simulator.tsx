@@ -196,7 +196,24 @@ export default function Simulator() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-4xl font-serif italic text-stone-800">Call Simulator</h1>
-          <p className="text-stone-500 mt-1">Test the AI receptionist with one-click scenarios.</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-stone-500">Test the AI receptionist with live voice or text scenarios.</p>
+            {(() => {
+              const k = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY;
+              const isConfigured = k && !k.includes("dummy");
+              return isConfigured ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-mono font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Key Active (...{k.slice(-4)})
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  No API Key Set (Add in Settings)
+                </span>
+              );
+            })()}
+          </div>
         </div>
         <div className="flex gap-3">
           {isCalling ? (

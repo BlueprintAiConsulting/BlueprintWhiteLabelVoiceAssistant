@@ -41,11 +41,12 @@ export async function getSettings(): Promise<Settings> {
 export async function createReceptionistChat(): Promise<Chat> {
   const settings = await getSettings();
   
-  const apiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.includes("dummy")) {
+  const rawApiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY;
+  if (!rawApiKey || rawApiKey.includes("dummy")) {
     throw new Error("Invalid or missing Gemini API Key. Please add it in the Settings tab.");
   }
-  const ai = new GoogleGenAI({ apiKey: apiKey as string });
+  const cleanApiKey = rawApiKey.replace(/['"]/g, '').trim();
+  const ai = new GoogleGenAI({ apiKey: cleanApiKey });
 
   const systemInstruction = `
     You are the front desk receptionist for ${settings.office_name}.
