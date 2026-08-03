@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS: Settings = {
     days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
   },
   timezone: "America/New_York",
-  service_areas: ["New York City", "Brooklyn", "Queens", "Bronx", "Staten Island"],
+  service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
   transfer_enabled: true,
   transfer_phone_number: "+17175770668",
   on_call_technician_phone: "+17175770668",
@@ -21,7 +21,8 @@ const DEFAULT_SETTINGS: Settings = {
   escalation_timeout_minutes: 15,
   after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
-  receptionist_voice_style: "professional office staff",
+  receptionist_voice: "Kore",
+  receptionist_voice_style: "warm, concise, natural female office receptionist",
   prompt_overrides: ""
 };
 

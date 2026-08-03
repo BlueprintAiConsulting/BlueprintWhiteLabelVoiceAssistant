@@ -88,19 +88,21 @@ export class GeminiLiveSession {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const defaultSettings: Settings = this.options.settings || {
-      office_name: this.options.officeName || "Blueprint HVAC",
+      office_name: this.options.officeName || "Lunar Heating and Cooling",
       business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
       timezone: "America/New_York",
-      service_areas: ["New York City", "Brooklyn", "Queens"],
+      service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
       transfer_enabled: true,
-      transfer_phone_number: "+17175550199",
-      on_call_technician_phone: "+17175550199",
-      after_hours_message: "Thank you for calling. Our office is closed.",
+      transfer_phone_number: "+17175770668",
+      on_call_technician_phone: "+17175770668",
+      after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is closed.",
       emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
-      receptionist_voice_style: "professional, warm, and helpful",
+      receptionist_voice: "Kore",
+      receptionist_voice_style: "warm, concise, natural female office receptionist",
       prompt_overrides: ""
     };
 
+    const selectedVoice = defaultSettings.receptionist_voice || "Kore";
     const systemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: defaultSettings });
 
     const setupPayload = {
@@ -111,7 +113,7 @@ export class GeminiLiveSession {
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: "Puck"
+                voiceName: selectedVoice
               }
             }
           }

@@ -596,13 +596,29 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
             <div className="space-y-4">
               <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Receptionist Voice Persona</label>
+                <select
+                  value={settings.receptionist_voice || "Kore"}
+                  onChange={(e) => setSettings({ ...settings, receptionist_voice: e.target.value })}
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-sans cursor-pointer shadow-inner"
+                >
+                  <option value="Kore">Kore — Female (Calm, Warm & Natural - Recommended)</option>
+                  <option value="Aoede">Aoede — Female (Bright & Clear)</option>
+                  <option value="Leda">Leda — Female (Warm & Gentle)</option>
+                  <option value="Zephyr">Zephyr — Female (Friendly)</option>
+                  <option value="Puck">Puck — Male (Engaging)</option>
+                  <option value="Charon">Charon — Male (Deep & Professional)</option>
+                  <option value="Fenrir">Fenrir — Male (Authoritative)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Voice & Tone Style</label>
                 <input
                   type="text"
                   value={settings.receptionist_voice_style}
                   onChange={(e) => setSettings({ ...settings, receptionist_voice_style: e.target.value })}
                   className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all placeholder:text-slate-500 shadow-inner"
-                  placeholder="e.g. Professional, warm, and helpful"
+                  placeholder="e.g. Warm, concise, natural female office receptionist"
                 />
               </div>
               <div className="space-y-1.5">

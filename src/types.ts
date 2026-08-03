@@ -81,6 +81,7 @@ export interface Settings {
   escalation_timeout_minutes?: number;
   after_hours_message: string;
   emergency_keywords: string[];
+  receptionist_voice?: string;
   receptionist_voice_style: string;
   prompt_overrides: string;
 }
