@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   prompt_overrides: ""
 };
 
-async function getSettings(): Promise<Settings> {
+export async function getSettings(): Promise<Settings> {
   try {
     const settingsDoc = await getDoc(doc(db, "settings", "config"));
     if (settingsDoc.exists()) {
@@ -182,6 +182,20 @@ export async function triggerMissedCallTextBack(callbackNumber: string, callerNa
     const textMessage = messageTemplate.replace("{{name}}", callerName || "there");
 
     console.log(`[MISSED CALL TEXT BACK] Triggered SMS to ${callbackNumber}: "${textMessage}"`);
+
+    // Dispatch real SMS payload to webhook/Twilio if configured
+    if (settings.emergency_dispatch_webhook) {
+      await fetch(settings.emergency_dispatch_webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "MISSED_CALL_TEXT_BACK",
+          timestamp: new Date().toISOString(),
+          to_phone: callbackNumber,
+          message: textMessage
+        })
+      });
+    }
 
     // Record missed call lead in database
     await addDoc(collection(db, "leads"), {
