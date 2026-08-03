@@ -85,6 +85,9 @@ class PhoneSession {
     this.zipConfirmed = false;
     this.availableSlots = [];
     this.toolQueue = Promise.resolve();
+    this.twilioAudioQueue = [];
+    this.twilioAudioTimer = null;
+    this.pcm24kRemainder = Buffer.alloc(0);
     this.keepAlive = setInterval(() => {
       if (this.gemini && this.gemini.readyState === WebSocket.OPEN) this.gemini.ping();
     }, 20000);
@@ -166,7 +169,12 @@ class PhoneSession {
     }
     const parts = message.serverContent?.modelTurn?.parts || [];
     for (const part of parts) {
-      if (part.inlineData?.data) this.sendTwilioAudio(pcm24kToMulaw8k(Buffer.from(part.inlineData.data, "base64")));
+      if (part.inlineData?.data && (!part.inlineData.mimeType || part.inlineData.mimeType.startsWith("audio/pcm"))) {
+        const incomingPcm = Buffer.concat([this.pcm24kRemainder, Buffer.from(part.inlineData.data, "base64")]);
+        const usableBytes = incomingPcm.length - (incomingPcm.length % 6);
+        this.pcm24kRemainder = incomingPcm.subarray(usableBytes);
+        if (usableBytes > 0) this.sendTwilioAudio(pcm24kToMulaw8k(incomingPcm.subarray(0, usableBytes)));
+      }
     }
     const calls = message.toolCall?.functionCalls || [];
     if (calls.length) {
@@ -182,7 +190,34 @@ class PhoneSession {
 
   sendTwilioAudio(audio) {
     if (!this.streamSid || this.twilio.readyState !== WebSocket.OPEN) return;
-    this.twilio.send(JSON.stringify({ event: "media", streamSid: this.streamSid, media: { payload: audio.toString("base64") } }));
+    // Twilio Media Streams expects 8 kHz μ-law to arrive in real-time. Gemini
+    // may produce PCM chunks faster than wall-clock time; sending them
+    // immediately makes the phone voice sound rushed and drops syllables.
+    // Queue 20 ms frames and release exactly one frame every 20 ms.
+    for (let offset = 0; offset < audio.length; offset += 160) {
+      this.twilioAudioQueue.push(audio.subarray(offset, Math.min(offset + 160, audio.length)));
+    }
+    if (this.twilioAudioQueue.length > 300) {
+      // Six seconds is an emergency safety cap for a stalled Twilio socket.
+      // Normal turns stay far below this and are never dropped.
+      this.twilioAudioQueue.splice(0, this.twilioAudioQueue.length - 300);
+    }
+    if (!this.twilioAudioTimer) {
+      this.twilioAudioTimer = setInterval(() => this.flushTwilioAudio(), 20);
+      this.flushTwilioAudio();
+    }
+  }
+
+  flushTwilioAudio() {
+    if (!this.streamSid || this.twilio.readyState !== WebSocket.OPEN) return this.stopTwilioAudioTimer();
+    const frame = this.twilioAudioQueue.shift();
+    if (!frame) return this.stopTwilioAudioTimer();
+    this.twilio.send(JSON.stringify({ event: "media", streamSid: this.streamSid, media: { payload: frame.toString("base64") } }));
+  }
+
+  stopTwilioAudioTimer() {
+    if (this.twilioAudioTimer) clearInterval(this.twilioAudioTimer);
+    this.twilioAudioTimer = null;
   }
 
   async executeTool(call) {
@@ -201,6 +236,8 @@ class PhoneSession {
     if (this.stopped) return;
     this.stopped = true;
     clearInterval(this.keepAlive);
+    this.stopTwilioAudioTimer();
+    this.twilioAudioQueue = [];
     if (this.gemini && this.gemini.readyState === WebSocket.OPEN) this.gemini.close();
     if (this.twilio.readyState === WebSocket.OPEN) this.twilio.close();
   }

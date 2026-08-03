@@ -4,7 +4,7 @@ This Cloud Run service is the phone-only Gemini Live gateway:
 
 `Twilio Media Streams -> Cloud Run WebSocket -> Gemini Live -> server-side tools`
 
-It accepts Twilio inbound webhooks at `/twilio/inbound`, upgrades media streams at `/twilio/media-stream`, converts G.711 μ-law 8 kHz to Gemini PCM 16 kHz, and converts Gemini PCM 24 kHz audio back to Twilio μ-law 8 kHz.
+It accepts Twilio inbound webhooks at `/twilio/inbound`, upgrades media streams at `/twilio/media-stream`, converts G.711 μ-law 8 kHz to Gemini PCM 16 kHz, and converts Gemini PCM 24 kHz audio back to Twilio μ-law 8 kHz. Outbound phone audio is paced into real-time 20 ms frames so fast Gemini chunks do not sound rushed or lose syllables.
 
 ## Required runtime configuration
 

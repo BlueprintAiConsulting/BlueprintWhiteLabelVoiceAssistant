@@ -3,7 +3,11 @@ export class AudioPlaybackQueue {
   private sampleRate: number;
   private nextPlayTime: number = 0;
   private activeSources: AudioBufferSourceNode[] = [];
-  private readonly maxBufferedSeconds = 0.8;
+  // Gemini can deliver several short PCM chunks ahead of the browser clock.
+  // A sub-second cap made long answers get cleared mid-sentence, which sounded
+  // like Megan was speaking rapidly and dropping words. Keep a generous safety
+  // cap and preserve the complete response during normal streaming.
+  private readonly maxBufferedSeconds = 4;
 
   constructor(sampleRate: number = 24000) {
     this.sampleRate = sampleRate;
@@ -35,8 +39,8 @@ export class AudioPlaybackQueue {
 
     if (this.ctx.state === "suspended") void this.ctx.resume();
 
-    // Keep response latency bounded. If a stalled tab accumulated too much
-    // audio, dropping the stale tail is more natural than speaking seconds late.
+    // Keep response latency bounded only for a genuinely stalled tab. Normal
+    // Gemini streaming must not clear queued chunks or words disappear.
     if (this.nextPlayTime - this.ctx.currentTime > this.maxBufferedSeconds) {
       this.clear();
     }
