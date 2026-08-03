@@ -1,0 +1,5 @@
+{
+  "name": "Blueprint AI Roofing Receptionist",
+  "description": "An internal MVP for Blueprint AI. A roofing-company AI receptionist that handles inbound calls, captures leads, flags emergencies, and displays everything in a simple admin dashboard.",
+  "requestFramePermissions": []
+}

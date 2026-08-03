@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "A call record or lead captured by the AI receptionist",
+      "type": "object",
+      "properties": {
+        "caller_name": { "type": "string", "description": "Name of the caller" },
+        "callback_number": { "type": "string", "description": "Phone number to call back" },
+        "reason_for_call": { "type": "string", "description": "The primary reason for the call" },
+        "call_type": { "type": "string", "enum": ["estimate_request", "emergency", "repair_request", "existing_customer", "general_office", "spam"], "description": "The categorized type of the call" },
+        "emergency_flag": { "type": "boolean", "description": "Whether the call is an emergency" },
+        "emergency_type": { "type": "string", "description": "Type of emergency (e.g., active leak, storm damage)" },
+        "property_address": { "type": "string", "description": "Address of the property" },
+        "customer_type": { "type": "string", "description": "New or existing customer" },
+        "issue_description": { "type": "string", "description": "Detailed description of the roofing issue" },
+        "preferred_appointment_date": { "type": "string", "description": "Requested date for an appointment" },
+        "preferred_time_window": { "type": "string", "description": "Requested time window for an appointment" },
+        "insurance_claim": { "type": "boolean", "description": "Whether this involves an insurance claim" },
+        "ai_summary": { "type": "string", "description": "AI-generated summary of the call" },
+        "transcript": { "type": "array", "items": { "type": "object", "properties": { "role": { "type": "string" }, "text": { "type": "string" } } }, "description": "The full call transcript" },
+        "call_status": { "type": "string", "enum": ["new", "contacted", "booked", "closed", "spam", "emergency_follow_up", "after_hours_follow_up"], "description": "Current status of the lead" },
+        "transfer_attempted": { "type": "boolean", "description": "Whether a transfer was attempted" },
+        "transfer_result": { "type": "string", "description": "Result of the transfer attempt" },
+        "created_at": { "type": "string", "format": "date-time", "description": "When the call record was created" },
+        "updated_at": { "type": "string", "format": "date-time", "description": "When the call record was last updated" }
+      },
+      "required": ["callback_number", "call_type", "created_at"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Application settings for the roofing company",
+      "type": "object",
+      "properties": {
+        "office_name": { "type": "string" },
+        "business_hours": { "type": "object", "properties": { "start": { "type": "string" }, "end": { "type": "string" }, "days": { "type": "array", "items": { "type": "string" } } } },
+        "timezone": { "type": "string" },
+        "service_areas": { "type": "array", "items": { "type": "string" } },
+        "transfer_enabled": { "type": "boolean" },
+        "transfer_phone_number": { "type": "string" },
+        "after_hours_message": { "type": "string" },
+        "emergency_keywords": { "type": "array", "items": { "type": "string" } },
+        "receptionist_voice_style": { "type": "string" },
+        "prompt_overrides": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Collection of captured leads and call records"
+    },
+    "/settings/config": {
+      "schema": "Setting",
+      "description": "Global application configuration"
+    }
+  }
+}

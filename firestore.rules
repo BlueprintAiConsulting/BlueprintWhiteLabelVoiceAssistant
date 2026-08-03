@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: leads
+    // Document ID: auto-generated
+    // Fields:
+    //   - caller_name: string (optional)
+    //   - callback_number: string (required)
+    //   - reason_for_call: string (optional)
+    //   - call_type: string (required, enum)
+    //   - emergency_flag: bool (optional)
+    //   - emergency_type: string (optional)
+    //   - property_address: string (optional)
+    //   - customer_type: string (optional)
+    //   - issue_description: string (optional)
+    //   - preferred_appointment_date: string (optional)
+    //   - preferred_time_window: string (optional)
+    //   - insurance_claim: bool (optional)
+    //   - ai_summary: string (optional)
+    //   - transcript: list (optional)
+    //   - call_status: string (optional, enum)
+    //   - transfer_attempted: bool (optional)
+    //   - transfer_result: string (optional)
+    //   - created_at: timestamp (required)
+    //   - updated_at: timestamp (optional)
+    //
+    // Collection: settings
+    // Document ID: config
+    // Fields:
+    //   - office_name: string
+    //   - business_hours: map
+    //   - timezone: string
+    //   - service_areas: list
+    //   - transfer_enabled: bool
+    //   - transfer_phone_number: string
+    //   - after_hours_message: string
+    //   - emergency_keywords: list
+    //   - receptionist_voice_style: string
+    //   - prompt_overrides: string
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "drewhufnagle@gmail.com" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['callback_number', 'call_type', 'created_at']) &&
+             data.callback_number is string && data.callback_number.size() > 0 && data.callback_number.size() < 50 &&
+             data.call_type is string && data.call_type in ['estimate_request', 'emergency', 'repair_request', 'existing_customer', 'general_office', 'spam'] &&
+             data.created_at is timestamp;
+    }
+
+    function isValidSetting(data) {
+      return data.keys().hasAll(['office_name', 'timezone']) &&
+             data.office_name is string && data.office_name.size() > 0 && data.office_name.size() < 200 &&
+             data.timezone is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /leads/{leadId} {
+      allow read: if isAuthenticated();
+      allow create: if isValidLead(request.resource.data);
+      allow update: if isAdmin() && isValidLead(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /settings/config {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSetting(request.resource.data);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}
