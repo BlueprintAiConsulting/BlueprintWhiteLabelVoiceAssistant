@@ -40,6 +40,14 @@ describe("Operational Safeguards Tests", () => {
     expect(res.allow_arrival_time_promise).toBe(false);
   });
 
+  it("triggers mandatory 911 evacuation instruction immediately when house is on fire or flames detected", () => {
+    const res = evaluateEmergencySafeguard("Help! My house is on fire and smoke is everywhere", mockSettings);
+
+    expect(res.is_emergency).toBe(true);
+    expect(res.is_life_safety).toBe(true);
+    expect(res.mandatory_instruction).toContain("call 911");
+  });
+
   it("handles non-life-safety heating emergency with callback-first rule", () => {
     const res = evaluateEmergencySafeguard("My furnace stopped heating and it is freezing inside", mockSettings);
 

@@ -42,14 +42,14 @@ export function evaluateEmergencySafeguard(
   const text = (reasonText || "").toLowerCase();
   const keywords = settings.emergency_keywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "flooding"];
 
-  const isLifeSafety = text.includes("gas leak") || text.includes("carbon monoxide") || text.includes("smoke") || text.includes("sparks");
+  const isLifeSafety = text.includes("fire") || text.includes("on fire") || text.includes("flames") || text.includes("gas leak") || text.includes("carbon monoxide") || text.includes("smoke") || text.includes("sparks");
   const isEmergency = isLifeSafety || text.includes("no heat") || text.includes("stopped heating") || text.includes("freezing") || text.includes("flooding") || keywords.some(k => text.includes(k.toLowerCase()));
 
   if (isLifeSafety) {
     return {
       is_emergency: true,
       is_life_safety: true,
-      mandatory_instruction: "LIFE SAFETY ALERT: Instruct caller to immediately leave the building and call 911 or the gas utility company before taking follow-up details.",
+      mandatory_instruction: "LIFE SAFETY ALERT: Instruct caller to immediately leave the building and call 911 (or emergency fire/gas services) before taking any follow-up details.",
       collect_callback_first: true,
       allow_arrival_time_promise: false
     };
