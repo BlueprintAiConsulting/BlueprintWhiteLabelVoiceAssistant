@@ -51,6 +51,9 @@ export interface BusinessHours {
 
 export interface Settings {
   office_name: string;
+  owner_name?: string;
+  owner_title?: string;
+  owner_phone_number?: string;
   business_hours: BusinessHours;
   timezone: string;
   service_areas: string[];

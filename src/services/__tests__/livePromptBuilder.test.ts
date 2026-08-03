@@ -29,6 +29,16 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("Apex Air is closed.");
     expect(prompt).toContain("enthusiastic and professional");
     expect(prompt).toContain("Always mention our free maintenance inspection with every estimate.");
+    expect(prompt).toContain('Josh');
+    expect(prompt).toContain("Caller requests Josh, the business owner");
+  });
+
+  it("recognizes owner requests as a distinct call path", () => {
+    const prompt = buildDynamicSystemPrompt({ settings: baseSettings, currentDateStr: "2026-08-03" });
+
+    expect(prompt).toContain("OWNER & MANAGER CALL HANDLING");
+    expect(prompt).toContain("Leave target_number empty");
+    expect(prompt).toContain("Never disclose Josh's private phone number");
   });
 
   it("updates generated system prompt when Settings change", () => {

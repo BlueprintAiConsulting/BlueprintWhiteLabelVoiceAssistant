@@ -168,7 +168,7 @@ export class GeminiLiveSession {
               },
               {
                 name: "transferCall",
-                description: "Initiates an immediate live call transfer to an on-call technician or phone extension when an emergency is detected or caller requests live specialist.",
+                description: "Initiates an immediate live call transfer to the business owner when the caller asks for Josh/the owner, or to an on-call technician for emergencies and specialist requests. Leave target_number empty for owner requests so routing uses the configured owner number.",
                 parameters: {
                   type: "OBJECT",
                   properties: {

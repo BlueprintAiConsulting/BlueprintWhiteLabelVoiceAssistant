@@ -112,7 +112,12 @@ export async function executeLiveToolCall(
       }
 
       case "transferCall": {
-        const transferTarget = args.target_number || settings.on_call_technician_phone || settings.transfer_phone_number;
+        const transferReason = typeof args.reason === "string" ? args.reason : "";
+        const ownerRequest = /\b(josh|owner|manager|boss|person in charge|proprietor)\b/i.test(transferReason);
+        const ownerTarget = settings.owner_phone_number || settings.transfer_phone_number || settings.on_call_technician_phone;
+        const transferTarget = ownerRequest
+          ? ownerTarget
+          : (args.target_number || settings.on_call_technician_phone || settings.transfer_phone_number);
         const isTransferConfigured = settings.transfer_enabled && Boolean(transferTarget);
 
         if (!isTransferConfigured) {
@@ -134,8 +139,11 @@ export async function executeLiveToolCall(
           output: {
             success: true,
             transferred: true,
+            route: ownerRequest ? "owner" : "on_call_technician",
             target_number: transferTarget,
-            message: `Call transfer initiated to ${transferTarget}.`
+            message: ownerRequest
+              ? "Call transfer initiated to the business owner."
+              : `Call transfer initiated to ${transferTarget}.`
           }
         };
       }

@@ -85,6 +85,30 @@ describe("Live Tool Dispatcher Unit Tests", () => {
     expect(res.output.target_number).toBe("+17175550199");
   });
 
+  it("routes a Josh/owner request to the configured owner route", async () => {
+    const ownerSettings: Settings = {
+      ...mockSettings,
+      owner_name: "Josh",
+      owner_phone_number: "+17175550001"
+    };
+    const res = await executeLiveToolCall(
+      {
+        id: "call_owner",
+        name: "transferCall",
+        args: {
+          target_number: "+15550009999",
+          reason: "Caller asks to speak with Josh, the owner",
+          caller_callback_number: "+15559998888"
+        }
+      },
+      ownerSettings
+    );
+
+    expect(res.output.success).toBe(true);
+    expect(res.output.route).toBe("owner");
+    expect(res.output.target_number).toBe("+17175550001");
+  });
+
   it("returns failure when transfer is disabled", async () => {
     const disabledSettings: Settings = { ...mockSettings, transfer_enabled: false };
     const res = await executeLiveToolCall(
