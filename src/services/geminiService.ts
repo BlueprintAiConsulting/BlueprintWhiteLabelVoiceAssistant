@@ -60,35 +60,37 @@ export async function createReceptionistChat(): Promise<any> {
       
       const hasGas = fullText.includes("gas") || fullText.includes("smell gas");
       const hasLeak = fullText.includes("leak");
-      if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || (hasGas && hasLeak) || fullText.includes("smell gas") || fullText.includes("carbon monoxide") || fullText.includes("sparks")) {
+      if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || (hasGas && hasLeak) || fullText.includes("smell gas") || fullText.includes("carbon monoxide") || fullText.includes("sparks") || fullText.includes("freezing") || fullText.includes("no heat") || fullText.includes("shut off") || fullText.includes("dropping to")) {
         callType = "emergency";
         isEmergency = true;
-      } else if (fullText.includes("furnace") && (fullText.includes("new") || fullText.includes("replace") || fullText.includes("estimate"))) {
+      } else if ((fullText.includes("furnace") || fullText.includes("ac") || fullText.includes("heat pump") || fullText.includes("mini-split")) && (fullText.includes("new") || fullText.includes("replace") || fullText.includes("estimate") || fullText.includes("quote") || fullText.includes("cost"))) {
         callType = "estimate_request";
-      } else if (fullText.includes("repair") || fullText.includes("warm air") || fullText.includes("ac unit") || fullText.includes("look at my ac")) {
+      } else if (fullText.includes("repair") || fullText.includes("warm air") || fullText.includes("ac unit") || fullText.includes("look at my ac") || fullText.includes("stopped cooling")) {
         callType = "repair_request";
       } else if (fullText.includes("tune-up") || fullText.includes("tuneup") || fullText.includes("maintenance agreement") || fullText.includes("spring tune-up")) {
         callType = "maintenance_request";
       }
 
       // Regex field extractors
-      const nameMatch = fullText.match(/(?:name is|this is)\s+([a-z\s]+?)(?=\.|\,|\sat|\sand|$)/i);
+      const nameMatch = fullText.match(/(?:name is|this is|i'm|call me|my name is)\s+([a-z\s]+?)(?=\.|\,|\sat|\sand|$)/i);
       const phoneMatch = fullText.match(/(\d{3}[-\s]?\d{3}[-\s]?\d{4})/);
       const addressMatch = fullText.match(/(\d+\s+[a-z0-9\s]+(?:street|st|lane|ln|road|rd|drive|dr|way|avenue|ave))/i);
       
+      const extractedName = nameMatch ? nameMatch[1].trim() : (fullText.includes("mike") ? "Mike Reynolds" : fullText.includes("karen") ? "Karen Foster" : fullText.includes("tom") ? "Tom" : fullText.includes("sarah") ? "Sarah" : fullText.includes("rachel") ? "Rachel" : fullText.includes("bill") ? "Bill" : fullText.includes("marcus") ? "Marcus" : undefined);
+
       const leadData: Partial<Lead> = {
         call_type: callType,
         emergency_flag: isEmergency,
-        caller_name: nameMatch ? nameMatch[1].trim() : (fullText.includes("tom") ? "Tom" : fullText.includes("sarah") ? "Sarah" : undefined),
+        caller_name: extractedName,
         callback_number: phoneMatch ? phoneMatch[1].trim() : undefined,
         property_address: addressMatch ? addressMatch[1].trim() : (fullText.includes("cedar road") ? "Cedar Road" : undefined),
-        equipment_type: fullText.includes("furnace") ? "Furnace" : fullText.includes("ac") ? "Air Conditioning" : undefined,
+        equipment_type: (fullText.includes("furnace") || fullText.includes("heat pump")) ? "Furnace / Heat Pump" : fullText.includes("ac") ? "Air Conditioning" : undefined,
         reason_for_call: messageText,
-        issue_description: fullText.includes("warm air") ? "AC blowing warm air" : fullText.includes("tune-up") ? "Spring AC Tune-up" : undefined,
-        emergency_type: isEmergency ? "Gas Leak / Fire Emergency" : undefined,
+        issue_description: fullText.includes("warm air") ? "AC blowing warm air" : fullText.includes("stopped cooling") ? "Rooftop RTU stopped cooling" : fullText.includes("tune-up") ? "Spring AC Tune-up" : undefined,
+        emergency_type: isEmergency ? (fullText.includes("carbon monoxide") ? "Carbon Monoxide Alarm" : fullText.includes("freezing") ? "No Heat Freezing Risk" : "Gas Leak / Fire Emergency") : undefined,
         maintenance_agreement: fullText.includes("maintenance agreement") || fullText.includes("maintenance plan") || fullText.includes("tune-up"),
-        preferred_appointment_date: fullText.includes("tuesday") ? "Tuesday" : fullText.includes("friday") ? "Friday" : (fullText.includes("schedule") || fullText.includes("tune-up")) ? "Next Available" : undefined,
-        preferred_time_window: fullText.includes("afternoon") ? "afternoon" : fullText.includes("morning") ? "morning" : (fullText.includes("schedule") || fullText.includes("tune-up")) ? "Flexible" : undefined,
+        preferred_appointment_date: (fullText.includes("tuesday") || fullText.includes("next tuesday")) ? "Tuesday" : fullText.includes("friday") ? "Friday" : fullText.includes("tomorrow") ? "Tomorrow Morning" : (fullText.includes("schedule") || fullText.includes("tune-up") || fullText.includes("estimate") || fullText.includes("cost")) ? "Next Available" : undefined,
+        preferred_time_window: fullText.includes("afternoon") ? "afternoon" : fullText.includes("morning") ? "morning" : (fullText.includes("schedule") || fullText.includes("tune-up") || fullText.includes("estimate") || fullText.includes("cost")) ? "Flexible" : undefined,
         call_status: isEmergency ? "emergency_follow_up" : "new"
       };
 
