@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createReceptionistChat, processLead } from "../services/geminiService.ts";
+import { GeminiLiveSession } from "../services/geminiLiveService.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Bug, Mic, MicOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -27,6 +28,8 @@ export default function Simulator() {
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any[]>([]);
   const [capturedLead, setCapturedLead] = useState<Partial<Lead> | null>(null);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -63,8 +66,58 @@ export default function Simulator() {
     }
   };
 
+  const startVoiceCall = async () => {
+    if (isCalling) endCall();
+
+    setIsLoading(true);
+    setIsVoiceMode(true);
+    setTranscript([]);
+    setDebugInfo([]);
+    setCapturedLead(null);
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY as string;
+      const session = new GeminiLiveSession({
+        apiKey,
+        onTranscript: (entry) => {
+          setTranscript(prev => [...prev, entry]);
+        },
+        onToolCall: (toolInfo) => {
+          setDebugInfo(prev => [...prev, toolInfo]);
+        },
+        onCapturedLead: (lead) => {
+          setCapturedLead(lead);
+          setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
+        },
+        onError: (err) => {
+          console.error("Voice mode error:", err);
+          setTranscript(prev => [...prev, { role: "system", text: "Voice connection error. Make sure your API key is valid." }]);
+        },
+        onClose: () => {
+          setIsCalling(false);
+          setIsVoiceMode(false);
+        }
+      });
+
+      liveSessionRef.current = session;
+      await session.start();
+      setIsCalling(true);
+    } catch (err: any) {
+      console.error("Error starting live voice call:", err);
+      setTranscript([{ role: "system", text: `Error: ${err?.message || "Failed to start voice call."}` }]);
+      setIsVoiceMode(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const endCall = () => {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.stop();
+      liveSessionRef.current = null;
+    }
     setIsCalling(false);
+    setIsVoiceMode(false);
     setChat(null);
     setTranscript(prev => [...prev, { role: "system", text: "Call ended." }]);
   };
@@ -114,17 +167,27 @@ export default function Simulator() {
               className="flex items-center gap-2 bg-rose-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
             >
               <PhoneOff size={16} />
-              Hang Up
+              Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})
             </button>
           ) : (
-            <button
-              onClick={() => startCall()}
-              disabled={isLoading}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
-            >
-              <Phone size={16} />
-              Manual Call
-            </button>
+            <>
+              <button
+                onClick={startVoiceCall}
+                disabled={isLoading}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+              >
+                <Mic size={16} />
+                Voice Call (Mic)
+              </button>
+              <button
+                onClick={() => startCall()}
+                disabled={isLoading}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-full font-bold uppercase tracking-wider text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
+              >
+                <Phone size={16} />
+                Text Call
+              </button>
+            </>
           )}
         </div>
       </div>
