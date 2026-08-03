@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState("");
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -45,6 +46,8 @@ export default function SettingsPage() {
           } catch (error) {
             handleFirestoreError(error, OperationType.GET, "settings/config");
           } finally {
+            const localKey = localStorage.getItem('gemini_api_key');
+            if (localKey) setGeminiApiKey(localKey);
             setIsLoading(false);
           }
         };
@@ -63,6 +66,11 @@ export default function SettingsPage() {
     setMessage(null);
     try {
       await setDoc(doc(db, "settings", "config"), settings);
+      if (geminiApiKey) {
+        localStorage.setItem('gemini_api_key', geminiApiKey.trim());
+      } else {
+        localStorage.removeItem('gemini_api_key');
+      }
       setMessage({ type: "success", text: "Settings saved successfully." });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
@@ -113,8 +121,33 @@ export default function SettingsPage() {
       )}
 
       <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl">
-        {/* Company Identity */}
-        <section className="bg-white p-8 rounded-[2.5rem] border border-stone-200 shadow-xl space-y-6">
+        {/* Core Configuration & API Key */}
+        <div className="space-y-8">
+          <section className="bg-white p-8 rounded-[2.5rem] border border-stone-200 shadow-xl space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-stone-100 rounded-xl text-stone-600">
+                <Bot size={20} />
+              </div>
+              <h2 className="text-lg font-serif italic text-stone-800">AI Configuration</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Gemini API Key</label>
+                <input
+                  type="password"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-5 py-3 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <p className="text-xs text-stone-500 mt-2">Required for Voice Mode. Saved securely in your browser's local storage.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Company Identity */}
+          <section className="bg-white p-8 rounded-[2.5rem] border border-stone-200 shadow-xl space-y-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-stone-100 rounded-xl text-stone-600">
               <Building2 size={20} />
@@ -124,7 +157,7 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">Company Name</label>
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-400 font-bold">Business Name</label>
               <input
                 type="text"
                 value={settings.office_name}
@@ -148,6 +181,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+        </div>
 
         {/* Business Hours */}
         <section className="bg-white p-8 rounded-[2.5rem] border border-stone-200 shadow-xl space-y-6">

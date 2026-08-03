@@ -2,7 +2,6 @@ import { GoogleGenAI, Type, GenerateContentResponse, Chat } from "@google/genai"
 import { db, auth, addDoc, collection, serverTimestamp, handleFirestoreError, OperationType, doc, getDoc } from "../firebase.ts";
 import { Lead, CallType, CallStatus, Settings } from "../types.ts";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy_key_for_build" });
 
 const DEFAULT_SETTINGS: Settings = {
   office_name: "Lunar Heating and Cooling",
@@ -42,6 +41,12 @@ export async function getSettings(): Promise<Settings> {
 export async function createReceptionistChat(): Promise<Chat> {
   const settings = await getSettings();
   
+  const apiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.includes("dummy")) {
+    throw new Error("Invalid or missing Gemini API Key. Please add it in the Settings tab.");
+  }
+  const ai = new GoogleGenAI({ apiKey: apiKey as string });
+
   const systemInstruction = `
     You are the front desk receptionist for ${settings.office_name}.
     Your goal is to handle inbound calls efficiently, identify the reason for the call, and collect ONLY the essential details needed for follow-up.

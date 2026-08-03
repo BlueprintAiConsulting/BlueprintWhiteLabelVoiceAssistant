@@ -76,7 +76,13 @@ export default function Simulator() {
     setCapturedLead(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY as string;
+      const apiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY as string;
+      if (!apiKey || apiKey.includes("dummy")) {
+        setTranscript(prev => [...prev, { role: "system", text: "Error: Missing Gemini API Key. Please add it in the Settings tab." }]);
+        setIsLoading(false);
+        setIsVoiceMode(false);
+        return;
+      }
       const session = new GeminiLiveSession({
         apiKey,
         onTranscript: (entry) => {
