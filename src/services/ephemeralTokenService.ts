@@ -37,6 +37,10 @@ export async function requestGeminiEphemeralToken(): Promise<EphemeralTokenRespo
     throw new Error("RATE_LIMITED: Token request threshold exceeded. Please wait a few minutes before starting a new call.");
   }
 
+  if (response.status === 404) {
+    throw new Error("CLOUD_FUNCTION_NOT_DEPLOYED: The Cloud Function endpoint (/api/gemini-ephemeral-token) is missing. Deploy the issueGeminiEphemeralToken function to Firebase (requires Blaze plan).");
+  }
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `Backend Token Error (${response.status})`);
