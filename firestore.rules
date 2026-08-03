@@ -61,7 +61,7 @@ service cloud.firestore {
     function isValidLead(data) {
       return data.keys().hasAll(['callback_number', 'call_type', 'created_at']) &&
              data.callback_number is string && data.callback_number.size() > 0 && data.callback_number.size() < 50 &&
-             data.call_type is string && data.call_type in ['estimate_request', 'emergency', 'repair_request', 'existing_customer', 'general_office', 'spam'] &&
+             data.call_type is string && data.call_type in ['estimate_request', 'emergency', 'repair_request', 'maintenance_request', 'existing_customer', 'general_office', 'spam'] &&
              data.created_at is timestamp;
     }
 
