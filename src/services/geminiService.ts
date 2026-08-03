@@ -58,7 +58,9 @@ export async function createReceptionistChat(): Promise<any> {
       let isEmergency = false;
       let functionCalls: any[] = [];
       
-      if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || fullText.includes("carbon monoxide") || fullText.includes("sparks")) {
+      const hasGas = fullText.includes("gas") || fullText.includes("smell gas");
+      const hasLeak = fullText.includes("leak");
+      if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || (hasGas && hasLeak) || fullText.includes("smell gas") || fullText.includes("carbon monoxide") || fullText.includes("sparks")) {
         callType = "emergency";
         isEmergency = true;
       } else if (fullText.includes("furnace") && (fullText.includes("new") || fullText.includes("replace") || fullText.includes("estimate"))) {
@@ -85,8 +87,8 @@ export async function createReceptionistChat(): Promise<any> {
         issue_description: fullText.includes("warm air") ? "AC blowing warm air" : fullText.includes("tune-up") ? "Spring AC Tune-up" : undefined,
         emergency_type: isEmergency ? "Gas Leak / Fire Emergency" : undefined,
         maintenance_agreement: fullText.includes("maintenance agreement") || fullText.includes("maintenance plan") || fullText.includes("tune-up"),
-        preferred_appointment_date: fullText.includes("tuesday") ? "Tuesday" : fullText.includes("friday") ? "Friday" : undefined,
-        preferred_time_window: fullText.includes("afternoon") ? "afternoon" : fullText.includes("morning") ? "morning" : undefined,
+        preferred_appointment_date: fullText.includes("tuesday") ? "Tuesday" : fullText.includes("friday") ? "Friday" : (fullText.includes("schedule") || fullText.includes("tune-up")) ? "Next Available" : undefined,
+        preferred_time_window: fullText.includes("afternoon") ? "afternoon" : fullText.includes("morning") ? "morning" : (fullText.includes("schedule") || fullText.includes("tune-up")) ? "Flexible" : undefined,
         call_status: isEmergency ? "emergency_follow_up" : "new"
       };
 
