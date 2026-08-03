@@ -64,18 +64,23 @@ export default function SettingsPage() {
     e.preventDefault();
     setIsSaving(true);
     setMessage(null);
+
+    // 1. Always save API key to local storage regardless of Firestore auth state
+    if (geminiApiKey) {
+      localStorage.setItem('gemini_api_key', geminiApiKey.trim());
+    } else {
+      localStorage.removeItem('gemini_api_key');
+    }
+
+    // 2. Attempt to save global business settings to Firestore
     try {
       await setDoc(doc(db, "settings", "config"), settings);
-      if (geminiApiKey) {
-        localStorage.setItem('gemini_api_key', geminiApiKey.trim());
-      } else {
-        localStorage.removeItem('gemini_api_key');
-      }
-      setMessage({ type: "success", text: "Settings saved successfully." });
+      setMessage({ type: "success", text: "API Key and Business Settings saved successfully." });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, "settings/config");
-      setMessage({ type: "error", text: "Failed to save settings." });
+      console.warn("Firestore settings save failed (requires Admin login):", error);
+      setMessage({ type: "success", text: "API Key saved locally to browser! (Admin login required to save global office profile)." });
+      setTimeout(() => setMessage(null), 4000);
     } finally {
       setIsSaving(false);
     }
