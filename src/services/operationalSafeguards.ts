@@ -81,8 +81,8 @@ export function evaluateAfterHoursSafeguard(
   settings: Settings,
   isEmergency: boolean = false
 ): AfterHoursEvaluation {
-  const startStr = settings.business_hours?.start || "09:00";
-  const endStr = settings.business_hours?.end || "17:00";
+  const startStr = settings.business_hours?.start || "00:00";
+  const endStr = settings.business_hours?.end || "23:59";
 
   const [sH, sM] = startStr.split(":").map(Number);
   const [eH, eM] = endStr.split(":").map(Number);

@@ -16,9 +16,9 @@ export function buildDynamicSystemPrompt(context: SystemPromptContext): string {
 
   const officeName = settings.office_name || "HVAC Office";
   const timezone = settings.timezone || "America/New_York";
-  const startHours = settings.business_hours?.start || "09:00";
-  const endHours = settings.business_hours?.end || "17:00";
-  const days = (settings.business_hours?.days || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]).join(", ");
+  const startHours = settings.business_hours?.start || "00:00";
+  const endHours = settings.business_hours?.end || "23:59";
+  const days = (settings.business_hours?.days || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]).join(", ");
   const serviceAreas = (settings.service_areas || ["Primary Metro Area"]).join(", ");
   const emergencyKeywords = (settings.emergency_keywords || ["gas leak", "no heat", "carbon monoxide", "sparks"]).join(", ");
   const afterHoursMessage = settings.after_hours_message || "Our office is closed. Please leave your details or stay on the line for emergencies.";

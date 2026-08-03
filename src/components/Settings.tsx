@@ -8,9 +8,9 @@ import { cn } from "../lib/utils.ts";
 const DEFAULT_SETTINGS: Settings = {
   office_name: "Lunar Heating and Cooling",
   business_hours: {
-    start: "09:00",
-    end: "17:00",
-    days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    start: "00:00",
+    end: "23:59",
+    days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
   },
   timezone: "America/New_York",
   service_areas: ["New York City", "Brooklyn", "Queens", "Bronx", "Staten Island"],
