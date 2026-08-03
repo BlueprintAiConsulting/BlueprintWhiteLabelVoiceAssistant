@@ -86,6 +86,7 @@ export class GeminiLiveSession {
 
     const defaultSettings: Settings = this.options.settings || {
       office_name: this.options.officeName || "Lunar Heating and Cooling",
+      receptionist_name: "Megan",
       business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
       timezone: "America/New_York",
       service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],

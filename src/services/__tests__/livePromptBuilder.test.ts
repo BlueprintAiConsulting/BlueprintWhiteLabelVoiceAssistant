@@ -21,6 +21,7 @@ describe("Live System Prompt Builder Tests", () => {
     const prompt = buildDynamicSystemPrompt({ settings: baseSettings, currentDateStr: "2026-08-03" });
 
     expect(prompt).toContain("Apex Heating & Air");
+    expect(prompt).toContain("Megan, the office receptionist");
     expect(prompt).toContain("Today's Date: 2026-08-03");
     expect(prompt).toContain("America/Chicago");
     expect(prompt).toContain("08:00 to 18:00");

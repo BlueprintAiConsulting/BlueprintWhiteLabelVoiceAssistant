@@ -51,6 +51,8 @@ export interface BusinessHours {
 
 export interface Settings {
   office_name: string;
+  /** Human receptionist name used in the opening greeting and live-call identity. */
+  receptionist_name?: string;
   owner_name?: string;
   owner_title?: string;
   owner_phone_number?: string;

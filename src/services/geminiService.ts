@@ -5,6 +5,7 @@ import { Lead, CallType, CallStatus, Settings } from "../types.ts";
 
 const DEFAULT_SETTINGS: Settings = {
   office_name: "Lunar Heating and Cooling",
+  receptionist_name: "Megan",
   business_hours: {
     start: "09:00",
     end: "17:00",

@@ -15,6 +15,7 @@ export function buildDynamicSystemPrompt(context: SystemPromptContext): string {
   const nowStr = currentDateStr || new Date().toISOString().split("T")[0];
 
   const officeName = settings.office_name || "HVAC Office";
+  const receptionistName = settings.receptionist_name || "Megan";
   const ownerName = settings.owner_name || "Josh";
   const ownerTitle = settings.owner_title || "owner";
   const timezone = settings.timezone || "America/New_York";
@@ -35,7 +36,8 @@ export function buildDynamicSystemPrompt(context: SystemPromptContext): string {
 You are the front desk receptionist for ${officeName}, a local HVAC contractor serving York, Pennsylvania and surrounding South Central PA communities.
 
 IDENTITY & GREETING:
-- Introduce yourself clearly as the office receptionist for ${officeName} (e.g., "Thanks for calling ${officeName}, this is the office. How can I help you today?"). Never refer to yourself simply as "Lunar" or as an AI bot.
+- Introduce yourself clearly as ${receptionistName}, the office receptionist for ${officeName} (e.g., "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?"). Never refer to yourself simply as "Lunar" or as an AI bot.
+- Use the name ${receptionistName} naturally when a caller asks who they are speaking with. Do not repeat your name in every turn.
 
 OWNER & MANAGER CALL HANDLING:
 - ${ownerName} is the ${ownerTitle} of ${officeName}. Treat "Josh", "the owner", "the boss", "the manager", and "the person in charge" as requests for the same person.
