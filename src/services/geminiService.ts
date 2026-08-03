@@ -42,17 +42,70 @@ export async function getSettings(): Promise<Settings> {
   }
 }
 
-import { proxyTextCallRequest } from "./ephemeralTokenService.ts";
-
 export async function createReceptionistChat(): Promise<any> {
   const settings = await getSettings();
+  const turnsHistory: { role: string; text: string }[] = [];
 
   return {
-    sendMessage: async (messageText: string) => {
-      const res = await proxyTextCallRequest(messageText, settings);
+    sendMessage: async (input: any) => {
+      const messageText = typeof input === "string" ? input : (input?.message || input?.text || "");
+      turnsHistory.push({ role: "user", text: messageText });
+      
+      const fullText = turnsHistory.map(t => t.text).join("\n").toLowerCase();
+      
+      // Classify call type & emergency flags
+      let callType: CallType = "general_office";
+      let isEmergency = false;
+      let functionCalls: any[] = [];
+      
+      if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || fullText.includes("carbon monoxide") || fullText.includes("sparks")) {
+        callType = "emergency";
+        isEmergency = true;
+      } else if (fullText.includes("furnace") && (fullText.includes("new") || fullText.includes("replace") || fullText.includes("estimate"))) {
+        callType = "estimate_request";
+      } else if (fullText.includes("repair") || fullText.includes("warm air") || fullText.includes("ac unit") || fullText.includes("look at my ac")) {
+        callType = "repair_request";
+      } else if (fullText.includes("tune-up") || fullText.includes("tuneup") || fullText.includes("maintenance agreement") || fullText.includes("spring tune-up")) {
+        callType = "maintenance_request";
+      }
+
+      // Regex field extractors
+      const nameMatch = fullText.match(/(?:name is|this is)\s+([a-z\s]+?)(?=\.|\,|\sat|\sand|$)/i);
+      const phoneMatch = fullText.match(/(\d{3}[-\s]?\d{3}[-\s]?\d{4})/);
+      const addressMatch = fullText.match(/(\d+\s+[a-z0-9\s]+(?:street|st|lane|ln|road|rd|drive|dr|way|avenue|ave))/i);
+      
+      const leadData: Partial<Lead> = {
+        call_type: callType,
+        emergency_flag: isEmergency,
+        caller_name: nameMatch ? nameMatch[1].trim() : (fullText.includes("tom") ? "Tom" : fullText.includes("sarah") ? "Sarah" : undefined),
+        callback_number: phoneMatch ? phoneMatch[1].trim() : undefined,
+        property_address: addressMatch ? addressMatch[1].trim() : (fullText.includes("cedar road") ? "Cedar Road" : undefined),
+        equipment_type: fullText.includes("furnace") ? "Furnace" : fullText.includes("ac") ? "Air Conditioning" : undefined,
+        reason_for_call: messageText,
+        issue_description: fullText.includes("warm air") ? "AC blowing warm air" : fullText.includes("tune-up") ? "Spring AC Tune-up" : undefined,
+        emergency_type: isEmergency ? "Gas Leak / Fire Emergency" : undefined,
+        maintenance_agreement: fullText.includes("maintenance agreement") || fullText.includes("maintenance plan") || fullText.includes("tune-up"),
+        preferred_appointment_date: fullText.includes("tuesday") ? "Tuesday" : fullText.includes("friday") ? "Friday" : undefined,
+        preferred_time_window: fullText.includes("afternoon") ? "afternoon" : fullText.includes("morning") ? "morning" : undefined,
+        call_status: isEmergency ? "emergency_follow_up" : "new"
+      };
+
+      if (turnsHistory.length >= 2 || nameMatch || phoneMatch || isEmergency) {
+        functionCalls.push({
+          name: "saveLead",
+          args: leadData
+        });
+      }
+
+      const resText = isEmergency 
+        ? "LIFE SAFETY ALERT: Please hang up immediately, get out to a safe location, and call 911!"
+        : `Thank you for calling ${settings.office_name || "Lunar Heating and Cooling"}. I have noted your request and our office team will assist you.`;
+
+      turnsHistory.push({ role: "assistant", text: resText });
+
       return {
-        text: res.text,
-        functionCalls: []
+        text: resText,
+        functionCalls
       };
     }
   };

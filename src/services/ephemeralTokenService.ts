@@ -59,14 +59,18 @@ export async function requestGeminiEphemeralToken(): Promise<EphemeralTokenRespo
  * Client service to proxy Text Call mode requests through secure backend.
  */
 export async function proxyTextCallRequest(
-  userMessage: string,
+  userMessage: any,
   settings: Settings
 ): Promise<{ text: string }> {
-  if (!userMessage || !userMessage.trim()) {
+  const msgText = typeof userMessage === "string"
+    ? userMessage
+    : (userMessage?.message || userMessage?.text || String(userMessage || ""));
+
+  if (!msgText || !msgText.trim()) {
     return { text: "Please provide a valid message." };
   }
 
   return {
-    text: `Thank you for contacting ${settings.office_name || "Lunar Heating and Cooling"}. How can I help you with "${userMessage}" today?`
+    text: `Thank you for contacting ${settings.office_name || "Lunar Heating and Cooling"}. How can I help you with "${msgText.trim()}" today?`
   };
 }
