@@ -6,6 +6,7 @@ export interface GeminiLiveOptions {
   apiKey: string;
   officeName?: string;
   emergencyKeywords?: string[];
+  systemInstruction?: string;
   onTranscript?: (entry: { role: "user" | "assistant" | "system"; text: string }) => void;
   onToolCall?: (toolInfo: { name: string; args: any }) => void;
   onCapturedLead?: (lead: Partial<Lead>) => void;
@@ -78,7 +79,32 @@ export class GeminiLiveSession {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const officeName = this.options.officeName || "Blueprint AI HVAC";
-    const emergencyKeywords = (this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke"]).join(", ");
+    const emergencyKeywords = (this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"]).join(", ");
+
+    const systemPrompt = this.options.systemInstruction || `
+      You are the front desk receptionist for ${officeName}.
+      Your goal is to handle inbound calls efficiently, identify the reason for the call, and collect ONLY essential details for follow-up.
+      
+      TONE & STYLE:
+      - Professional, warm, and helpful office staff.
+      - Be concise. Don't use repetitive filler phrases.
+      - Sound like a natural human on the phone.
+      - Ask ONE question at a time.
+      
+      INTAKE LOGIC:
+      - NEW ESTIMATE: Name, Phone, Address, Equipment Type (Furnace, AC, Heat Pump, Boiler), Preferred Date/Time.
+      - EMERGENCY: Phone FIRST, then Address, then description.
+      - REPAIR: Name, Phone, Address, Issue, Equipment Type, Preferred Date/Time.
+      - MAINTENANCE: Name, Phone, Address, Equipment Type, Maintenance Agreement status.
+      - EXISTING CUSTOMER / GENERAL / SPAM: Name, Phone, Reason for call.
+      
+      EMERGENCY CRITERIA:
+      - Gas leaks, carbon monoxide, no heat in freezing weather, sparks/smoke, or major water leaks.
+      - Emergency keywords: ${emergencyKeywords}.
+      
+      ENDING:
+      - Confirm next steps clearly. Execute 'saveLead' tool as soon as core information is collected.
+    `;
 
     const setupPayload = {
       setup: {
@@ -96,7 +122,7 @@ export class GeminiLiveSession {
         systemInstruction: {
           parts: [
             {
-              text: `You are the friendly, concise front-desk HVAC receptionist for ${officeName}. Answer calls naturally, identify the caller's request, collect essential details (Name, Phone, Address, Equipment Type, Issue), and identify emergencies immediately (Keywords: ${emergencyKeywords}). When core info is obtained, execute the saveLead tool.`
+              text: systemPrompt
             }
           ]
         },
