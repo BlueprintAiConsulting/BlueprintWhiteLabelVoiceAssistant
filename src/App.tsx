@@ -67,14 +67,18 @@ function Sidebar() {
 
   return (
     <div className="w-64 bg-slate-900/50 backdrop-blur-2xl text-slate-300 flex flex-col h-screen border-r border-slate-800 relative z-20">
-      <div className="p-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-8 h-8 bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] rounded-lg flex items-center justify-center text-slate-950">
-            <ThermometerSun size={20} strokeWidth={2.5} />
+      <div className="p-6 border-b border-slate-800/80 mb-4">
+        <div className="flex items-center gap-3">
+          <img
+            src="/blueprint-ai-logo.jpg"
+            alt="Blueprint AI Consulting Co. Logo"
+            className="w-10 h-10 rounded-xl border border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.3)] object-cover"
+          />
+          <div>
+            <span className="font-serif italic text-lg text-slate-100 font-bold block leading-tight tracking-wide">Blueprint AI</span>
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400 font-bold block">Consulting Co.</span>
           </div>
-          <span className="font-serif italic text-xl text-slate-100 drop-shadow-md tracking-wide">Lunar AI</span>
         </div>
-        <p className="text-[10px] uppercase tracking-[0.25em] text-cyan-500/80 font-bold ml-1">Operations</p>
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
