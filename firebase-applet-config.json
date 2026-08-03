@@ -1,10 +1,10 @@
 {
-  "projectId": "blueprint-operations",
-  "appId": "1:1055948083267:web:a019dc91de16c2d367c4f6",
-  "apiKey": "AIzaSyDGaK7iwPiXzNJ9YbPL4R3Yr9QSCW9tspE",
-  "authDomain": "blueprint-operations.firebaseapp.com",
+  "projectId": "beach-house-tanning-lounge",
+  "appId": "1:430439016431:web:b877d5f1300561df06781a",
+  "apiKey": "AIzaSyBwkuslAVMBJ7MrkOzp-H3XaycVNo6n944",
+  "authDomain": "beach-house-tanning-lounge.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "blueprint-operations.firebasestorage.app",
-  "messagingSenderId": "1055948083267",
-  "measurementId": "G-206D5JPB6V"
+  "storageBucket": "beach-house-tanning-lounge.firebasestorage.app",
+  "messagingSenderId": "430439016431",
+  "measurementId": ""
 }
