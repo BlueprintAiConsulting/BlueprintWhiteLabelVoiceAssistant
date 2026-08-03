@@ -10,6 +10,8 @@ export interface GeminiLiveOptions {
   accessToken?: string;
   apiKey?: string;
   officeName?: string;
+  voiceName?: string;
+  personaName?: string;
   emergencyKeywords?: string[];
   systemInstruction?: string;
   settings?: Settings;
@@ -95,7 +97,7 @@ export class GeminiLiveSession {
   private sendSetupConfig() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const defaultSettings: Settings = this.options.settings || {
+    const baseSettings: Settings = this.options.settings || {
       office_name: this.options.officeName || "Lunar Heating and Cooling",
       receptionist_name: "Megan",
       business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
@@ -109,17 +111,21 @@ export class GeminiLiveSession {
       on_call_technician_phone: "+17175770668",
       after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is closed.",
       emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
-      receptionist_voice: "Kore",
-      receptionist_voice_style: "warm, concise, natural female office receptionist",
+      receptionist_voice: "Aoede",
+      receptionist_voice_style: "warm, concise, natural office receptionist",
       prompt_overrides: ""
     };
 
-    // Enforce female receptionist voice ("Kore") unconditionally for voice call mode
-    let selectedVoice = defaultSettings.receptionist_voice || "Kore";
-    if (selectedVoice === "Puck" || selectedVoice === "Charon" || selectedVoice === "Fenrir" || !selectedVoice) {
-      selectedVoice = "Kore";
-    }
-    const systemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: defaultSettings });
+    const selectedVoice = this.options.voiceName || baseSettings.receptionist_voice || "Aoede";
+    const selectedName = this.options.personaName || baseSettings.receptionist_name || "Sarah";
+
+    const effectiveSettings: Settings = {
+      ...baseSettings,
+      receptionist_name: selectedName,
+      receptionist_voice: selectedVoice
+    };
+
+    const systemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: effectiveSettings });
 
     const setupPayload = {
       setup: {

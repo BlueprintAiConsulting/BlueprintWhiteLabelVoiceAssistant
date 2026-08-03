@@ -147,6 +147,8 @@ export default function Simulator() {
 
       const session = new GeminiLiveSession({
         accessToken: tokenRes.access_token,
+        voiceName: selectedPersona.voice,
+        personaName: selectedPersona.name,
         settings: activeSettings,
         onTranscript: (entry) => {
           setTranscript(prev => {
