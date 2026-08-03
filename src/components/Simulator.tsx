@@ -40,6 +40,16 @@ export default function Simulator() {
     scrollToBottom();
   }, [transcript]);
 
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (liveSessionRef.current) {
+        liveSessionRef.current.stop();
+        liveSessionRef.current = null;
+      }
+    };
+  }, []);
+
   const startCall = async (initialPrompt?: string) => {
     if (isCalling) endCall();
     

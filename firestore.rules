@@ -76,7 +76,7 @@ service cloud.firestore {
     // ===============================================================
 
     match /leads/{leadId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin();
       allow create: if isValidLead(request.resource.data);
       allow update: if isAdmin() && isValidLead(request.resource.data);
       allow delete: if isAdmin();
