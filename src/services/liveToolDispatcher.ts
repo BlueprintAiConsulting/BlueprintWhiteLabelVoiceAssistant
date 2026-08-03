@@ -1,6 +1,7 @@
 import { Settings, Lead } from "../types.ts";
 import { processLead } from "./geminiService.ts";
 import { getAvailableAppointmentSlots, bookAppointmentSlot } from "./calendarService.ts";
+import { ConversationState } from "./conversationState.ts";
 
 export interface ToolCallPayload {
   id: string;
@@ -24,13 +25,42 @@ export interface ToolExecutionResult {
 export async function executeLiveToolCall(
   call: ToolCallPayload,
   settings: Settings,
-  onCapturedLead?: (lead: Partial<Lead>) => void
+  onCapturedLead?: (lead: Partial<Lead>) => void,
+  conversationState: ConversationState = new ConversationState()
 ): Promise<ToolExecutionResult> {
   const { id, name, args } = call;
 
   try {
     switch (name) {
+      case "confirmCallerDetails": {
+        const confirmation = conversationState.confirmCallerDetails(args || {});
+        return {
+          toolName: name,
+          callId: id,
+          output: {
+            success: confirmation.allowed,
+            confirmed: confirmation.allowed,
+            missing: confirmation.missing,
+            message: confirmation.message
+          }
+        };
+      }
+
       case "saveLead": {
+        const guard = conversationState.canSaveLead(args || {});
+        if (!guard.allowed) {
+          return {
+            toolName: name,
+            callId: id,
+            output: {
+              success: false,
+              error: "LEAD_REQUIREMENTS_INCOMPLETE",
+              missing: guard.missing,
+              message: guard.message
+            }
+          };
+        }
+
         onCapturedLead?.(args);
         let leadId = `lead_${Date.now()}`;
         try {
@@ -40,6 +70,7 @@ export async function executeLiveToolCall(
           console.warn("Firestore saveLead notice:", dbErr);
         }
 
+        conversationState.markToolComplete(name, true);
         return {
           toolName: name,
           callId: id,
@@ -61,6 +92,7 @@ export async function executeLiveToolCall(
           settings
         );
 
+        conversationState.recordAvailableSlots(slotResult.available_slots);
         return {
           toolName: name,
           callId: id,
@@ -74,6 +106,21 @@ export async function executeLiveToolCall(
       }
 
       case "bookAppointment": {
+        const guard = conversationState.canBookAppointment(args || {});
+        if (!guard.allowed) {
+          return {
+            toolName: name,
+            callId: id,
+            output: {
+              success: false,
+              error: "BOOKING_REQUIREMENTS_INCOMPLETE",
+              missing: guard.missing,
+              booking_status: "failed_callback_offered",
+              message: guard.message
+            }
+          };
+        }
+
         const bookingResult = await bookAppointmentSlot(
           {
             caller_name: args.caller_name || "Valued Caller",
@@ -98,6 +145,7 @@ export async function executeLiveToolCall(
           });
         }
 
+        conversationState.markToolComplete(name, bookingResult.success);
         return {
           toolName: name,
           callId: id,

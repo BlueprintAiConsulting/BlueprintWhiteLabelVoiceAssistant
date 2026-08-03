@@ -42,7 +42,7 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("Never disclose Josh's private phone number");
     expect(prompt).toContain("SPEAKING PACE");
     expect(prompt).toContain("ADDRESS & ZIP CONFIRMATION");
-    expect(prompt).toContain("address_confirmed and zip_code_confirmed");
+    expect(prompt).toContain("confirmCallerDetails");
   });
 
   it("updates generated system prompt when Settings change", () => {

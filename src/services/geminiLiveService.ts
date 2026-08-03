@@ -3,6 +3,7 @@ import { processLead } from "./geminiService.ts";
 import { Lead, Settings } from "../types.ts";
 import { executeLiveToolCall } from "./liveToolDispatcher.ts";
 import { buildDynamicSystemPrompt } from "./livePromptBuilder.ts";
+import { ConversationState } from "./conversationState.ts";
 
 export interface GeminiLiveOptions {
   accessToken?: string;
@@ -29,6 +30,7 @@ export class GeminiLiveSession {
   private isConnected: boolean = false;
   private hasGreeted: boolean = false;
   private options: GeminiLiveOptions;
+  private conversationState = new ConversationState();
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
@@ -38,6 +40,7 @@ export class GeminiLiveSession {
   public async start() {
     if (this.isConnected) return;
 
+    this.conversationState.reset();
     this.audioQueue.init();
 
     const accessToken = this.options.accessToken || "";
@@ -145,8 +148,22 @@ export class GeminiLiveSession {
           {
             functionDeclarations: [
               {
+                name: "confirmCallerDetails",
+                description: "Records an explicit caller confirmation after the receptionist reads back the full address/ZIP or the exact appointment slot and the caller says it is correct. Never call this before the caller explicitly confirms.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    confirmation_type: { type: "STRING", enum: ["address", "appointment", "all"] },
+                    full_address: { type: "STRING", description: "Complete street address, city, state, and ZIP as read back to the caller." },
+                    zip_code: { type: "STRING", description: "ZIP code repeated digit by digit." },
+                    appointment_start: { type: "STRING", description: "Exact slot the caller explicitly accepted." }
+                  },
+                  required: ["confirmation_type"]
+                }
+              },
+              {
                 name: "saveLead",
-                description: "Saves the captured lead details to the database.",
+                description: "Saves captured lead details only after required caller details have been explicitly confirmed with confirmCallerDetails.",
                 parameters: {
                   type: "OBJECT",
                   properties: {
@@ -353,7 +370,8 @@ export class GeminiLiveSession {
         const execution = await executeLiveToolCall(
           { id: call.id, name: call.name, args: call.args },
           defaultSettings,
-          this.options.onCapturedLead
+          this.options.onCapturedLead,
+          this.conversationState
         );
 
         // Return tool response back to Gemini for every function call ID
