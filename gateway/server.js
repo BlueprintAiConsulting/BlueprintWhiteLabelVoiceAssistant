@@ -2,6 +2,7 @@ const http = require("http");
 const express = require("express");
 const WebSocket = require("ws");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 if (!admin.apps.length) admin.initializeApp();
 const firestore = admin.firestore();
@@ -20,6 +21,7 @@ app.get("/health", healthResponse);
 app.get("/healthz", healthResponse);
 
 app.post("/twilio/inbound", (req, res) => {
+  if (!validateTwilioRequest(req)) return res.status(403).send("Invalid Twilio signature");
   const host = req.get("host");
   const protocol = req.get("x-forwarded-proto") === "https" ? "wss" : "ws";
   const sharedSecret = (process.env.GATEWAY_SHARED_SECRET || "").trim();
@@ -29,6 +31,21 @@ app.post("/twilio/inbound", (req, res) => {
   const streamUrl = `${protocol}://${host}/twilio/media-stream${token}`;
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Connect><Stream url="${streamUrl}"><Parameter name="callerPhone" value="${caller}"/><Parameter name="callSid" value="${callSid}"/></Stream></Connect></Response>`;
   res.type("text/xml").send(twiml);
+});
+
+// Configure the Twilio number's status callback to this endpoint for missed-call
+// text-back. It is intentionally a no-op until Twilio credentials are present.
+app.post("/twilio/status", async (req, res) => {
+  if (!validateTwilioRequest(req)) return res.status(403).send("Invalid Twilio signature");
+  const status = String(req.body.CallStatus || "").toLowerCase();
+  if (["no-answer", "busy", "failed", "canceled"].includes(status)) {
+    try {
+      await sendMissedCallText(req.body.From || "");
+    } catch (error) {
+      console.error("Missed-call SMS failed", error.message || error);
+    }
+  }
+  res.status(204).end();
 });
 
 const server = http.createServer(app);
@@ -205,7 +222,11 @@ async function executeServerTool(name, args, session) {
   if (name === "triageHvacIssue") return triageIssue(args.issue_description || args.reason_for_call || "");
   if (name === "checkAppointmentSlots") return { success: false, configured: false, available_slots: [], error: "CALENDAR_NOT_CONFIGURED", message: "Google Calendar is not connected. Offer a callback." };
   if (name === "bookAppointment") return { success: false, booking_status: "failed_callback_offered", error: "CALENDAR_NOT_CONFIGURED", message: "Google Calendar is not connected. Offer a callback." };
-  if (name === "transferCall") return { success: false, transferred: false, error: "TRANSFER_PROVIDER_NOT_CONFIGURED", message: "The transfer provider is not connected. Collect the caller's message and callback number." };
+  if (name === "transferCall") return executeTwilioWarmTransfer(args, session);
+  if (name === "sendMissedCallTextBack") {
+    const sent = await sendMissedCallText(args.callback_number || session.callerPhone, args.customer_name || args.caller_name || "");
+    return sent.sent ? { success: true, ...sent } : { success: false, error: "SMS_NOT_CONFIGURED", ...sent };
+  }
   if (name === "saveLead") {
     if (["estimate_request", "repair_request", "maintenance_request", "existing_customer", "emergency"].includes(args.call_type) && (!session.addressConfirmed || !session.zipConfirmed)) {
       return { success: false, error: "LEAD_REQUIREMENTS_INCOMPLETE", message: "Confirm the complete address and ZIP before saving this service lead." };
@@ -226,6 +247,91 @@ function triageIssue(text) {
 
 function cleanObject(value) {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null));
+}
+
+function twilioConfig() {
+  const accountSid = String(process.env.TWILIO_ACCOUNT_SID || "").trim();
+  const authToken = String(process.env.TWILIO_AUTH_TOKEN || "").trim();
+  const from = String(process.env.TWILIO_PHONE_NUMBER || "").trim();
+  const messagingServiceSid = String(process.env.TWILIO_MESSAGING_SERVICE_SID || "").trim();
+  return { accountSid, authToken, from, messagingServiceSid };
+}
+
+function twilioConfigured() {
+  const config = twilioConfig();
+  return Boolean(config.accountSid && config.authToken && (config.from || config.messagingServiceSid));
+}
+
+function validateTwilioRequest(req) {
+  if (String(process.env.TWILIO_VALIDATE_SIGNATURE || "").toLowerCase() !== "true") return true;
+  const { authToken } = twilioConfig();
+  const signature = req.get("x-twilio-signature") || "";
+  if (!authToken || !signature) return false;
+  const protocol = req.get("x-forwarded-proto") || "https";
+  const url = `${protocol}://${req.get("host")}${req.originalUrl}`;
+  const params = req.body || {};
+  const payload = url + Object.keys(params).sort().map(key => `${key}${params[key]}`).join("");
+  const expected = crypto.createHmac("sha1", authToken).update(payload).digest("base64");
+  const left = Buffer.from(expected);
+  const right = Buffer.from(signature);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+async function twilioPost(path, fields) {
+  const config = twilioConfig();
+  if (!config.accountSid || !config.authToken) throw new Error("Twilio credentials are not configured");
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams(fields)
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Twilio ${response.status}: ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : {};
+}
+
+async function executeTwilioWarmTransfer(args, session) {
+  const target = String(args.technician_phone || process.env.TWILIO_TRANSFER_NUMBER || "").trim();
+  const config = twilioConfig();
+  if (!twilioConfigured() || !config.from || !target || !session.callSid) {
+    return { success: false, transferred: false, error: "TRANSFER_PROVIDER_NOT_CONFIGURED", message: "The transfer provider is not connected. Collect the caller's message and callback number." };
+  }
+  const room = `lunar-hvac-${session.callSid}`;
+  const summary = String(args.reason || "HVAC service call").slice(0, 500);
+  const conferenceXml = `<Response><Say voice="alice">Lunar Heating and Cooling transfer. Caller summary: ${escapeXml(summary)}</Say><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">${escapeXml(room)}</Conference></Dial></Response>`;
+  const callerXml = `<Response><Dial><Conference startConferenceOnEnter="true">${escapeXml(room)}</Conference></Dial></Response>`;
+  try {
+    await twilioPost("Calls.json", { To: target, From: config.from, Twiml: conferenceXml });
+    await twilioPost(`Calls/${encodeURIComponent(session.callSid)}.json`, { Twiml: callerXml });
+    return { success: true, transferred: true, target_phone: target, message: "Warm transfer started. The technician is receiving the call summary now." };
+  } catch (error) {
+    console.error("Warm transfer failed", error.message || error);
+    return { success: false, transferred: false, error: "TRANSFER_FAILED", message: "The technician could not be reached. Collect a callback number instead." };
+  }
+}
+
+async function sendMissedCallText(phone, customerName = "") {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return { sent: false, message: "No callback number was available for SMS." };
+  if (!twilioConfigured()) return { sent: false, message: "Twilio SMS provider is not configured. Record the missed call and offer a callback." };
+  const config = twilioConfig();
+  const template = process.env.TWILIO_MISSED_CALL_TEMPLATE || "Hi {{name}}, this is Megan from Lunar Heating and Cooling. Sorry we missed your call. Reply here and we will get back to you shortly.";
+  const body = template.replace(/\{\{name\}\}/g, customerName || "there");
+  const fields = { To: normalized, Body: body };
+  if (config.messagingServiceSid) fields.MessagingServiceSid = config.messagingServiceSid;
+  else fields.From = config.from;
+  const result = await twilioPost("Messages.json", fields);
+  return { sent: true, message: "Missed-call text-back sent.", message_sid: result.sid || "" };
+}
+
+function normalizePhone(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return String(phone || "").startsWith("+") ? String(phone) : "";
 }
 
 function mulaw8kToPcm16k(input) {
@@ -278,7 +384,8 @@ function toolDeclarations() {
     { name: "saveLead", description: "Save a lead only after required details are confirmed.", parameters: { type: "OBJECT", properties: { caller_name: { type: "STRING" }, callback_number: { type: "STRING" }, property_address: { type: "STRING" }, call_type: { type: "STRING" }, emergency_flag: { type: "BOOLEAN" }, issue_description: { type: "STRING" } }, required: ["callback_number", "call_type", "emergency_flag"] } },
     { name: "checkAppointmentSlots", description: "Check technician availability; currently unavailable until Calendar is connected.", parameters: { type: "OBJECT", properties: { service_type: { type: "STRING" }, requested_date: { type: "STRING" } }, required: ["service_type"] } },
     { name: "bookAppointment", description: "Book a confirmed appointment; currently unavailable until Calendar is connected.", parameters: { type: "OBJECT", properties: { callback_number: { type: "STRING" }, appointment_start: { type: "STRING" } }, required: ["callback_number", "appointment_start"] } },
-    { name: "transferCall", description: "Attempt a human transfer; collect a callback if provider is unavailable.", parameters: { type: "OBJECT", properties: { caller_name: { type: "STRING" }, caller_callback_number: { type: "STRING" }, reason: { type: "STRING" } }, required: ["reason", "caller_callback_number"] } }
+    { name: "transferCall", description: "Warm-transfer the caller to the on-call technician; collect a callback if unavailable.", parameters: { type: "OBJECT", properties: { caller_name: { type: "STRING" }, caller_callback_number: { type: "STRING" }, technician_phone: { type: "STRING" }, reason: { type: "STRING" } }, required: ["reason", "caller_callback_number"] } },
+    { name: "sendMissedCallTextBack", description: "Send an SMS text-back after a missed call when Twilio messaging is configured.", parameters: { type: "OBJECT", properties: { callback_number: { type: "STRING" }, customer_name: { type: "STRING" }, caller_name: { type: "STRING" } }, required: ["callback_number"] } }
   ];
 }
 
