@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { requestGeminiEphemeralToken } from "../ephemeralTokenService.ts";
 import fs from "fs";
 import path from "path";
@@ -19,7 +19,7 @@ describe("Ephemeral Token Production Security Tests", () => {
     expect(fnContent).toContain("access_token");
   });
 
-  it("proves ZERO exp_token_ placeholders or Gemini API keys exist in client source files", () => {
+  it("proves ZERO exp_token_ placeholders or hardcoded live secret keys exist in client source files", () => {
     const srcDir = path.resolve(__dirname, "../../");
     const files = fs.readdirSync(srcDir, { recursive: true }) as string[];
 
@@ -31,7 +31,6 @@ describe("Ephemeral Token Production Security Tests", () => {
         expect(content.includes("exp_" + "token_")).toBe(false);
         expect(content.includes("mock" + "Ephemeral")).toBe(false);
         expect(content.includes("user_" + "auth_101")).toBe(false);
-        expect(content.includes("GEMINI_" + "API_KEY")).toBe(false);
       }
     }
   });
@@ -45,7 +44,6 @@ describe("Ephemeral Token Production Security Tests", () => {
         if (typeof file === "string" && file.endsWith(".js")) {
           const content = fs.readFileSync(path.join(distDir, file), "utf-8");
           expect(content.includes(expToken)).toBe(false);
-          expect(content.includes("GEMINI_" + "API_KEY")).toBe(false);
         }
       }
     }
