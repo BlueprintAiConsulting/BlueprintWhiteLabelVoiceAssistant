@@ -14,6 +14,8 @@ It accepts Twilio inbound webhooks at `/twilio/inbound`, upgrades media streams 
 - `TWILIO_PHONE_NUMBER`: E.164 Twilio voice/SMS sender used for transfers, or
   `TWILIO_MESSAGING_SERVICE_SID` for SMS sender-pool delivery.
 - `TWILIO_TRANSFER_NUMBER`: on-call technician destination for warm transfers.
+- `TWILIO_OWNER_NUMBER`: optional Josh/owner direct line; falls back to
+  `TWILIO_TRANSFER_NUMBER` when omitted.
 - `TWILIO_VALIDATE_SIGNATURE=true`: validate `X-Twilio-Signature` on webhooks.
 - Cloud Run default service identity with Firestore access.
 - A Twilio phone number configured to POST voice calls to `https://<gateway>/twilio/inbound`.

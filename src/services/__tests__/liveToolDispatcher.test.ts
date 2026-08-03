@@ -183,6 +183,26 @@ describe("Live Tool Dispatcher Unit Tests", () => {
     expect(res.output.handoff_summary).toContain("owner handoff");
   });
 
+  it("does not require name or reason details before an owner direct-line transfer", async () => {
+    const ownerSettings: Settings = {
+      ...mockSettings,
+      owner_name: "Josh",
+      owner_phone_number: "+17175550001"
+    };
+    const res = await executeLiveToolCall(
+      {
+        id: "call_owner_no_callback",
+        name: "transferCall",
+        args: { reason: "Caller requests Josh, the business owner" }
+      },
+      ownerSettings
+    );
+
+    expect(res.output.success).toBe(true);
+    expect(res.output.route).toBe("owner");
+    expect(res.output.target_number).toBe("+17175550001");
+  });
+
   it("returns failure when transfer is disabled", async () => {
     const disabledSettings: Settings = { ...mockSettings, transfer_enabled: false };
     const res = await executeLiveToolCall(

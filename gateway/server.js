@@ -331,13 +331,17 @@ async function twilioPost(path, fields) {
 }
 
 async function executeTwilioWarmTransfer(args, session) {
-  const target = String(args.technician_phone || process.env.TWILIO_TRANSFER_NUMBER || "").trim();
+  const reason = String(args.reason || "");
+  const ownerRequest = /\b(josh|owner|manager|boss|person in charge|proprietor)\b/i.test(reason);
+  const target = String(ownerRequest
+    ? (process.env.TWILIO_OWNER_NUMBER || process.env.TWILIO_TRANSFER_NUMBER || args.target_number || args.technician_phone || "")
+    : (args.technician_phone || args.target_number || process.env.TWILIO_TRANSFER_NUMBER || "")).trim();
   const config = twilioConfig();
   if (!twilioConfigured() || !config.from || !target || !session.callSid) {
     return { success: false, transferred: false, error: "TRANSFER_PROVIDER_NOT_CONFIGURED", message: "The transfer provider is not connected. Collect the caller's message and callback number." };
   }
   const room = `lunar-hvac-${session.callSid}`;
-  const summary = String(args.reason || "HVAC service call").slice(0, 500);
+  const summary = reason.slice(0, 500) || "HVAC service call";
   const conferenceXml = `<Response><Say voice="alice">Lunar Heating and Cooling transfer. Caller summary: ${escapeXml(summary)}</Say><Dial><Conference startConferenceOnEnter="true" endConferenceOnExit="true">${escapeXml(room)}</Conference></Dial></Response>`;
   const callerXml = `<Response><Dial><Conference startConferenceOnEnter="true">${escapeXml(room)}</Conference></Dial></Response>`;
   try {
@@ -411,7 +415,7 @@ function escapeXml(value) {
 }
 
 function gatewayPrompt() {
-  return `You are Megan, the natural human receptionist for Lunar Heating and Cooling. Answer the phone immediately, speak calmly and briefly, wait for the caller to finish, and stop when interrupted. Use one question at a time. Never diagnose remotely, promise a final price or arrival time, or give unsafe repair instructions. For gas odor, carbon monoxide, fire, smoke, flames, or sparks, tell the caller to leave and call 911. Confirm the complete address and ZIP before saving a service lead. Calendar is not connected yet, so never claim an appointment was booked.`;
+  return `You are Megan, the natural human receptionist for Lunar Heating and Cooling. Answer the phone immediately, speak calmly and briefly, wait for the caller to finish, and stop when interrupted. Use one question at a time. If the caller asks for Josh, the owner, the boss, or the manager, treat it as an OWNER ROUTING DECISION: say "Absolutely, one moment while I connect you to Josh," then immediately call transferCall with reason "Caller requests Josh, the business owner". Do not ask for the caller's name or what they want first. Never diagnose remotely, promise a final price or arrival time, or give unsafe repair instructions. For gas odor, carbon monoxide, fire, smoke, flames, or sparks, tell the caller to leave and call 911. Confirm the complete address and ZIP before saving a service lead. Calendar is not connected yet, so never claim an appointment was booked.`;
 }
 
 function toolDeclarations() {
@@ -421,7 +425,7 @@ function toolDeclarations() {
     { name: "saveLead", description: "Save a lead only after required details are confirmed.", parameters: { type: "OBJECT", properties: { caller_name: { type: "STRING" }, callback_number: { type: "STRING" }, property_address: { type: "STRING" }, call_type: { type: "STRING" }, emergency_flag: { type: "BOOLEAN" }, issue_description: { type: "STRING" } }, required: ["callback_number", "call_type", "emergency_flag"] } },
     { name: "checkAppointmentSlots", description: "Check technician availability; currently unavailable until Calendar is connected.", parameters: { type: "OBJECT", properties: { service_type: { type: "STRING" }, requested_date: { type: "STRING" } }, required: ["service_type"] } },
     { name: "bookAppointment", description: "Book a confirmed appointment; currently unavailable until Calendar is connected.", parameters: { type: "OBJECT", properties: { callback_number: { type: "STRING" }, appointment_start: { type: "STRING" } }, required: ["callback_number", "appointment_start"] } },
-    { name: "transferCall", description: "Warm-transfer the caller to the on-call technician; collect a callback if unavailable.", parameters: { type: "OBJECT", properties: { caller_name: { type: "STRING" }, caller_callback_number: { type: "STRING" }, technician_phone: { type: "STRING" }, reason: { type: "STRING" } }, required: ["reason", "caller_callback_number"] } },
+    { name: "transferCall", description: "Warm-transfer the caller. For Josh/the owner, use the configured owner direct line immediately; caller callback details may be omitted when caller ID is available.", parameters: { type: "OBJECT", properties: { caller_name: { type: "STRING" }, caller_callback_number: { type: "STRING" }, target_number: { type: "STRING" }, technician_phone: { type: "STRING" }, reason: { type: "STRING" } }, required: ["reason"] } },
     { name: "sendMissedCallTextBack", description: "Send an SMS text-back after a missed call when Twilio messaging is configured.", parameters: { type: "OBJECT", properties: { callback_number: { type: "STRING" }, customer_name: { type: "STRING" }, caller_name: { type: "STRING" } }, required: ["callback_number"] } }
   ];
 }

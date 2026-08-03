@@ -213,7 +213,7 @@ export class GeminiLiveSession {
               },
               {
                 name: "transferCall",
-                description: "Initiates an immediate live call transfer to the business owner when the caller asks for Josh/the owner, or to an on-call technician for emergencies and specialist requests. Leave target_number empty for owner requests so routing uses the configured owner number.",
+                description: "Initiates an immediate live call transfer. For Josh/the owner, route immediately to the configured owner direct line without collecting name or reason first; caller_callback_number may be blank when caller ID is available. Leave target_number empty for owner requests.",
                 parameters: {
                   type: "OBJECT",
                   properties: {
@@ -222,7 +222,7 @@ export class GeminiLiveSession {
                     caller_name: { type: "STRING", description: "Caller name for the human handoff summary." },
                     caller_callback_number: { type: "STRING", description: "Caller phone number." }
                   },
-                  required: ["reason", "caller_callback_number"]
+                  required: ["reason"]
                 }
               },
               {
