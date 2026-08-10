@@ -1,4 +1,42 @@
-export type CallType = 'estimate_request' | 'emergency' | 'repair_request' | 'maintenance_request' | 'existing_customer' | 'general_office' | 'spam';
+export type IndustryType = 'hvac' | 'roofing_siding' | 'plumbing' | 'electrical' | 'tree_service' | 'general_contracting';
+
+export type CallType = 
+  | 'estimate_request' 
+  | 'emergency' 
+  | 'repair_request' 
+  | 'maintenance_request' 
+  | 'existing_customer' 
+  | 'roof_replacement_estimate'
+  | 'siding_estimate'
+  | 'roof_repair'
+  | 'storm_hail_damage'
+  | 'gutter_soffit_repair'
+  | 'emergency_tarping'
+  | 'plumbing_repair'
+  | 'water_heater_estimate'
+  | 'drain_clearing'
+  | 'sewer_backup_emergency'
+  | 'repipe_estimate'
+  | 'electrical_repair'
+  | 'panel_upgrade_estimate'
+  | 'ev_charger_install'
+  | 'generator_estimate'
+  | 'lighting_install'
+  | 'electrical_emergency'
+  | 'tree_removal_estimate'
+  | 'tree_trimming'
+  | 'storm_emergency_tree'
+  | 'stump_grinding'
+  | 'landscaping_estimate'
+  | 'kitchen_remodel_estimate'
+  | 'bathroom_remodel_estimate'
+  | 'home_addition_estimate'
+  | 'deck_patio_quote'
+  | 'general_repair'
+  | 'site_board_up_emergency'
+  | 'general_office' 
+  | 'spam';
+
 export type CallStatus = 'new' | 'contacted' | 'booked' | 'closed' | 'spam' | 'emergency_follow_up' | 'after_hours_follow_up';
 
 export interface TranscriptEntry {
@@ -80,6 +118,7 @@ export interface FAQItem {
 }
 
 export interface Settings {
+  industry?: IndustryType;
   office_name: string;
   /** Human receptionist name used in the opening greeting and live-call identity. */
   receptionist_name?: string;

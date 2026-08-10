@@ -6,7 +6,8 @@ import { auth } from "../firebase.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
 import { buildHumanEscalationPlan } from "../services/humanEscalationService.ts";
 import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio } from "lucide-react";
+import { INDUSTRY_PRESETS, IndustryType } from "../services/industryPresets.ts";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Flame, Snowflake, PhoneForwarded, Droplets, Trees, Axe, Utensils, Maximize2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -38,11 +39,20 @@ export default function Simulator() {
   const [transferDetails, setTransferDetails] = useState<{ target: string; reason: string; status: string } | null>(null);
   const [activeVoiceName, setActiveVoiceName] = useState("Aoede");
   const [activePersonaName, setActivePersonaName] = useState("Sarah");
+  const [activeIndustry, setActiveIndustry] = useState<IndustryType>("hvac");
   const [smsToast, setSmsToast] = useState<string | null>(null);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
   const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    getSettings().then((s) => {
+      if (s.industry) setActiveIndustry(s.industry);
+      if (s.receptionist_voice) setActiveVoiceName(s.receptionist_voice);
+      if (s.receptionist_name) setActivePersonaName(s.receptionist_name);
+    }).catch(() => {});
+  }, []);
 
   const scrollToBottom = () => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -462,28 +472,32 @@ export default function Simulator() {
 
           {/* Quick Launch Scenarios */}
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-300">Quick Launch Scenarios</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
-              {SCENARIOS.map((scenario) => (
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-300">{INDUSTRY_PRESETS[activeIndustry]?.name || "Trade"} Scenarios</h2>
+              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 uppercase font-bold">
+                {INDUSTRY_PRESETS[activeIndustry]?.shortName}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-2.5">
+              {(INDUSTRY_PRESETS[activeIndustry]?.quickScenarios || SCENARIOS).map((scenario: any) => (
                 <button
                   key={scenario.id}
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
-                  className={cn(
-                    "flex items-center gap-3 p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50  shadow-md",
-                    scenario.id === "emergency" && "border-rose-500/30 hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-950/10",
-                    scenario.id === "noise_diag" && "border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] bg-amber-950/10"
-                  )}
+                  className="flex items-center gap-3 p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-md"
                 >
-                  <div className={cn(
-                    "p-2.5 rounded-xl transition-colors shadow-inner shrink-0",
-                    scenario.id === "emergency" ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : 
-                    scenario.id === "noise_diag" ? "bg-amber-500/20 text-amber-400 border border-amber-500/40" : "bg-slate-800 text-cyan-400 border border-slate-700 group-hover:border-cyan-500/50"
-                  )}>
-                    <scenario.icon size={18} />
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0 group-hover:bg-cyan-500/20 transition-all">
+                    <Sparkles size={16} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-xs text-slate-200 truncate">{scenario.label}</div>
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="font-semibold text-xs text-slate-200 truncate">{scenario.title || scenario.label}</div>
+                      {scenario.badge && (
+                        <span className="text-[9px] font-mono text-cyan-300 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 font-bold shrink-0">
+                          {scenario.badge}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-slate-400 line-clamp-1 italic mt-0.5">"{scenario.prompt}"</div>
                   </div>
                 </button>

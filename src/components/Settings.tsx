@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onAuthStateChanged } from "../firebase.ts";
-import { Settings } from "../types.ts";
-import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, MapPin, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain } from "lucide-react";
+import { Settings, IndustryType } from "../types.ts";
+import { INDUSTRY_PRESETS, getSettingsForIndustry } from "../services/industryPresets.ts";
+import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, MapPin, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
 const DEFAULT_SETTINGS: Settings = {
+  industry: "hvac",
   office_name: "Lunar Heating and Cooling",
   business_hours: {
     start: "00:00",
@@ -162,6 +164,85 @@ export default function SettingsPage() {
       )}
 
       <form onSubmit={handleSave} className="space-y-8 max-w-6xl">
+        {/* ================================================================= */}
+        {/* 0. WHITE-LABEL INDUSTRY PRESETS & MULTI-TRADE ENGINE               */}
+        {/* ================================================================= */}
+        <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 border-b border-slate-800/80 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/40 shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+                <Layers size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">0. White-Label Industry Presets</h2>
+                  <span className="px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold rounded-full border border-cyan-500/40 uppercase tracking-widest">
+                    Multi-Trade AI
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 dark:text-slate-400">Select your contractor trade to auto-configure emergency keywords, equipment, FAQs, and AI prompts.</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const currentInd = settings.industry || "hvac";
+                const presetSettings = getSettingsForIndustry(currentInd, settings);
+                setSettings(presetSettings);
+                setMessage({ type: "success", text: `Applied ${INDUSTRY_PRESETS[currentInd]?.name} industry presets!` });
+                setTimeout(() => setMessage(null), 3000);
+              }}
+              className="px-4 py-2.5 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(34,211,238,0.2)] cursor-pointer"
+            >
+              <Sparkles size={15} /> Apply {INDUSTRY_PRESETS[settings.industry || "hvac"]?.shortName} Presets
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 relative z-10">
+            {(Object.keys(INDUSTRY_PRESETS) as IndustryType[]).map((indKey) => {
+              const item = INDUSTRY_PRESETS[indKey];
+              const isSelected = (settings.industry || "hvac") === indKey;
+              return (
+                <button
+                  key={indKey}
+                  type="button"
+                  onClick={() => {
+                    const updated = getSettingsForIndustry(indKey, settings);
+                    setSettings(updated);
+                    setMessage({ type: "success", text: `Switched trade to ${item.name}` });
+                    setTimeout(() => setMessage(null), 2500);
+                  }}
+                  className={cn(
+                    "p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between space-y-3 cursor-pointer group relative overflow-hidden",
+                    isSelected
+                      ? "bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)] text-slate-100"
+                      : "bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={cn("p-2 rounded-xl border", isSelected ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300" : "bg-slate-900/60 border-slate-700 text-slate-400")}>
+                      {indKey === 'roofing_siding' && <Home size={18} />}
+                      {indKey === 'hvac' && <Wind size={18} />}
+                      {indKey === 'plumbing' && <Droplets size={18} />}
+                      {indKey === 'electrical' && <Zap size={18} />}
+                      {indKey === 'tree_service' && <Trees size={18} />}
+                      {indKey === 'general_contracting' && <Hammer size={18} />}
+                    </div>
+                    {isSelected && <CheckCircle size={14} className="text-cyan-400" />}
+                  </div>
+
+                  <div>
+                    <h4 className={cn("text-xs font-bold line-clamp-1", isSelected ? "text-cyan-200" : "text-slate-200")}>{item.shortName}</h4>
+                    <p className="text-[10px] text-slate-400 line-clamp-1">{item.tagline.split(" ")[0]} trade</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         {/* ================================================================= */}
         {/* 1. EMERGENCY ROUTING & SAFETY DISPATCH (TOP VALUE TO OWNER)       */}
         {/* ================================================================= */}
