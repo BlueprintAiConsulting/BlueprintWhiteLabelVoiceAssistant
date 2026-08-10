@@ -1,5 +1,5 @@
 import { CallOutcome, evaluateQAFlags, extractObjectionThemes } from "./qaService.ts";
-import { auth, db, addDoc, collection, doc, serverTimestamp, updateDoc } from "../firebase.ts";
+import { auth, db, addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from "../firebase.ts";
 
 export type LearningProposalStatus = "pending_review" | "approved" | "rejected";
 
@@ -128,15 +128,19 @@ export async function applyApprovedLearningProposal(
 ): Promise<string[]> {
   if (!auth.currentUser) throw new Error("UNAUTHORIZED: Sign in before approving a learning proposal.");
   const approvedRules = approveLearningProposal({ ...proposal, status: "approved" }, existingRules);
-  await updateDoc(doc(db, "learning_proposals", proposalId), {
+  
+  const batch = writeBatch(db);
+  batch.update(doc(db, "learning_proposals", proposalId), {
     status: "approved",
     approved_by: auth.currentUser.uid,
     approved_at: serverTimestamp(),
     approved_rules: approvedRules
   });
-  await updateDoc(doc(db, "settings", "config"), {
+  batch.set(doc(db, "settings", "config"), {
     approved_learning_rules: approvedRules,
     learning_rules_updated_at: serverTimestamp()
-  });
+  }, { merge: true });
+
+  await batch.commit();
   return approvedRules;
 }

@@ -221,6 +221,15 @@ export async function dispatchEmergencyAlert(leadData: Partial<Lead>, webhookUrl
 }
 
 export async function processLead(leadData: Partial<Lead>) {
+  // Always trigger emergency dispatch in parallel so life-safety webhooks are never blocked or dropped by DB latency
+  if (leadData.emergency_flag) {
+    getSettings().then(settings => {
+      if (settings.emergency_dispatch_webhook) {
+        dispatchEmergencyAlert(leadData, settings.emergency_dispatch_webhook);
+      }
+    }).catch(err => console.error("Emergency dispatch check failed:", err));
+  }
+
   try {
     // Clean undefined values to avoid Firestore errors
     const cleanedData = Object.fromEntries(
@@ -235,20 +244,10 @@ export async function processLead(leadData: Partial<Lead>) {
     });
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Firestore operation timeout")), 1000)
+      setTimeout(() => reject(new Error("Firestore operation timeout (8s limit)")), 8000)
     );
 
     const docRef = await Promise.race([addDocPromise, timeoutPromise]);
-
-    // If emergency, trigger dispatch webhook if configured in settings
-    if (leadData.emergency_flag) {
-      getSettings().then(settings => {
-        if (settings.emergency_dispatch_webhook) {
-          dispatchEmergencyAlert(leadData, settings.emergency_dispatch_webhook);
-        }
-      });
-    }
-
     return docRef.id;
   } catch (error) {
     console.warn("Firestore save fallback activated:", error instanceof Error ? error.message : error);

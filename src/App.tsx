@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 import { Phone, LayoutDashboard, Settings as SettingsIcon, ShieldAlert, ShieldCheck, ThermometerSun, Calendar, Menu, X, LogIn, LogOut, CheckCircle } from "lucide-react";
-import { auth, db, doc, setDoc, googleProvider, signInWithPopup, onAuthStateChanged, User } from "./firebase.ts";
+import { auth, db, doc, setDoc, serverTimestamp, googleProvider, signInWithPopup, onAuthStateChanged, User } from "./firebase.ts";
 import Dashboard from "./components/Dashboard.tsx";
 import Simulator from "./components/Simulator.tsx";
 import SettingsPage from "./components/Settings.tsx";
@@ -33,7 +33,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
             displayName: u.displayName,
             photoURL: u.photoURL,
             role: isAdminUser ? "admin" : "user",
-            updatedAt: new Date()
+            updatedAt: serverTimestamp()
           }, { merge: true });
         } catch (e) {
           console.warn("Could not sync user profile:", e);

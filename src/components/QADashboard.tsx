@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { db, doc, updateDoc, serverTimestamp } from "../firebase.ts";
 import { CallOutcome, computeQAMetrics, evaluateQAFlags, checkRequiredDetailsCaptured } from "../services/qaService.ts";
 import { ShieldCheck, PhoneCall, AlertTriangle, CheckCircle2, UserCheck, Clock, Filter, MessageSquare, AlertCircle, FileText, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -107,10 +108,19 @@ export default function QADashboard() {
 
   const metrics = useMemo(() => computeQAMetrics(filteredCalls), [filteredCalls]);
 
-  const handleSaveCoachingNotes = () => {
+  const handleSaveCoachingNotes = async () => {
     if (!selectedCall) return;
-    setCalls(prev => prev.map(c => c.id === selectedCall.id ? { ...c, coaching_notes: coachingInput } : c));
-    setSelectedCall(prev => prev ? { ...prev, coaching_notes: coachingInput } : null);
+    const noteText = coachingInput.trim();
+    setCalls(prev => prev.map(c => c.id === selectedCall.id ? { ...c, coaching_notes: noteText } : c));
+    setSelectedCall(prev => prev ? { ...prev, coaching_notes: noteText } : null);
+    try {
+      await updateDoc(doc(db, "leads", selectedCall.id), {
+        coaching_notes: noteText,
+        updated_at: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn("Could not save coaching notes to Firestore:", e);
+    }
   };
 
   return (

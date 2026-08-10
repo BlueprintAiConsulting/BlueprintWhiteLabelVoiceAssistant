@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
+import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, writeBatch, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
 import { Lead, CallType, CallStatus } from "../types.ts";
 import { Search, Filter, Clock, CheckCircle, XCircle, Trash2, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, Wrench, ThermometerSun, ChevronRight, Activity, Volume2 } from "lucide-react";
 import { format } from "date-fns";
@@ -46,6 +46,7 @@ export default function Dashboard() {
         const unsubscribeLeads = onSnapshot(q, (snapshot) => {
           const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
           setLeads(leadsData);
+          setSelectedLead(prev => prev ? leadsData.find(l => l.id === prev.id) || null : null);
           setIsLoading(false);
         }, (error) => {
           handleFirestoreError(error, OperationType.LIST, "leads");
@@ -63,9 +64,6 @@ export default function Dashboard() {
   const updateStatus = async (leadId: string, status: CallStatus) => {
     try {
       await updateDoc(doc(db, "leads", leadId), { call_status: status, updated_at: serverTimestamp() });
-      if (selectedLead?.id === leadId) {
-        setSelectedLead(prev => prev ? { ...prev, call_status: status } : null);
-      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, "leads");
     }
@@ -76,9 +74,6 @@ export default function Dashboard() {
     if (!window.confirm("Are you sure you want to delete this lead?")) return;
     try {
       await deleteDoc(doc(db, "leads", leadId));
-      if (selectedLead?.id === leadId) {
-        setSelectedLead(null);
-      }
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, "leads");
     }
@@ -87,9 +82,9 @@ export default function Dashboard() {
   const clearAllLeads = async () => {
     if (!window.confirm("Are you sure you want to clear all lead entries from the dashboard?")) return;
     try {
-      for (const lead of leads) {
-        await deleteDoc(doc(db, "leads", lead.id));
-      }
+      const batch = writeBatch(db);
+      leads.forEach(lead => batch.delete(doc(db, "leads", lead.id)));
+      await batch.commit();
       setSelectedLead(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, "leads");
@@ -123,12 +118,19 @@ export default function Dashboard() {
       { caller_name: "Patricia Taylor", callback_number: "555-0110", call_type: "emergency", emergency_flag: true, emergency_type: "Carbon Monoxide", property_address: "369 Poplar Ave, Brooklyn, NY", call_status: "emergency_follow_up", ai_summary: "CO detectors are going off in the house.", transcript: [] }
     ];
 
-    for (const lead of sampleLeads) {
-      await addDoc(collection(db, "leads"), {
-        ...lead,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp()
-      });
+    try {
+      const batch = writeBatch(db);
+      for (const lead of sampleLeads) {
+        const newRef = doc(collection(db, "leads"));
+        batch.set(newRef, {
+          ...lead,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp()
+        });
+      }
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "leads");
     }
   };
 

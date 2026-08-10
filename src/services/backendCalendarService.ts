@@ -186,6 +186,11 @@ export async function bookGoogleCalendarAppointment(
     }
   } catch (err) {
     console.error("Error creating Firestore appointment record:", err);
+    return {
+      success: false,
+      booking_status: "failed",
+      message: "Failed to persist appointment record in database."
+    };
   }
 
   // 6. Send SMS Confirmation via Twilio if enabled and credentials exist

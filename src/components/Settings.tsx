@@ -64,7 +64,7 @@ export default function SettingsPage() {
           try {
             const settingsDoc = await getDoc(doc(db, "settings", "config"));
             if (settingsDoc.exists()) {
-              setSettings(settingsDoc.data() as Settings);
+              setSettings({ ...DEFAULT_SETTINGS, ...settingsDoc.data() });
             }
           } catch (error) {
             handleFirestoreError(error, OperationType.GET, "settings/config");
@@ -90,16 +90,17 @@ export default function SettingsPage() {
     setIsSaving(true);
     setMessage(null);
 
-    // 1. Save API key to local storage
-    if (geminiApiKey) {
-      localStorage.setItem('gemini_api_key', geminiApiKey.trim());
-    } else {
-      localStorage.removeItem('gemini_api_key');
-    }
-
-    // 2. Save settings to Firestore
     try {
-      await setDoc(doc(db, "settings", "config"), settings);
+      // 1. Save settings to Firestore with merge: true to avoid overwriting partial/concurrent fields
+      await setDoc(doc(db, "settings", "config"), settings, { merge: true });
+
+      // 2. Only sync API key to local storage after cloud save succeeds
+      if (geminiApiKey) {
+        localStorage.setItem('gemini_api_key', geminiApiKey.trim());
+      } else {
+        localStorage.removeItem('gemini_api_key');
+      }
+
       setMessage({ type: "success", text: "Business Profile & Voice Receptionist settings saved successfully!" });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {

@@ -77,6 +77,8 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
   testConnection();
 }
 
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDocFromServer } from "firebase/firestore";
+
 export { 
   signInWithPopup, 
   onAuthStateChanged, 
@@ -91,6 +93,7 @@ export {
   addDoc, 
   updateDoc, 
   deleteDoc,
+  writeBatch,
   serverTimestamp 
 };
 export type { User };
