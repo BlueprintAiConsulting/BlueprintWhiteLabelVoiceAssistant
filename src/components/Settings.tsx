@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const isWhiteLabel = process.env.VITE_WHITE_LABEL === 'true';
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null);
@@ -122,7 +123,7 @@ export default function SettingsPage() {
     <div className="flex flex-col h-full bg-transparent p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto relative z-10">
       <header className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100">{INDUSTRY_PRESETS[settings.industry || 'hvac']?.name || 'Trade'} Office Settings</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100">{isWhiteLabel ? `${INDUSTRY_PRESETS[settings.industry || 'hvac']?.name || 'Trade'} Office Settings` : 'HVAC Office Settings'}</h1>
           <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Ordered by immediate revenue & operational value to your business.</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -167,7 +168,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 0. WHITE-LABEL INDUSTRY PRESETS & MULTI-TRADE ENGINE               */}
         {/* ================================================================= */}
-        <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+        {isWhiteLabel && <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
           <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 border-b border-slate-800/80 pb-4">
             <div className="flex items-center gap-3">
@@ -241,7 +242,7 @@ export default function SettingsPage() {
               );
             })}
           </div>
-        </section>
+        </section>}
 
         {/* ================================================================= */}
         {/* 1. EMERGENCY ROUTING & SAFETY DISPATCH (TOP VALUE TO OWNER)       */}
