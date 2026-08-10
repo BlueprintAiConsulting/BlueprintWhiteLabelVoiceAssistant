@@ -162,7 +162,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     },
     customFaqs: [
       { id: 'rf1', question: 'Do you offer free estimates for roof replacements?', answer: 'Yes! We offer 100% free, comprehensive in-person roof replacement and siding estimates with satellite 3D roof reports.' },
-      { id: 'rf2', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Absoluty. We inspect your roof for hail or wind damage, document all evidence for your adjuster, and walk you through the insurance claim process.' },
+      { id: 'rf2', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Absolutely. We inspect your roof for hail or wind damage, document all evidence for your adjuster, and walk you through the insurance claim process.' },
       { id: 'rf3', question: 'How quickly can you tarp an active roof leak?', answer: 'We offer 24/7 emergency tarping services. During active storms, our emergency response crew arrives promptly to secure your roof and prevent interior water damage.' }
     ],
     quickScenarios: [
@@ -537,12 +537,12 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
     owner_name: existingSettings?.owner_name || preset.defaultOwnerName,
     owner_title: existingSettings?.owner_title || preset.defaultOwnerTitle,
     owner_phone_number: existingSettings?.owner_phone_number || preset.defaultOwnerPhone,
-    emergency_keywords: preset.emergencyKeywords,
-    pricing_service_call: preset.pricingDefaults.serviceCall,
-    pricing_after_hours: preset.pricingDefaults.afterHours,
-    maintenance_plan_name: preset.pricingDefaults.maintenancePlanName,
-    maintenance_plan_price: preset.pricingDefaults.maintenancePlanPrice,
-    maintenance_plan_benefits: preset.pricingDefaults.maintenancePlanBenefits,
-    custom_faqs: preset.customFaqs
+    emergency_keywords: existingSettings?.emergency_keywords?.length ? existingSettings.emergency_keywords : preset.emergencyKeywords,
+    pricing_service_call: existingSettings?.pricing_service_call || preset.pricingDefaults.serviceCall,
+    pricing_after_hours: existingSettings?.pricing_after_hours || preset.pricingDefaults.afterHours,
+    maintenance_plan_name: existingSettings?.maintenance_plan_name || preset.pricingDefaults.maintenancePlanName,
+    maintenance_plan_price: existingSettings?.maintenance_plan_price || preset.pricingDefaults.maintenancePlanPrice,
+    maintenance_plan_benefits: existingSettings?.maintenance_plan_benefits || preset.pricingDefaults.maintenancePlanBenefits,
+    custom_faqs: existingSettings?.custom_faqs?.length ? existingSettings.custom_faqs : preset.customFaqs
   };
 }

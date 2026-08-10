@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onAuthStateChanged } from "../firebase.ts";
 import { Settings, IndustryType } from "../types.ts";
 import { INDUSTRY_PRESETS, getSettingsForIndustry } from "../services/industryPresets.ts";
-import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, MapPin, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer } from "lucide-react";
+import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
@@ -122,7 +122,7 @@ export default function SettingsPage() {
     <div className="flex flex-col h-full bg-transparent p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto relative z-10">
       <header className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100">HVAC Office Settings</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100">{INDUSTRY_PRESETS[settings.industry || 'hvac']?.name || 'Trade'} Office Settings</h1>
           <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Ordered by immediate revenue & operational value to your business.</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -255,7 +255,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">1. Emergency Routing & 24/7 Dispatch Protocols</h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Instantly transfer gas leak, carbon monoxide, and no-heat freeze calls to on-call tech.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Instantly transfer critical emergency calls to on-call technician or inspector.</p>
               </div>
             </div>
           </div>
@@ -361,7 +361,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between p-4 bg-slate-100 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700/50">
               <div>
                 <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Auto-Transfer Emergencies</span>
-                <p className="text-xs text-slate-400 dark:text-slate-500">AI automatically routes call live to on-call tech when gas leak detected</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">AI automatically routes emergency calls live to on-call technician</p>
               </div>
               <input
                 type="checkbox"
@@ -600,7 +600,7 @@ export default function SettingsPage() {
               <textarea
                 value={settings.prompt_overrides}
                 onChange={(e) => setSettings({ ...settings, prompt_overrides: e.target.value })}
-                placeholder="e.g. Always mention our 100% satisfaction guarantee and free second opinion on furnace replacements..."
+                placeholder="e.g. Always mention our satisfaction guarantee and free estimates..."
                 rows={4}
                 className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all resize-none font-mono text-xs shadow-inner"
               />
@@ -630,7 +630,7 @@ export default function SettingsPage() {
                 value={settings.calendar_id || ""}
                 onChange={(e) => setSettings({ ...settings, calendar_id: e.target.value })}
                 className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-mono shadow-inner"
-                placeholder="primary or dispatch@lunar-hvac.com"
+                placeholder="primary or dispatch@example.com"
               />
             </div>
 
@@ -694,10 +694,10 @@ export default function SettingsPage() {
               <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 dark:text-slate-400 font-bold">Google Business Review Link</label>
               <input
                 type="text"
-                value={settings.google_review_link || "https://g.page/r/lunar-hvac-york-pa/review"}
+                value={settings.google_review_link || "https://g.page/r/your-business/review"}
                 onChange={(e) => setSettings({ ...settings, google_review_link: e.target.value })}
                 className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-mono shadow-inner"
-                placeholder="https://g.page/r/lunar-hvac-york-pa/review"
+                placeholder="https://g.page/r/your-business/review"
               />
             </div>
 

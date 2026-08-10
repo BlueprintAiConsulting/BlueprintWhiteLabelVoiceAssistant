@@ -7,7 +7,7 @@ import { TranscriptEntry, Lead } from "../types.ts";
 import { buildHumanEscalationPlan } from "../services/humanEscalationService.ts";
 import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
 import { INDUSTRY_PRESETS, IndustryType } from "../services/industryPresets.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Flame, Snowflake, PhoneForwarded, Droplets, Trees, Axe, Utensils, Maximize2 } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -16,15 +16,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const SCENARIOS = [
-  { id: "estimate", label: "New Estimate Request", icon: Home, prompt: "Hi, I'm looking to get a quote for a new AC unit." },
-  { id: "emergency", label: "Emergency No Heat", icon: ShieldAlert, prompt: "Help! My furnace stopped working and it's freezing in here!" },
-  { id: "noise_diag", label: "Furnace Sound Diagnostic", icon: Volume2, prompt: "Listen to my furnace! It's making a high-pitched screeching sound when the heat turns on." },
-  { id: "repair", label: "Repair Request", icon: AlertCircle, prompt: "My AC is blowing warm air." },
-  { id: "maintenance", label: "Maintenance Plan", icon: Clock, prompt: "I'd like to schedule my spring tune-up." },
-  { id: "general", label: "General Office Question", icon: HelpCircle, prompt: "What are your office hours today?" },
-  { id: "spam", label: "Spam Call", icon: User, prompt: "We've been trying to reach you about your car's extended warranty." }
-];
+
 
 export default function Simulator() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -40,6 +32,7 @@ export default function Simulator() {
   const [activeVoiceName, setActiveVoiceName] = useState("Aoede");
   const [activePersonaName, setActivePersonaName] = useState("Sarah");
   const [activeIndustry, setActiveIndustry] = useState<IndustryType>("hvac");
+  const [settings, setSettings] = useState<any>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -48,6 +41,7 @@ export default function Simulator() {
 
   useEffect(() => {
     getSettings().then((s) => {
+      setSettings(s);
       if (s.industry) setActiveIndustry(s.industry);
       if (s.receptionist_voice) setActiveVoiceName(s.receptionist_voice);
       if (s.receptionist_name) setActivePersonaName(s.receptionist_name);
@@ -105,7 +99,8 @@ export default function Simulator() {
       setCapturedLead(null);
       setTransferDetails(null);
 
-      const response = await newChat.sendMessage({ message: "Hello, I'm calling Lunar Heating and Cooling." });
+      const officeName = settings?.office_name || "Lunar Heating and Cooling";
+      const response = await newChat.sendMessage({ message: `Hello, I'm calling ${officeName}.` });
       setTranscript([{ role: "assistant", text: response.text }]);
       
       if (initialPrompt) {
@@ -204,7 +199,7 @@ export default function Simulator() {
             });
             setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${roleName} at ${targetNum}. Playing US PSTN Ringback tone...` }]);
           }
-          if (toolInfo.name === "diagnoseHvacSound") {
+          if (toolInfo.name.startsWith("diagnose")) {
             setTranscript(prev => [...prev, { role: "system", text: `[ACOUSTIC DIAGNOSTIC ENGINE] Analyzed unit audio: ${toolInfo.args.sound_characteristics || "Mechanical noise"}. Probable cause identified.` }]);
           }
           if (toolInfo.name === "checkAppointmentSlots") {
@@ -223,7 +218,7 @@ export default function Simulator() {
           setTranscript(prev => [...prev, { role: "system", text: "Lead telemetry captured and saved to database." }]);
           
           if (lead.caller_name && (lead as any).service_type) {
-             setSmsToast(`Hi ${lead.caller_name}, thanks for calling ${activeSettings?.office_name || "Lunar Heating & Cooling"}. We've received your request for ${(lead as any).service_type}. Our team will review and get back to you shortly.`);
+             setSmsToast(`Hi ${lead.caller_name}, thanks for calling ${activeSettings?.office_name || settings?.office_name || "Lunar Heating & Cooling"}. We've received your request for ${(lead as any).service_type}. Our team will review and get back to you shortly.`);
              setTimeout(() => setSmsToast(null), 8000);
           }
         },
@@ -293,7 +288,7 @@ export default function Simulator() {
             setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
             
             if (call.args.caller_name && call.args.service_type) {
-               setSmsToast(`Hi ${call.args.caller_name}, thanks for calling. We've received your request for ${call.args.service_type}. Our team will review and get back to you shortly.`);
+               setSmsToast(`Hi ${call.args.caller_name}, thanks for calling ${settings?.office_name || "Lunar Heating & Cooling"}. We've received your request for ${call.args.service_type}. Our team will review and get back to you shortly.`);
                setTimeout(() => setSmsToast(null), 8000);
             }
           }
@@ -311,7 +306,7 @@ export default function Simulator() {
             });
             setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${roleName} at ${targetNum}. Playing US PSTN Ringback tone...` }]);
           }
-          if (call.name === "diagnoseHvacSound") {
+          if (call.name.startsWith("diagnose")) {
             setTranscript(prev => [...prev, { role: "system", text: `[ACOUSTIC DIAGNOSTIC ENGINE] Analyzed unit noise: ${call.args.probable_cause || "Mechanical Fault"}.` }]);
           }
           if (call.name === "checkAppointmentSlots") {
@@ -321,7 +316,7 @@ export default function Simulator() {
             setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR BOOKING] Scheduled appointment slot: ${call.args.appointment_start}.` }]);
             const callerName = call.args.customer_name || "there";
             const dateStr = new Date(call.args.appointment_start).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' });
-            setSmsToast(`Hi ${callerName}, your ${call.args.service_type || "service"} is confirmed for ${dateStr} with Lunar Heating & Cooling.`);
+            setSmsToast(`Hi ${callerName}, your ${call.args.service_type || "service"} is confirmed for ${dateStr} with ${settings?.office_name || "Lunar Heating & Cooling"}.`);
             setTimeout(() => setSmsToast(null), 8000);
           }
         }
@@ -479,7 +474,7 @@ export default function Simulator() {
               </span>
             </div>
             <div className="grid grid-cols-1 gap-2.5">
-              {(INDUSTRY_PRESETS[activeIndustry]?.quickScenarios || SCENARIOS).map((scenario: any) => (
+              {(INDUSTRY_PRESETS[activeIndustry]?.quickScenarios || []).map((scenario: any) => (
                 <button
                   key={scenario.id}
                   onClick={() => startCall(scenario.prompt)}

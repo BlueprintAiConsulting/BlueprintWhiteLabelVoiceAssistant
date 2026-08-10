@@ -45,7 +45,7 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("CONTRACTIONS & CASUAL LANGUAGE");
     expect(prompt).toContain("BARGE-IN");
     expect(prompt).toContain("HVAC-SPECIFIC INTAKE & SAFETY");
-    expect(prompt).toContain("triageHvacIssue");
+    expect(prompt).toContain("Use intake triage early");
     expect(prompt).toContain("URGENT HVAC EMERGENCY INTAKE");
     expect(prompt).toContain("ADMIN-APPROVED LEARNING RULES");
     expect(prompt).toContain("ADDRESS & ZIP CONFIRMATION");

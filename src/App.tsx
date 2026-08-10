@@ -199,7 +199,7 @@ export default function App() {
               className="w-8 h-8 rounded-lg border border-cyan-400/40 shadow-[0_0_10px_rgba(34,211,238,0.2)] object-cover"
             />
             <div>
-              <span className="font-serif italic text-base text-slate-100 font-bold block leading-none">Blueprint HVAC AI</span>
+              <span className="font-serif italic text-base text-slate-100 font-bold block leading-none">Blueprint AI</span>
               <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-cyan-400 font-bold block mt-0.5">Voice Receptionist</span>
             </div>
           </div>
