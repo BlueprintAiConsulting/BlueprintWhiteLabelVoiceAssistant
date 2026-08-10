@@ -165,7 +165,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 1. EMERGENCY ROUTING & SAFETY DISPATCH (TOP VALUE TO OWNER)       */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[100px] rounded-full pointer-events-none" />
           <div className="flex items-center justify-between mb-2 relative z-10">
             <div className="flex items-center gap-3">
@@ -361,7 +361,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 2. MISSED-CALL TEXT BACK (VALUE #2: DIRECT LEAD SAVER)             */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2 relative z-10">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-amber-500/20 rounded-2xl text-amber-400 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
@@ -398,7 +398,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 3. COMPANY IDENTITY & LOCAL SERVICE TERRITORY                    */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
               <Building2 size={22} />
@@ -473,7 +473,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 4. RECEPTIONIST PERSONALITY & VOICE STYLE                         */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
               <Bot size={22} />
@@ -530,7 +530,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 5. GOOGLE CALENDAR & APPOINTMENT BOOKING RULES                    */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
               <Calendar size={22} />
@@ -586,7 +586,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 6. POST-SERVICE GOOGLE REVIEWS & SMS FOLLOW-UPS                   */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
@@ -638,7 +638,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 7. TELEPHONY & CALL ROUTING                                        */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-fuchsia-500/20 rounded-2xl text-fuchsia-400 border border-fuchsia-500/30">
@@ -706,27 +706,28 @@ export default function SettingsPage() {
               ))}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <input
                 type="text"
                 value={newRouteRole}
                 onChange={(e) => setNewRouteRole(e.target.value)}
                 placeholder="Trigger Role (e.g. Sales)"
-                className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-fuchsia-500 focus:border-fuchsia-500"
+                className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 min-h-[44px] text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-fuchsia-500 focus:border-fuchsia-500"
               />
               <input
                 type="text"
                 value={newRouteName}
                 onChange={(e) => setNewRouteName(e.target.value)}
                 placeholder="Contact Name (e.g. Mike)"
-                className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-fuchsia-500 focus:border-fuchsia-500"
+                className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 min-h-[44px] text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-fuchsia-500 focus:border-fuchsia-500"
               />
               <input
-                type="text"
+                type="tel"
+                inputMode="tel"
                 value={newRouteNumber}
                 onChange={(e) => setNewRouteNumber(e.target.value)}
                 placeholder="Phone (+1...)"
-                className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-fuchsia-500 focus:border-fuchsia-500"
+                className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 min-h-[44px] text-sm text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-fuchsia-500 focus:border-fuchsia-500"
               />
               <button
                 type="button"
@@ -744,7 +745,7 @@ export default function SettingsPage() {
                     setNewRouteNumber("");
                   }
                 }}
-                className="px-4 py-2.5 bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-fuchsia-500/30 transition-all shadow-[0_0_10px_rgba(217,70,239,0.2)] flex items-center gap-1"
+                className="px-4 py-2.5 min-h-[44px] bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-fuchsia-500/30 transition-all shadow-[0_0_10px_rgba(217,70,239,0.2)] flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Plus size={14} /> Add
               </button>
@@ -755,7 +756,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 8. COMPANY KNOWLEDGE BASE & PRICING                                */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-emerald-500/20 rounded-2xl text-emerald-400 border border-emerald-500/30">
@@ -892,7 +893,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 9. AI MEMORY & SELF-CORRECTION ENGINE                              */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-indigo-500/20 rounded-2xl text-indigo-400 border border-indigo-500/30">

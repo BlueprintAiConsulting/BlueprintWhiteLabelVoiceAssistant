@@ -359,13 +359,13 @@ export default function Simulator() {
               <span>Synthesizing PSTN Dual-Tone Ringback (440Hz + 480Hz)...</span>
             </div>
 
-            <div className="flex justify-center gap-3 pt-1">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-1">
               <button
                 onClick={() => {
                   callTransferAudioFX.stopRingback();
                   setTransferDetails(null);
                 }}
-                className="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-bold uppercase transition-all min-h-[40px]"
+                className="text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl font-bold uppercase transition-all min-h-[44px] flex items-center justify-center cursor-pointer"
               >
                 Cancel Transfer
               </button>
@@ -376,7 +376,7 @@ export default function Simulator() {
                   setTransferDetails(prev => prev ? { ...prev, status: "connected" } : null);
                   setTranscript(prev => [...prev, { role: "system", text: "[LIVE CALL CONNECTED] Technician (+1-717-577-0668) answered warm transfer." }]);
                 }}
-                className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-5 py-2.5 rounded-xl font-bold uppercase transition-all shadow-[0_0_15px_rgba(16,185,129,0.25)] min-h-[40px]"
+                className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-5 py-2.5 rounded-xl font-bold uppercase transition-all shadow-[0_0_15px_rgba(16,185,129,0.25)] min-h-[44px] flex items-center justify-center cursor-pointer"
               >
                 Simulate Tech Answer (DTMF)
               </button>

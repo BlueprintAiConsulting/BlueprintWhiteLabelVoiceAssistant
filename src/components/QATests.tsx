@@ -223,13 +223,13 @@ export default function QATests() {
                               </div>
                               <div className="space-y-1">
                                 <h5 className="text-sm font-bold text-rose-300">{err.message}</h5>
-                                <span className="inline-block px-1.5 py-0.5 bg-rose-500/10 text-rose-300 text-[8px] font-mono font-bold rounded border border-rose-500/20 uppercase tracking-tighter">
+                                <span className="inline-block px-1.5 py-0.5 bg-rose-500/10 text-rose-300 text-[10px] font-mono font-bold rounded border border-rose-500/20 uppercase tracking-tighter">
                                   {err.type}
                                 </span>
                               </div>
                             </div>
                             {err.snippet && (
-                              <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
                                 <Search size={10} />
                                 Click to view context
                               </div>
@@ -237,15 +237,15 @@ export default function QATests() {
                           </div>
                           
                           {(err.expected || err.actual) && (
-                            <div className="grid grid-cols-2 gap-4 ml-7">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:ml-7">
                               <div className="space-y-1">
-                                <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Expected</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Expected</span>
                                 <div className="text-xs font-mono bg-slate-950 p-2 rounded border border-slate-800 text-slate-300">
                                   {err.expected || "N/A"}
                                 </div>
                               </div>
                               <div className="space-y-1">
-                                <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Actual</span>
+                                <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Actual</span>
                                 <div className="text-xs font-mono bg-rose-500/10 p-2 rounded border border-rose-500/20 text-rose-300">
                                   {err.actual || "N/A"}
                                 </div>
@@ -254,8 +254,8 @@ export default function QATests() {
                           )}
 
                           {err.snippet && (
-                            <div className="ml-7 space-y-1">
-                              <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Context Snippet</span>
+                            <div className="sm:ml-7 space-y-1">
+                              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Context Snippet</span>
                               <div className="text-xs italic text-rose-200 bg-rose-950/20 p-3 rounded-xl border border-rose-900/50 truncate shadow-inner">
                                 "{err.snippet}"
                               </div>
