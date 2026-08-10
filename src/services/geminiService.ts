@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS: Settings = {
   emergency_dispatch_webhook: "https://api.blueprint.ai/webhooks/hvac-emergency",
   sms_alerts_enabled: true,
   escalation_timeout_minutes: 15,
-  after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
+  after_hours_message: "Thank you for calling. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice: "Aoede",
   receptionist_voice_style: "warm, concise, natural female office receptionist",
@@ -136,7 +136,7 @@ export async function createReceptionistChat(): Promise<any> {
       } else {
         resText = isEmergency 
           ? "LIFE SAFETY ALERT: Please hang up immediately, get out to a safe location, and call 911!"
-          : `Thank you for calling ${settings.office_name || "Lunar Heating and Cooling"}. I have noted your request and our office team will assist you.`;
+          : `Thank you for calling ${settings.office_name || "our office"}. I have noted your request and our office team will assist you.`;
       }
 
       turnsHistory.push({ role: "assistant", text: resText });
@@ -154,7 +154,7 @@ export async function triggerMissedCallTextBack(callbackNumber: string, callerNa
     const settings = await getSettings();
     if (settings.missed_call_text_back_enabled === false) return;
 
-    const messageTemplate = settings.missed_call_template || "Hi! This is Lunar Heating and Cooling. Sorry we missed your call! How can we help you today?";
+    const messageTemplate = settings.missed_call_template || `Hi! This is ${settings.office_name || 'our office'}. Sorry we missed your call! How can we help you today?`;
     const textMessage = messageTemplate.replace("{{name}}", callerName || "there");
 
     console.log(`[MISSED CALL TEXT BACK] Triggered SMS to ${callbackNumber}: "${textMessage}"`);

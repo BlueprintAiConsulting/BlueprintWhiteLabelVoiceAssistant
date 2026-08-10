@@ -99,7 +99,7 @@ export default function Simulator() {
       setCapturedLead(null);
       setTransferDetails(null);
 
-      const officeName = settings?.office_name || "Lunar Heating and Cooling";
+      const officeName = settings?.office_name || "our office";
       const response = await newChat.sendMessage({ message: `Hello, I'm calling ${officeName}.` });
       setTranscript([{ role: "assistant", text: response.text }]);
       
@@ -209,7 +209,7 @@ export default function Simulator() {
             setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR BOOKING] Scheduled appointment slot: ${toolInfo.args.appointment_start}.` }]);
             const callerName = toolInfo.args.customer_name || "there";
             const dateStr = new Date(toolInfo.args.appointment_start).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' });
-            setSmsToast(`Hi ${callerName}, your ${toolInfo.args.service_type || "service"} is confirmed for ${dateStr} with ${activeSettings?.office_name || "Lunar Heating & Cooling"}.`);
+            setSmsToast(`Hi ${callerName}, your ${toolInfo.args.service_type || "service"} is confirmed for ${dateStr} with ${activeSettings?.office_name || settings?.office_name || "our office"}.`);
             setTimeout(() => setSmsToast(null), 8000);
           }
         },
@@ -218,7 +218,7 @@ export default function Simulator() {
           setTranscript(prev => [...prev, { role: "system", text: "Lead telemetry captured and saved to database." }]);
           
           if (lead.caller_name && (lead as any).service_type) {
-             setSmsToast(`Hi ${lead.caller_name}, thanks for calling ${activeSettings?.office_name || settings?.office_name || "Lunar Heating & Cooling"}. We've received your request for ${(lead as any).service_type}. Our team will review and get back to you shortly.`);
+             setSmsToast(`Hi ${lead.caller_name}, thanks for calling ${activeSettings?.office_name || settings?.office_name || "our office"}. We've received your request for ${(lead as any).service_type}. Our team will review and get back to you shortly.`);
              setTimeout(() => setSmsToast(null), 8000);
           }
         },
@@ -288,7 +288,7 @@ export default function Simulator() {
             setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
             
             if (call.args.caller_name && call.args.service_type) {
-               setSmsToast(`Hi ${call.args.caller_name}, thanks for calling ${settings?.office_name || "Lunar Heating & Cooling"}. We've received your request for ${call.args.service_type}. Our team will review and get back to you shortly.`);
+               setSmsToast(`Hi ${call.args.caller_name}, thanks for calling ${settings?.office_name || "our office"}. We've received your request for ${call.args.service_type}. Our team will review and get back to you shortly.`);
                setTimeout(() => setSmsToast(null), 8000);
             }
           }
@@ -316,7 +316,7 @@ export default function Simulator() {
             setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR BOOKING] Scheduled appointment slot: ${call.args.appointment_start}.` }]);
             const callerName = call.args.customer_name || "there";
             const dateStr = new Date(call.args.appointment_start).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' });
-            setSmsToast(`Hi ${callerName}, your ${call.args.service_type || "service"} is confirmed for ${dateStr} with ${settings?.office_name || "Lunar Heating & Cooling"}.`);
+            setSmsToast(`Hi ${callerName}, your ${call.args.service_type || "service"} is confirmed for ${dateStr} with ${settings?.office_name || "our office"}.`);
             setTimeout(() => setSmsToast(null), 8000);
           }
         }

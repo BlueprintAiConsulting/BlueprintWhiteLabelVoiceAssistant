@@ -22,7 +22,7 @@ const mockSettings: Settings = {
   receptionist_voice_style: "professional",
   prompt_overrides: "",
   review_request_enabled: true,
-  google_review_link: "https://g.page/r/lunar-hvac-york-pa/review",
+  google_review_link: "https://g.page/r/your-business/review",
   review_delay_hours: 2,
   review_sms_template: "Hi {{name}}, thanks for choosing {{office}}! Leave a 5-star review: {{link}}"
 };
@@ -37,7 +37,7 @@ describe("Post-Service Reviews & Automated Follow-Up Tests", () => {
 
     expect(sms).toContain("Dave Miller");
     expect(sms).toContain("Lunar Heating and Cooling");
-    expect(sms).toContain("https://g.page/r/lunar-hvac-york-pa/review");
+    expect(sms).toContain("https://g.page/r/your-business/review");
   });
 
   it("generates 24-hour appointment reminder SMS", () => {

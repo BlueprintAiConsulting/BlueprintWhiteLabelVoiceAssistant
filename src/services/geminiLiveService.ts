@@ -98,7 +98,7 @@ export class GeminiLiveSession {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     const baseSettings: Settings = this.options.settings || {
-      office_name: this.options.officeName || "Lunar Heating and Cooling",
+      office_name: this.options.officeName || "our office",
       receptionist_name: "Megan",
       business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
       timezone: "America/New_York",
@@ -109,7 +109,7 @@ export class GeminiLiveSession {
       transfer_enabled: true,
       transfer_phone_number: "+17175770668",
       on_call_technician_phone: "+17175770668",
-      after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is closed.",
+      after_hours_message: "Thank you for calling. Our office is closed.",
       emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
       receptionist_voice: "Aoede",
       receptionist_voice_style: "warm, concise, natural office receptionist",

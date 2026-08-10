@@ -22,8 +22,8 @@ export function generateReviewRequestSMS(
   customerName: string,
   settings: Settings
 ): string {
-  const officeName = settings.office_name || "Lunar Heating and Cooling";
-  const defaultLink = "https://g.page/r/lunar-hvac-york-pa/review";
+  const officeName = settings.office_name || "our office";
+  const defaultLink = "https://g.page/r/your-business/review";
   const reviewLink = settings.google_review_link || defaultLink;
 
   const template = settings.review_sms_template ||
@@ -44,7 +44,7 @@ export function generateAppointmentReminderSMS(
   timeWindow: string,
   settings: Settings
 ): string {
-  const officeName = settings.office_name || "Lunar Heating and Cooling";
+  const officeName = settings.office_name || "our office";
   return `Hi ${customerName || "Valued Customer"}, reminder: your ${officeName} HVAC appointment is scheduled for ${appointmentDateStr} (${timeWindow}). Reply C to confirm or call if you need to reschedule!`;
 }
 

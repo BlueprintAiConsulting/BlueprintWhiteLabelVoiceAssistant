@@ -71,6 +71,6 @@ export async function proxyTextCallRequest(
   }
 
   return {
-    text: `Thank you for contacting ${settings.office_name || "Lunar Heating and Cooling"}. How can I help you with "${msgText.trim()}" today?`
+    text: `Thank you for contacting ${settings.office_name || "our office"}. How can I help you with "${msgText.trim()}" today?`
   };
 }

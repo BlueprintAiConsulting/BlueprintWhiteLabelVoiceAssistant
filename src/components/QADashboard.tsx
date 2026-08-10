@@ -27,7 +27,7 @@ const MOCK_CALL_OUTCOMES: CallOutcome[] = [
     transfer_success: false,
     final_disposition: "booked",
     transcript: [
-      { role: "assistant", text: "Thanks for calling Lunar Heating and Cooling. How can I help you today?" },
+      { role: "assistant", text: "Thanks for calling, how can I help you today?" },
       { role: "user", text: "Hi, I need a quote for replacing my 15 year old AC unit in East York." },
       { role: "assistant", text: "I'd be happy to schedule an estimator! May I have your name and callback number?" },
       { role: "user", text: "Sure, my name is Dave Miller at 717-555-0199." }
@@ -58,7 +58,7 @@ const MOCK_CALL_OUTCOMES: CallOutcome[] = [
     transfer_success: true,
     final_disposition: "emergency_escalated",
     transcript: [
-      { role: "assistant", text: "Thanks for calling Lunar Heating and Cooling. How can I help?" },
+      { role: "assistant", text: "Thanks for calling, how can I help?" },
       { role: "user", text: "I smell gas near my furnace in Hanover!" },
       { role: "assistant", text: "LIFE SAFETY ALERT: Please evacuate immediately and call 911 or the gas utility!" }
     ],

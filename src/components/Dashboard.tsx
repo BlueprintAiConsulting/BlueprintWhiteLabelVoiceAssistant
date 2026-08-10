@@ -157,7 +157,7 @@ export default function Dashboard() {
                 </span>
                 <h1 className="text-xl sm:text-2xl font-serif italic text-slate-100 tracking-tight">Lead Engine Dashboard</h1>
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">Real-time caller telemetry & AI receptionist dispatch log for Lunar Heating and Cooling.</p>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">Real-time caller telemetry & AI receptionist dispatch log.</p>
             </div>
             <div className="flex gap-2 shrink-0">
               {leads.length > 0 ? (

@@ -34,7 +34,7 @@ export async function runScenario(scenario: TestScenario): Promise<TestResult> {
     const chat = await createReceptionistChat();
     
     // Initial greeting
-    const greeting = await chat.sendMessage({ message: "Hello, I'm calling Lunar Heating and Cooling." });
+    const greeting = await chat.sendMessage({ message: "Hello, I'm calling your office." });
     transcript.push({ role: "assistant", text: greeting.text });
     
     // Send scenario turns

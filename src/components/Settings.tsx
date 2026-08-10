@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   emergency_dispatch_webhook: "https://api.blueprint.ai/webhooks/hvac-emergency",
   sms_alerts_enabled: true,
   escalation_timeout_minutes: 15,
-  after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
+  after_hours_message: "Thank you for calling. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice: "Aoede",
   receptionist_voice_style: "warm, concise, natural female office receptionist",
@@ -468,7 +468,7 @@ export default function SettingsPage() {
             <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 dark:text-slate-400 font-bold">SMS Text-Back Message Template</label>
             <textarea
               rows={3}
-              value={settings.missed_call_template || "Hi! This is Lunar Heating and Cooling. Sorry we missed your call! How can we help you today?"}
+              value={settings.missed_call_template || `Hi! This is ${settings.office_name || 'our office'}. Sorry we missed your call! How can we help you today?`}
               onChange={(e) => setSettings({ ...settings, missed_call_template: e.target.value })}
               className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all font-sans resize-none shadow-inner placeholder:text-slate-400 dark:text-slate-500"
             />
@@ -498,7 +498,7 @@ export default function SettingsPage() {
                 value={settings.office_name}
                 onChange={(e) => setSettings({ ...settings, office_name: e.target.value })}
                 className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 transition-all font-semibold shadow-inner"
-                placeholder="e.g. Lunar Heating and Cooling"
+                placeholder="e.g. Your Business Name"
               />
             </div>
 
