@@ -19,7 +19,16 @@ export interface LearningProposal {
   proposed_rules: string[];
 }
 
-const DISALLOWED_RULE_LANGUAGE = /ignore\s+(all\s+)?previous|disable\s+safety|skip\s+confirmation|reveal\s+(the\s+)?prompt|bypass\s+(security|consent)/i;
+export const DISALLOWED_RULE_LANGUAGE = /ignore\s+(all\s+)?previous|disable\s+safety|skip\s+confirmation|reveal\s+(the\s+)?prompt|bypass\s+(security|consent)|forget\s+(all\s+)?(previous|prior|above)|you\s+are\s+now|act\s+as|pretend\s+to\s+be|system\s+prompt|instructions\s+above/i;
+
+/** Sanitizes custom prompt overrides to prevent prompt injection and bound length. */
+export function sanitizePromptOverride(override: unknown): string {
+  if (typeof override !== "string") return "";
+  const cleaned = override.trim().replace(/\s+/g, " ");
+  if (cleaned.length < 5 || cleaned.length > 300) return "";
+  if (DISALLOWED_RULE_LANGUAGE.test(cleaned)) return "";
+  return cleaned;
+}
 
 /** Keeps approved rules short, safe, and free of prompt-injection language. */
 export function sanitizeLearningRules(rules: unknown): string[] {

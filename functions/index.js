@@ -11,11 +11,24 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // Simple in-memory rate limiting per UID
 const userRateLimits = new Map();
 
+const ALLOWED_ORIGINS = [
+  "https://lunar-hvac.web.app",
+  "https://lunar-hvac.firebaseapp.com",
+  "https://rcruitlync.com",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+];
+
 exports.issueGeminiEphemeralToken = onRequest(
-  { secrets: [geminiApiKey], cors: true },
+  { secrets: [geminiApiKey], cors: false },
   async (req, res) => {
-    // Enable CORS
-    res.set("Access-Control-Allow-Origin", "*");
+    // Dynamic CORS validation
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      res.set("Access-Control-Allow-Origin", origin);
+    } else {
+      res.set("Access-Control-Allow-Origin", "https://lunar-hvac.web.app");
+    }
     res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
 
     if (req.method === "OPTIONS") {
@@ -109,7 +122,7 @@ exports.issueGeminiEphemeralToken = onRequest(
       });
     } catch (err) {
       console.error("Internal Server Error in issueGeminiEphemeralToken:", err);
-      res.status(500).json({ error: "INTERNAL_ERROR", message: err.message || "An unexpected error occurred." });
+      res.status(500).json({ error: "INTERNAL_ERROR", message: "An unexpected error occurred while generating session token." });
     }
   }
 );

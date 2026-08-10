@@ -103,9 +103,9 @@ export default function SettingsPage() {
       setMessage({ type: "success", text: "Business Profile & Voice Receptionist settings saved successfully!" });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      console.warn("Firestore settings save:", error);
-      setMessage({ type: "success", text: "Settings and API Key saved locally to browser!" });
-      setTimeout(() => setMessage(null), 4000);
+      console.error("Firestore settings save error:", error);
+      setMessage({ type: "error", text: "Failed to save settings to cloud database. Please check your network or permissions." });
+      setTimeout(() => setMessage(null), 5000);
     } finally {
       setIsSaving(false);
     }
