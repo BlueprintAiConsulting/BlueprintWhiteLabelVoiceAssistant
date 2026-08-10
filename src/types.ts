@@ -66,6 +66,19 @@ export interface BusinessHours {
   days: string[]; // ['Monday', 'Tuesday', ...]
 }
 
+export interface AdditionalTransferNumber {
+  id: string;
+  name: string;
+  number: string;
+  role: string;
+}
+
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 export interface Settings {
   office_name: string;
   /** Human receptionist name used in the opening greeting and live-call identity. */
@@ -86,6 +99,7 @@ export interface Settings {
   on_call_technician_phone?: string;
   auto_transfer_emergencies?: boolean;
   emergency_dispatch_webhook?: string;
+  additional_transfer_numbers?: AdditionalTransferNumber[];
   sms_alerts_enabled?: boolean;
   missed_call_text_back_enabled?: boolean;
   missed_call_template?: string;
@@ -105,6 +119,12 @@ export interface Settings {
   appointment_reminder_enabled?: boolean;
   review_sms_template?: string;
   available_slot_windows?: string[];
+  pricing_service_call?: string;
+  pricing_after_hours?: string;
+  maintenance_plan_name?: string;
+  maintenance_plan_price?: string;
+  maintenance_plan_benefits?: string;
+  custom_faqs?: FAQItem[];
   escalation_timeout_minutes?: number;
   after_hours_message: string;
   emergency_keywords: string[];

@@ -7,8 +7,22 @@
   
   --color-slate-850: #151e2e;
   --color-slate-925: #0b1120;
+  
+  --shadow-glow-cyan-sm: 0 0 12px rgba(34, 211, 238, 0.2);
+  --shadow-glow-cyan: 0 0 15px rgba(34, 211, 238, 0.3);
+  --shadow-glow-cyan-strong: 0 0 15px rgba(34, 211, 238, 0.9);
+  
+  --shadow-glow-rose-sm: 0 0 12px rgba(244, 63, 94, 0.2);
+  --shadow-glow-rose: 0 0 15px rgba(244, 63, 94, 0.4);
+  --shadow-glow-rose-lg: 0 0 30px rgba(244, 63, 94, 0.3);
+  
+  --shadow-glow-amber-sm: 0 0 12px rgba(245, 158, 11, 0.2);
+  
+  --shadow-glow-emerald-sm: 0 0 12px rgba(16, 185, 129, 0.2);
 }
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
-  @apply bg-slate-950 text-slate-200 antialiased;
+  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-200 transition-colors duration-300;
 }

@@ -4,8 +4,9 @@ import { GeminiLiveSession } from "../services/geminiLiveService.ts";
 import { requestGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
 import { auth } from "../firebase.ts";
 import { TranscriptEntry, Lead } from "../types.ts";
+import { buildHumanEscalationPlan } from "../services/humanEscalationService.ts";
 import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, Waveform } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -24,12 +25,6 @@ const SCENARIOS = [
   { id: "spam", label: "Spam Call", icon: User, prompt: "We've been trying to reach you about your car's extended warranty." }
 ];
 
-const PERSONAS = [
-  { id: "sarah", name: "Sarah", title: "Warm & Professional Dispatcher", voice: "Aoede" },
-  { id: "mark", name: "Mark", title: "Technical Emergency Specialist", voice: "Puck" },
-  { id: "elena", name: "Elena", title: "Friendly Customer Service Rep", voice: "Kore" }
-];
-
 export default function Simulator() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [userInput, setUserInput] = useState("");
@@ -39,9 +34,11 @@ export default function Simulator() {
   const [capturedLead, setCapturedLead] = useState<Partial<Lead> | null>(null);
   const [chat, setChat] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
-  const [selectedPersona, setSelectedPersona] = useState(PERSONAS[0]);
   const [callDuration, setCallDuration] = useState(0);
   const [transferDetails, setTransferDetails] = useState<{ target: string; reason: string; status: string } | null>(null);
+  const [activeVoiceName, setActiveVoiceName] = useState("Aoede");
+  const [activePersonaName, setActivePersonaName] = useState("Sarah");
+  const [smsToast, setSmsToast] = useState<string | null>(null);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
@@ -135,7 +132,11 @@ export default function Simulator() {
       let activeSettings;
       try {
         activeSettings = await getSettings();
-        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}". Active Voice: ${selectedPersona.voice} (${selectedPersona.name})` }]);
+        const loadedVoice = activeSettings.receptionist_voice || "Aoede";
+        const loadedName = activeSettings.receptionist_name || "Sarah";
+        setActiveVoiceName(loadedVoice);
+        setActivePersonaName(loadedName);
+        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}". Active Voice: ${loadedVoice} (${loadedName})` }]);
       } catch (sErr) {
         setTranscript(prev => [...prev, { role: "system", text: "[SETTINGS WARNING] Could not fetch Firestore config. Operating on fallback system settings." }]);
       }
@@ -151,10 +152,13 @@ export default function Simulator() {
         return;
       }
 
+      const loadedVoice = activeSettings?.receptionist_voice || "Aoede";
+      const loadedName = activeSettings?.receptionist_name || "Sarah";
+      
       const session = new GeminiLiveSession({
         accessToken: tokenRes.access_token,
-        voiceName: selectedPersona.voice,
-        personaName: selectedPersona.name,
+        voiceName: loadedVoice,
+        personaName: loadedName,
         settings: activeSettings,
         onTranscript: (entry) => {
           setTranscript(prev => {
@@ -178,14 +182,17 @@ export default function Simulator() {
         onToolCall: (toolInfo) => {
           setDebugInfo(prev => [...prev, toolInfo]);
           if (toolInfo.name === "transferCall") {
-            const targetNum = toolInfo.args.target_number || "+1 (717) 577-0668";
+            const plan = buildHumanEscalationPlan(toolInfo.args || {}, activeSettings || {} as any);
+            const targetNum = toolInfo.args.target_number || plan.target_phone || "+1 (717) 577-0668";
+            const roleName = plan.route === "custom_role" ? (plan.summary.split(" ")[1] || "Custom Contact") : plan.route === "owner" ? "Owner/Manager" : "On-Call Technician";
+            
             callTransferAudioFX.startRingback();
             setTransferDetails({
               target: targetNum,
-              reason: toolInfo.args.reason || "On-Call Technician Dispatch",
+              reason: `Routing to ${roleName}`,
               status: "ringing"
             });
-            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${targetNum}. Playing US PSTN Ringback tone...` }]);
+            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${roleName} at ${targetNum}. Playing US PSTN Ringback tone...` }]);
           }
           if (toolInfo.name === "diagnoseHvacSound") {
             setTranscript(prev => [...prev, { role: "system", text: `[ACOUSTIC DIAGNOSTIC ENGINE] Analyzed unit audio: ${toolInfo.args.sound_characteristics || "Mechanical noise"}. Probable cause identified.` }]);
@@ -195,11 +202,20 @@ export default function Simulator() {
           }
           if (toolInfo.name === "bookAppointment") {
             setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR BOOKING] Scheduled appointment slot: ${toolInfo.args.appointment_start}.` }]);
+            const callerName = toolInfo.args.customer_name || "there";
+            const dateStr = new Date(toolInfo.args.appointment_start).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' });
+            setSmsToast(`Hi ${callerName}, your ${toolInfo.args.service_type || "service"} is confirmed for ${dateStr} with ${activeSettings?.office_name || "Lunar Heating & Cooling"}.`);
+            setTimeout(() => setSmsToast(null), 8000);
           }
         },
         onCapturedLead: (lead) => {
           setCapturedLead(prev => ({ ...prev, ...lead }));
           setTranscript(prev => [...prev, { role: "system", text: "Lead telemetry captured and saved to database." }]);
+          
+          if (lead.caller_name && (lead as any).service_type) {
+             setSmsToast(`Hi ${lead.caller_name}, thanks for calling ${activeSettings?.office_name || "Lunar Heating & Cooling"}. We've received your request for ${(lead as any).service_type}. Our team will review and get back to you shortly.`);
+             setTimeout(() => setSmsToast(null), 8000);
+          }
         },
         onError: (err: any) => {
           console.error("Voice mode error:", err);
@@ -265,19 +281,38 @@ export default function Simulator() {
             setCapturedLead(prev => ({ ...prev, ...call.args }));
             await processLead({ ...call.args, transcript: [...transcript, { role: "user", text }, { role: "assistant", text: response.text }] });
             setTranscript(prev => [...prev, { role: "system", text: "Lead details captured and saved to database." }]);
+            
+            if (call.args.caller_name && call.args.service_type) {
+               setSmsToast(`Hi ${call.args.caller_name}, thanks for calling. We've received your request for ${call.args.service_type}. Our team will review and get back to you shortly.`);
+               setTimeout(() => setSmsToast(null), 8000);
+            }
           }
           if (call.name === "transferCall") {
-            const targetNum = call.args.target_number || "+1 (717) 577-0668";
+            const currentSettings = await getSettings();
+            const plan = buildHumanEscalationPlan(call.args || {}, currentSettings);
+            const targetNum = call.args.target_number || plan.target_phone || "+1 (717) 577-0668";
+            const roleName = plan.route === "custom_role" ? (plan.summary.split(" ")[1] || "Custom Contact") : plan.route === "owner" ? "Owner/Manager" : "On-Call Technician";
+            
             callTransferAudioFX.startRingback();
             setTransferDetails({
               target: targetNum,
-              reason: call.args.reason || "On-Call Technician Dispatch",
+              reason: `Routing to ${roleName}`,
               status: "ringing"
             });
-            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${targetNum}. Playing US PSTN Ringback tone...` }]);
+            setTranscript(prev => [...prev, { role: "system", text: `[LIVE CALL TRANSFER] Initiated transfer to ${roleName} at ${targetNum}. Playing US PSTN Ringback tone...` }]);
           }
           if (call.name === "diagnoseHvacSound") {
             setTranscript(prev => [...prev, { role: "system", text: `[ACOUSTIC DIAGNOSTIC ENGINE] Analyzed unit noise: ${call.args.probable_cause || "Mechanical Fault"}.` }]);
+          }
+          if (call.name === "checkAppointmentSlots") {
+            setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR CHECK] Checked technician availability for ${call.args.service_type || "service"}.` }]);
+          }
+          if (call.name === "bookAppointment") {
+            setTranscript(prev => [...prev, { role: "system", text: `[CALENDAR BOOKING] Scheduled appointment slot: ${call.args.appointment_start}.` }]);
+            const callerName = call.args.customer_name || "there";
+            const dateStr = new Date(call.args.appointment_start).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' });
+            setSmsToast(`Hi ${callerName}, your ${call.args.service_type || "service"} is confirmed for ${dateStr} with Lunar Heating & Cooling.`);
+            setTimeout(() => setSmsToast(null), 8000);
           }
         }
       }
@@ -292,7 +327,7 @@ export default function Simulator() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950/80 p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6 overflow-y-auto lg:overflow-hidden relative text-slate-100 font-sans">
+    <div className="flex flex-col h-full bg-slate-950 p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6 overflow-y-auto lg:overflow-hidden relative text-slate-100 font-sans">
       {/* Background radial glow spots */}
       <div className="absolute top-0 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -304,10 +339,10 @@ export default function Simulator() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute inset-x-6 top-16 z-50 p-6 bg-slate-900/95 border border-rose-500/50 rounded-3xl shadow-[0_0_50px_rgba(244,63,94,0.4)] backdrop-blur-2xl text-center space-y-4"
+            className="absolute inset-x-6 top-16 z-50 p-6 bg-slate-900 border border-rose-500/50 rounded-3xl shadow-glow-rose-lg  text-center space-y-4"
           >
             <div className="flex items-center justify-center gap-4">
-              <div className="p-3.5 bg-rose-500/20 text-rose-400 rounded-2xl animate-bounce border border-rose-500/40">
+              <div className="p-3.5 bg-rose-500/20 text-rose-400 rounded-2xl animate-pulse border border-rose-500/40">
                 <PhoneCall size={26} />
               </div>
               <div className="text-left">
@@ -319,7 +354,7 @@ export default function Simulator() {
               </div>
             </div>
             
-            <div className="flex items-center justify-center gap-2 text-xs font-mono text-slate-300 bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800/80">
+            <div className="flex items-center justify-center gap-2 text-xs font-mono text-slate-300 bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80">
               <Radio size={16} className="text-cyan-400 animate-pulse" />
               <span>Synthesizing PSTN Dual-Tone Ringback (440Hz + 480Hz)...</span>
             </div>
@@ -355,7 +390,7 @@ export default function Simulator() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-100 tracking-tight">Call Simulator</h1>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-[0_0_12px_rgba(34,211,238,0.2)]">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-glow-cyan-sm">
               <Zap size={13} className="text-cyan-400 animate-pulse" />
               GEMINI 2.0 MULTIMODAL
             </span>
@@ -404,43 +439,30 @@ export default function Simulator() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 overflow-hidden relative z-10">
         {/* Left Column: Persona & Quick Launch Scenarios */}
-        <div className="flex flex-col gap-5 overflow-y-auto pr-1">
-          {/* Receptionist Persona Picker */}
-          <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3">
+          <div className="flex flex-col gap-5 overflow-y-auto pr-1">
+          {/* Receptionist Settings Display */}
+          <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400 font-bold flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-1.5">
                 <UserCheck size={14} />
-                Receptionist Voice Persona
+                Receptionist Persona
               </h3>
               <span className="text-[9px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
-                Voice: {selectedPersona.voice}
+                Voice: {activeVoiceName}
               </span>
             </div>
-            <div className="space-y-2">
-              {PERSONAS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPersona(p)}
-                  className={cn(
-                    "w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between text-xs",
-                    selectedPersona.id === p.id 
-                      ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.1)]" 
-                      : "bg-slate-950/40 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                  )}
-                >
-                  <div>
-                    <div className="font-semibold text-slate-200">{p.name}</div>
-                    <div className="text-[10px] text-slate-400">{p.title}</div>
-                  </div>
-                  {selectedPersona.id === p.id && <Sparkles size={14} className="text-cyan-400" />}
-                </button>
-              ))}
+            <div className="w-full text-left p-3 rounded-xl border bg-slate-950/40 border-slate-800/80 text-slate-400 flex items-center justify-between text-xs">
+              <div>
+                <div className="font-semibold text-slate-200">{activePersonaName}</div>
+                <div className="text-[10px] text-slate-500 mt-1">Configured in Dashboard Settings</div>
+              </div>
+              <Sparkles size={14} className="text-cyan-400/50" />
             </div>
           </section>
 
           {/* Quick Launch Scenarios */}
           <section className="space-y-3">
-            <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">Quick Launch Scenarios</h2>
+            <h2 className="text-sm font-semibold text-slate-300">Quick Launch Scenarios</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
               {SCENARIOS.map((scenario) => (
                 <button
@@ -448,7 +470,7 @@ export default function Simulator() {
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
                   className={cn(
-                    "flex items-center gap-3 p-3.5 bg-slate-900/70 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 backdrop-blur-xl shadow-md",
+                    "flex items-center gap-3 p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50  shadow-md",
                     scenario.id === "emergency" && "border-rose-500/30 hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)] bg-rose-950/10",
                     scenario.id === "noise_diag" && "border-amber-500/30 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] bg-amber-950/10"
                   )}
@@ -471,18 +493,18 @@ export default function Simulator() {
         </div>
 
         {/* Center: Live Call Workspace & Transcript */}
-        <div className="lg:col-span-2 flex flex-col bg-slate-900/70 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden relative backdrop-blur-xl">
+        <div className="lg:col-span-2 flex flex-col bg-slate-900 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden relative ">
           {/* Call Status Header */}
-          <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900/90 flex justify-between items-center shrink-0">
+          <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
-              <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-cyan-400 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.9)]" : "bg-slate-600")} />
+              <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-cyan-400 animate-pulse shadow-glow-cyan-strong" : "bg-slate-600")} />
               <div>
                 <span className="text-xs font-bold text-slate-200 uppercase tracking-widest font-mono">
                   {isCalling ? `LIVE CALL IN PROGRESS (${isVoiceMode ? "Voice Mode" : "Text Mode"})` : "VOICE LINE READY"}
                 </span>
                 {isCalling && (
                   <div className="text-[10px] font-mono text-cyan-400 mt-0.5">
-                    Receptionist: {selectedPersona.name} ({selectedPersona.title})
+                    Receptionist: {activePersonaName}
                   </div>
                 )}
               </div>
@@ -497,11 +519,11 @@ export default function Simulator() {
 
           {/* Interactive Live Audio Waveform Visualizer Bar */}
           {isCalling && isVoiceMode && (
-            <div className="bg-slate-950/80 border-b border-slate-800/80 p-3 px-6 flex items-center justify-between gap-4 shrink-0">
+            <div className="bg-slate-950 border-b border-slate-800/80 p-3 px-6 flex items-center justify-between gap-4 shrink-0">
               <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
-                <Volume2 size={15} className={turnState === "receptionist_speaking" ? "text-cyan-400 animate-bounce" : "text-slate-500"} />
+                <Volume2 size={15} className={turnState === "receptionist_speaking" ? "text-cyan-400 animate-pulse" : "text-slate-500"} />
                 <span className="uppercase text-[11px] font-bold tracking-wider">
-                  {turnState === "receptionist_speaking" ? `${selectedPersona.name} Speaking...` : turnState === "caller_speaking" ? "Caller Speaking..." : turnState === "interrupted" ? "Barge-In Interrupted!" : "Listening for Voice..."}
+                  {turnState === "receptionist_speaking" ? `${activePersonaName} Speaking...` : turnState === "caller_speaking" ? "Caller Speaking..." : turnState === "interrupted" ? "Barge-In Interrupted!" : "Listening for Voice..."}
                 </span>
               </div>
               
@@ -515,7 +537,7 @@ export default function Simulator() {
                       "w-1 rounded-full transition-all duration-150",
                       turnState === "receptionist_speaking" && "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse",
                       turnState === "caller_speaking" && "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse",
-                      turnState === "interrupted" && "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-bounce",
+                      turnState === "interrupted" && "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse",
                       turnState === "listening" && "bg-slate-700"
                     )}
                   />
@@ -552,7 +574,7 @@ export default function Simulator() {
                 >
                   {entry.role !== "system" && (
                     <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-1 px-1 font-mono">
-                      {entry.role === "assistant" ? `AI Receptionist (${selectedPersona.name})` : "Caller"}
+                      {entry.role === "assistant" ? `AI Receptionist (${activePersonaName})` : "Caller"}
                     </span>
                   )}
                   <div
@@ -571,24 +593,24 @@ export default function Simulator() {
 
             {isLoading && (
               <div className="flex gap-1.5 items-center px-4 py-2.5 bg-slate-800/60 rounded-2xl w-fit border border-slate-700/60">
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
               </div>
             )}
             <div ref={transcriptEndRef} />
           </div>
 
           {/* Text Input / VAD Status Bar */}
-          <div className="p-4 bg-slate-900/90 border-t border-slate-800/80">
+          <div className="p-4 bg-slate-900 border-t border-slate-800/80">
             {isVoiceMode ? (
-              <div className="flex items-center justify-between px-5 py-3 bg-slate-950/80 border border-slate-800 rounded-xl font-mono text-xs shadow-inner">
+              <div className="flex items-center justify-between px-5 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs shadow-inner">
                 <div className="flex items-center gap-3">
                   <span className={cn(
                     "w-2.5 h-2.5 rounded-full",
                     turnState === "receptionist_speaking" && "bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]",
                     turnState === "caller_speaking" && "bg-emerald-400 animate-ping shadow-[0_0_10px_rgba(52,211,153,0.8)]",
-                    turnState === "interrupted" && "bg-amber-400 animate-bounce shadow-[0_0_10px_rgba(251,191,36,0.8)]",
+                    turnState === "interrupted" && "bg-amber-400 animate-pulse shadow-[0_0_10px_rgba(251,191,36,0.8)]",
                     turnState === "listening" && "bg-slate-500",
                     turnState === "waiting_for_turn" && "bg-indigo-400 animate-pulse"
                   )} />
@@ -612,7 +634,7 @@ export default function Simulator() {
                   onChange={(e) => setUserInput(e.target.value)}
                   disabled={!isCalling || isLoading}
                   placeholder={isCalling ? "Type a response to the AI receptionist..." : "Select a scenario or start a call above..."}
-                  className="flex-1 bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-100 placeholder:text-slate-500"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-100 placeholder:text-slate-500"
                 />
                 <button
                   type="submit"
@@ -630,12 +652,12 @@ export default function Simulator() {
         <div className="flex flex-col gap-5 overflow-y-auto pl-1">
           {/* Acoustic Sound Diagnostic Visualizer */}
           {capturedLead?.sound_diagnosis && (
-            <section className="bg-amber-950/20 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-2.5">
-              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400 font-bold flex items-center gap-1.5">
+            <section className="bg-amber-950/20 border border-amber-500/40 p-4 rounded-2xl  shadow-lg space-y-2.5">
+              <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-1.5">
                 <Volume2 size={14} className="animate-pulse" />
                 Acoustic Sound Diagnosis
               </h3>
-              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 space-y-1.5 text-xs">
                 <div className="font-bold text-amber-200 capitalize">
                   {capturedLead.sound_diagnosis.sound_type.replace(/_/g, ' ')}
                 </div>
@@ -650,13 +672,13 @@ export default function Simulator() {
           )}
 
           {/* Captured Lead Telemetry Card */}
-          <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3">
-            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400 font-bold flex items-center gap-1.5">
+          <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3">
+            <h3 className="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
               <Activity size={14} />
               Captured Lead Telemetry
             </h3>
             {capturedLead ? (
-              <div className="space-y-2 text-xs bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
+              <div className="space-y-2 text-xs bg-slate-950 p-3.5 rounded-xl border border-slate-800">
                 <div className="font-bold text-slate-100 text-sm">{capturedLead.caller_name || "Unknown Caller"}</div>
                 <div className="text-cyan-400 font-mono font-semibold">{capturedLead.callback_number || "No number"}</div>
                 {capturedLead.property_address && <div className="text-slate-300 font-light">{capturedLead.property_address}</div>}
@@ -679,15 +701,15 @@ export default function Simulator() {
           </section>
 
           {/* AI Tool & Function Call Stream */}
-          <section className="bg-slate-900/70 border border-slate-800/80 p-4 rounded-2xl backdrop-blur-xl shadow-lg space-y-3 flex-1 flex flex-col">
-            <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400 font-bold flex items-center gap-1.5">
+          <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3 flex-1 flex flex-col">
+            <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-1.5">
               <Cpu size={14} />
               AI Tool & Function Call Stream
             </h3>
             <div className="flex-1 overflow-y-auto space-y-2 max-h-56">
               {debugInfo.length > 0 ? (
                 debugInfo.map((info, idx) => (
-                  <div key={idx} className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 font-mono text-[10px] space-y-1">
+                  <div key={idx} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono text-[10px] space-y-1">
                     <div className="text-cyan-400 font-bold">⚡ {info.name}()</div>
                     <pre className="text-slate-400 overflow-x-auto text-[9px] bg-slate-900 p-1.5 rounded border border-slate-800/60">
                       {JSON.stringify(info.args, null, 2)}
@@ -703,6 +725,31 @@ export default function Simulator() {
           </section>
         </div>
       </div>
+
+      {/* SMS Dispatched Toast Notification */}
+      <AnimatePresence>
+        {smsToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 bg-slate-900 border border-emerald-500/30 p-4 rounded-2xl shadow-[0_10px_40px_-10px_rgba(16,185,129,0.3)]  max-w-sm w-[90%]"
+          >
+            <div className="bg-emerald-500/20 p-2 rounded-full border border-emerald-500/40 shrink-0">
+              <MessageSquare className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-emerald-400">
+                SMS Dispatched
+              </span>
+              <p className="text-sm text-slate-200 leading-snug font-medium">
+                {smsToast}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

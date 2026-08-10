@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<CallStatus, string> = {
   booked: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)]",
   closed: "bg-slate-800/80 text-slate-400 border-slate-700/80",
   spam: "bg-rose-500/15 text-rose-400 border-rose-500/30",
-  emergency_follow_up: "bg-rose-600/25 text-rose-300 border-rose-500 shadow-[0_0_12px_rgba(225,29,72,0.4)] animate-pulse",
+  emergency_follow_up: "bg-rose-600/25 text-rose-300 border-rose-500 shadow-glow-rose animate-pulse",
   after_hours_follow_up: "bg-purple-500/15 text-purple-400 border-purple-500/30"
 };
 
@@ -137,7 +137,7 @@ export default function Dashboard() {
   const textBackCount = leads.filter(l => l.text_back_sent).length;
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-slate-950/80 overflow-hidden relative font-sans text-slate-100">
+    <div className="flex flex-col md:flex-row h-full bg-slate-950 overflow-hidden relative font-sans text-slate-100">
       {/* Background radial glow spots */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -145,11 +145,11 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden">
         {/* Top Header */}
-        <header className="bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 p-4 sm:p-6 flex flex-col gap-5 shrink-0 shadow-lg">
+        <header className="bg-slate-900  border-b border-slate-800/80 p-4 sm:p-6 flex flex-col gap-5 shrink-0 shadow-lg">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-mono text-[10px] uppercase font-bold px-2.5 py-1 rounded-full shadow-[0_0_12px_rgba(34,211,238,0.2)] flex items-center gap-1.5">
+                <span className="bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-mono text-[10px] uppercase font-bold px-2.5 py-1 rounded-full shadow-glow-cyan-sm flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                   System Active
                 </span>
@@ -182,10 +182,10 @@ export default function Dashboard() {
           {/* High-Tech Telemetry Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Total Inbound Card */}
-            <div className="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-slate-700/90 transition-all group">
+            <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800/80  relative overflow-hidden shadow-lg hover:border-slate-700/90 transition-all group">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-slate-600 via-slate-400 to-slate-600 opacity-60" />
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+                <span className="text-sm font-medium text-slate-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                   Total Inbound
                 </span>
@@ -198,10 +198,10 @@ export default function Dashboard() {
             </div>
 
             {/* Missed-Call Texts Card */}
-            <div className="bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-amber-500/40 transition-all group">
+            <div className="bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20  relative overflow-hidden shadow-lg hover:border-amber-500/40 transition-all group">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-amber-300 opacity-80" />
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold flex items-center gap-1.5">
+                <span className="text-sm font-medium text-amber-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   Missed-Call Texts
                 </span>
@@ -214,10 +214,10 @@ export default function Dashboard() {
             </div>
 
             {/* Emergency Card */}
-            <div className="bg-rose-500/5 p-4 rounded-2xl border border-rose-500/20 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-rose-500/40 transition-all group">
+            <div className="bg-rose-500/5 p-4 rounded-2xl border border-rose-500/20  relative overflow-hidden shadow-lg hover:border-rose-500/40 transition-all group">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500 to-red-400 opacity-80" />
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-rose-400 font-bold flex items-center gap-1.5">
+                <span className="text-sm font-medium text-rose-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]" />
                   Emergency Calls
                 </span>
@@ -230,10 +230,10 @@ export default function Dashboard() {
             </div>
 
             {/* Booked Card */}
-            <div className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 backdrop-blur-xl relative overflow-hidden shadow-lg hover:border-emerald-500/40 transition-all group">
+            <div className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20  relative overflow-hidden shadow-lg hover:border-emerald-500/40 transition-all group">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80" />
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="text-sm font-medium text-emerald-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
                   Booked Appointments
                 </span>
@@ -250,24 +250,26 @@ export default function Dashboard() {
         {/* Content Body & Filters */}
         <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-w-0 space-y-4">
           {/* Glass Search & Filter Control Bar */}
-          <div className="bg-slate-900/80 backdrop-blur-md p-2 border border-slate-800/80 rounded-2xl flex flex-col sm:flex-row gap-2 shadow-lg">
+          <div className="bg-slate-900  p-2 border border-slate-800/80 rounded-2xl flex flex-col sm:flex-row gap-2 shadow-lg">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
+                aria-label="Search leads"
                 placeholder="Search leads by name, phone number, address, or summary..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-950/60 border border-slate-800/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 min-h-[44px] transition-all"
+                className="w-full bg-slate-950 border border-slate-800/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/80 min-h-[44px] transition-all"
               />
             </div>
             <div className="flex gap-2">
-              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950/60 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
                 <Filter size={14} className="text-cyan-400 shrink-0" />
                 <select
+                  aria-label="Filter by lead type"
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as any)}
-                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-300 font-medium w-full cursor-pointer"
+                  className="text-xs sm:text-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/80 text-slate-300 font-medium w-full cursor-pointer"
                 >
                   <option value="all" className="bg-slate-900">All Types</option>
                   <option value="estimate_request" className="bg-slate-900">Estimate Request</option>
@@ -279,7 +281,7 @@ export default function Dashboard() {
                   <option value="spam" className="bg-slate-900">Spam</option>
                 </select>
               </div>
-              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950/60 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
                 <Clock size={14} className="text-cyan-400 shrink-0" />
                 <select
                   value={filterStatus}
@@ -302,9 +304,9 @@ export default function Dashboard() {
           {/* Mobile Card List View (< md screen) */}
           <div className="block md:hidden space-y-3">
             {isLoading ? (
-              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900/60 rounded-2xl border border-slate-800/80">LOADING LEADS TELEMETRY...</div>
+              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900 rounded-2xl border border-slate-800/80">LOADING LEADS TELEMETRY...</div>
             ) : filteredLeads.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900/60 rounded-2xl border border-slate-800/80">NO LEADS MATCHING CRITERIA</div>
+              <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900 rounded-2xl border border-slate-800/80">NO LEADS MATCHING CRITERIA</div>
             ) : (
               filteredLeads.map((lead) => {
                 const Icon = TYPE_ICONS[lead.call_type];
@@ -315,7 +317,7 @@ export default function Dashboard() {
                     key={lead.id}
                     onClick={() => setSelectedLead(lead)}
                     className={cn(
-                      "p-4 rounded-2xl border transition-all cursor-pointer space-y-3 bg-slate-900/70 backdrop-blur-xl active:scale-[0.99] shadow-md relative overflow-hidden",
+                      "p-4 rounded-2xl border transition-all cursor-pointer space-y-3 bg-slate-900  active:scale-[0.99] shadow-md relative overflow-hidden",
                       selectedLead?.id === lead.id ? "border-cyan-500 ring-1 ring-cyan-500/50" : "border-slate-800/80 hover:border-slate-700",
                       isEmergency && "bg-rose-950/20 border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
                     )}
@@ -335,20 +337,21 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-300 line-clamp-2 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 font-light">
+                    <p className="text-xs text-slate-300 line-clamp-2 bg-slate-950 p-3 rounded-xl border border-slate-800/60 font-light">
                       {lead.ai_summary || "No summary captured."}
                     </p>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-2 border-t border-slate-800/60">
-                      <span className="truncate max-w-[180px]">{lead.property_address || "No address"}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">{lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-400 font-mono pt-3 border-t border-slate-800/60 gap-3">
+                      <span className="truncate max-w-[200px] bg-slate-900/50 px-2 py-1 rounded-md border border-slate-800">{lead.property_address || "No address"}</span>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                        <span className="text-slate-500 bg-slate-900/50 px-2 py-1 rounded-md border border-slate-800">{lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}</span>
                         <button
                           onClick={(e) => deleteLead(lead.id!, e)}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all ml-1"
+                          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 transition-all font-bold tracking-wide shadow-glow-rose-sm hover:shadow-glow-rose"
                           title="Delete Lead"
                         >
                           <Trash2 size={13} />
+                          <span className="uppercase text-[9px]">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -359,10 +362,10 @@ export default function Dashboard() {
           </div>
 
           {/* Desktop Table View (>= md screen) */}
-          <div className="hidden md:block bg-slate-900/70 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-xl shadow-2xl">
+          <div className="hidden md:block bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden  shadow-2xl">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                <tr className="bg-slate-900 border-b border-slate-800/80 text-[10px] font-mono uppercase tracking-widest text-slate-400">
                   <th className="p-4 pl-6">Type</th>
                   <th className="p-4">Caller</th>
                   <th className="p-4">Summary & Preview</th>
@@ -392,8 +395,8 @@ export default function Dashboard() {
                         onClick={() => setSelectedLead(lead)}
                         className={cn(
                           "hover:bg-slate-800/40 transition-all cursor-pointer group",
-                          selectedLead?.id === lead.id && "bg-slate-800/50 border-l-2 border-l-cyan-400",
-                          isEmergency && "bg-rose-950/20 border-l-2 border-l-rose-500"
+                          selectedLead?.id === lead.id && "bg-slate-800 border-slate-700 shadow-[0_0_15px_rgba(34,211,238,0.1)]",
+                          isEmergency && "bg-rose-950/30 border-rose-900/50"
                         )}
                       >
                         <td className="p-4 pl-6">
@@ -424,20 +427,21 @@ export default function Dashboard() {
                           {lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}
                         </td>
                         <td className="p-4 pr-6 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-3">
                             <button
                               onClick={(e) => deleteLead(lead.id!, e)}
-                              className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 hover:border-rose-500/40 transition-all shadow-sm"
+                              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 transition-all font-bold tracking-wide shadow-glow-rose-sm hover:shadow-glow-rose"
                               title="Delete Lead"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={14} />
+                              <span className="uppercase text-[10px]">Delete</span>
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }}
-                              className="p-2 rounded-xl bg-slate-800/80 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 border border-slate-700/60 hover:border-cyan-500/40 transition-all shadow-sm"
+                              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-slate-800/80 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 border border-slate-700/60 hover:border-cyan-500/40 transition-all shadow-sm font-bold tracking-wide uppercase text-[10px]"
                               title="Inspect Details"
                             >
-                              <ChevronRight size={16} />
+                              Details <ChevronRight size={14} />
                             </button>
                           </div>
                         </td>
@@ -458,7 +462,7 @@ export default function Dashboard() {
             {/* Mobile backdrop */}
             <div
               onClick={() => setSelectedLead(null)}
-              className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-30 md:hidden transition-opacity"
+              className="fixed inset-0 bg-slate-950  z-30 md:hidden transition-opacity"
             />
 
             <motion.div
@@ -466,9 +470,9 @@ export default function Dashboard() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] lg:w-[560px] bg-slate-900/95 backdrop-blur-2xl border-l border-slate-800/90 shadow-2xl flex flex-col"
+              className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] lg:w-[560px] bg-slate-900  border-l border-slate-800/90 shadow-2xl flex flex-col"
             >
-              <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/60 shrink-0">
+              <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={cn("p-2.5 rounded-xl border shadow-inner shrink-0", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-slate-800 text-cyan-400 border-slate-700")}>
                     {React.createElement(TYPE_ICONS[selectedLead.call_type], { size: 20 })}
@@ -491,7 +495,7 @@ export default function Dashboard() {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Header Info */}
-                <div className="flex justify-between items-start bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
+                <div className="flex justify-between items-start bg-slate-950 p-5 rounded-2xl border border-slate-800/80">
                   <div className="space-y-1">
                     <h3 className="text-xl font-medium text-slate-100">{selectedLead.caller_name || "Unknown Caller"}</h3>
                     <div className="flex items-center gap-2 text-slate-400">
@@ -525,7 +529,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-1 gap-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
+                <div className="grid grid-cols-1 gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800/80">
                   <div className="space-y-1">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Property Address</div>
                     <div className="text-sm text-slate-200 flex items-center gap-2">
@@ -560,7 +564,7 @@ export default function Dashboard() {
 
                   {selectedLead.sound_diagnosis && (
                     <div className="space-y-1.5 p-3.5 bg-amber-950/20 rounded-xl border border-amber-500/30">
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold flex items-center gap-1.5">
+                      <div className="text-sm font-medium text-amber-400 flex items-center gap-1.5">
                         <Volume2 size={14} />
                         Acoustic Sound Diagnosis
                       </div>
@@ -578,7 +582,7 @@ export default function Dashboard() {
 
                   <div className="space-y-1">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">AI Triage Summary</div>
-                    <div className="text-sm text-slate-300 leading-relaxed italic border-l-2 border-cyan-500/50 pl-3 py-1 bg-slate-900/40 rounded-r-lg">
+                    <div className="text-sm text-cyan-50 leading-relaxed italic border border-cyan-900/30 px-4 py-3 bg-cyan-950/20 rounded-xl shadow-inner">
                       "{selectedLead.ai_summary || "No summary available."}"
                     </div>
                   </div>
@@ -586,7 +590,7 @@ export default function Dashboard() {
 
                 {/* Call Transcript */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-mono uppercase tracking-widest text-slate-400 font-bold flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-300 flex items-center justify-between">
                     <span>Call Transcript</span>
                     <span className="text-[10px] text-cyan-400 font-normal">{selectedLead.transcript?.length || 0} turns</span>
                   </h4>

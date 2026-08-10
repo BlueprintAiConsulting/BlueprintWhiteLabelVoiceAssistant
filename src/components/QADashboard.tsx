@@ -288,7 +288,7 @@ export default function QADashboard() {
                 <button
                   type="button"
                   onClick={handleSaveCoachingNotes}
-                  className="px-4 py-2 bg-cyan-600 text-slate-950 font-bold text-xs rounded-xl shadow-lg hover:bg-cyan-500 transition-all"
+                  className="px-4 py-2 bg-cyan-600 text-cyan-950 font-bold text-xs rounded-xl shadow-lg hover:bg-cyan-500 transition-all"
                 >
                   Save Coaching Feedback
                 </button>

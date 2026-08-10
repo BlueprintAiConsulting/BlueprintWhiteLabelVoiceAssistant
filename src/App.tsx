@@ -171,7 +171,7 @@ export default function App() {
         
         {/* Subtle grid background pattern */}
         <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
-          style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+          style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
         </div>
         
         {/* Ambient background glows */}

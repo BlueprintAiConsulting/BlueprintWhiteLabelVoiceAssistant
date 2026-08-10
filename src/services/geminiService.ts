@@ -2,6 +2,7 @@ import { GoogleGenAI, Type, GenerateContentResponse, Chat } from "@google/genai"
 import { db, auth, addDoc, collection, serverTimestamp, handleFirestoreError, OperationType, doc, getDoc } from "../firebase.ts";
 import { Lead, CallType, CallStatus, Settings } from "../types.ts";
 import { analyzeHvacSound } from "./hvacIntelligence.ts";
+import { buildHumanEscalationPlan } from "./humanEscalationService.ts";
 
 
 const DEFAULT_SETTINGS: Settings = {
@@ -26,7 +27,7 @@ const DEFAULT_SETTINGS: Settings = {
   escalation_timeout_minutes: 15,
   after_hours_message: "Thank you for calling Lunar Heating and Cooling. Our office is currently closed. If this is an emergency gas leak or no heat call, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
-  receptionist_voice: "Kore",
+  receptionist_voice: "Aoede",
   receptionist_voice_style: "warm, concise, natural female office receptionist",
   prompt_overrides: ""
 };
@@ -114,10 +115,29 @@ export async function createReceptionistChat(): Promise<any> {
           args: leadData
         });
       }
-
-      const resText = isEmergency 
-        ? "LIFE SAFETY ALERT: Please hang up immediately, get out to a safe location, and call 911!"
-        : `Thank you for calling ${settings.office_name || "Lunar Heating and Cooling"}. I have noted your request and our office team will assist you.`;
+      
+      let isTransfer = false;
+      let resText = "";
+      
+      if (fullText.includes("transfer") || fullText.includes("talk to") || fullText.includes("speak with") || fullText.includes("connect me to")) {
+        isTransfer = true;
+        const plan = buildHumanEscalationPlan({ reason: messageText, caller_name: extractedName, callback_number: leadData.callback_number }, settings);
+        
+        functionCalls.push({
+          name: "transferCall",
+          args: {
+            reason: plan.reason,
+            target_number: plan.target_phone,
+            route: plan.route
+          }
+        });
+        
+        resText = `One moment while I connect you to ${plan.route === "custom_role" ? (plan.summary.split(" ")[1] || "that department") : plan.route === "owner" ? "the owner" : "our on-call technician"}.`;
+      } else {
+        resText = isEmergency 
+          ? "LIFE SAFETY ALERT: Please hang up immediately, get out to a safe location, and call 911!"
+          : `Thank you for calling ${settings.office_name || "Lunar Heating and Cooling"}. I have noted your request and our office team will assist you.`;
+      }
 
       turnsHistory.push({ role: "assistant", text: resText });
 

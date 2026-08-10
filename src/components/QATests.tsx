@@ -79,7 +79,7 @@ export default function QATests() {
             <button
               onClick={runAllTests}
               disabled={isRunning}
-              className="px-3 py-2 bg-cyan-500 text-slate-950 rounded-xl hover:bg-cyan-400 transition-all font-bold disabled:opacity-50 shadow-[0_0_15px_rgba(34,211,238,0.3)] min-h-[44px] flex items-center gap-1.5 text-xs uppercase tracking-wider"
+              className="px-3 py-2 bg-cyan-500 text-cyan-950 rounded-xl hover:bg-cyan-400 transition-all font-bold disabled:opacity-50 shadow-[0_0_15px_rgba(34,211,238,0.3)] min-h-[44px] flex items-center gap-1.5 text-xs uppercase tracking-wider"
               title="Run All Tests"
             >
               <Play size={14} fill="currentColor" />
@@ -157,7 +157,7 @@ export default function QATests() {
             <button
               onClick={runAllTests}
               disabled={isRunning}
-              className="flex items-center gap-2 bg-cyan-500 text-slate-950 px-6 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50"
+              className="flex items-center gap-2 bg-cyan-500 text-cyan-950 px-6 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50"
             >
               <Play size={14} fill="currentColor" />
               Run All Tests
@@ -256,7 +256,7 @@ export default function QATests() {
                           {err.snippet && (
                             <div className="ml-7 space-y-1">
                               <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Context Snippet</span>
-                              <div className="text-xs italic text-slate-400 bg-slate-950 p-3 rounded-lg border-l-2 border-rose-400 truncate">
+                              <div className="text-xs italic text-rose-200 bg-rose-950/20 p-3 rounded-xl border border-rose-900/50 truncate shadow-inner">
                                 "{err.snippet}"
                               </div>
                             </div>
