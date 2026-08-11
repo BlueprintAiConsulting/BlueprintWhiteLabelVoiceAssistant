@@ -148,6 +148,8 @@ export interface Settings {
   appointment_buffer_minutes?: number;
   sms_booking_confirmation_enabled?: boolean;
   twilio_enabled?: boolean;
+  twilio_account_sid?: string;
+  twilio_auth_token?: string;
   twilio_phone_number?: string;
   twilio_transfer_number?: string;
   recording_consent_required?: boolean;

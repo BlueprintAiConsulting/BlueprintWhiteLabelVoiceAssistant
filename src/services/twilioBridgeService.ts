@@ -31,8 +31,8 @@ function isTwilioServerConfigured(settings: Settings): boolean {
   if (process.env.NODE_ENV === "test") return true;
   return Boolean(
     settings.twilio_enabled === true &&
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
+    (process.env.TWILIO_ACCOUNT_SID || settings.twilio_account_sid) &&
+    (process.env.TWILIO_AUTH_TOKEN || settings.twilio_auth_token) &&
     (process.env.TWILIO_PHONE_NUMBER || settings.twilio_phone_number)
   );
 }

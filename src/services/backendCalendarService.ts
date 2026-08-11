@@ -188,7 +188,7 @@ export async function bookGoogleCalendarAppointment(
     console.error("Error creating Firestore appointment record:", err);
     return {
       success: false,
-      booking_status: "failed",
+      booking_status: "failed_callback_offered",
       message: "Failed to persist appointment record in database."
     };
   }

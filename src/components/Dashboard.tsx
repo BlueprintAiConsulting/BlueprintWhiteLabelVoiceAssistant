@@ -21,7 +21,7 @@ const STATUS_COLORS: Record<CallStatus, string> = {
   after_hours_follow_up: "bg-purple-500/15 text-purple-400 border-purple-500/30"
 };
 
-const TYPE_ICONS: Record<CallType, any> = {
+const TYPE_ICONS: Partial<Record<CallType, any>> = {
   estimate_request: Calendar,
   emergency: ShieldAlert,
   repair_request: Wrench,
@@ -311,7 +311,7 @@ export default function Dashboard() {
               <div className="p-8 text-center text-slate-500 font-mono text-xs bg-slate-900 rounded-2xl border border-slate-800/80">NO LEADS MATCHING CRITERIA</div>
             ) : (
               filteredLeads.map((lead) => {
-                const Icon = TYPE_ICONS[lead.call_type];
+                const Icon = TYPE_ICONS[lead.call_type] || Phone;
                 const isEmergency = lead.call_status === "emergency_follow_up";
 
                 return (
@@ -387,7 +387,7 @@ export default function Dashboard() {
                   </tr>
                 ) : (
                   filteredLeads.map((lead) => {
-                    const Icon = TYPE_ICONS[lead.call_type];
+                    const Icon = TYPE_ICONS[lead.call_type] || Phone;
                     const isEmergency = lead.call_status === "emergency_follow_up";
                     const lastMessage = lead.transcript?.[lead.transcript.length - 1]?.text;
 
@@ -477,7 +477,7 @@ export default function Dashboard() {
               <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={cn("p-2.5 rounded-xl border shadow-inner shrink-0", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-slate-800 text-cyan-400 border-slate-700")}>
-                    {React.createElement(TYPE_ICONS[selectedLead.call_type], { size: 20 })}
+                    {React.createElement(TYPE_ICONS[selectedLead.call_type] || Phone, { size: 20 })}
                   </div>
                   <div>
                     <h2 className="text-base sm:text-lg font-serif italic text-slate-100">Lead Inspector</h2>

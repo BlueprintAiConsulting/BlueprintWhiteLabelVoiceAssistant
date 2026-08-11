@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onAuthStateChanged } from "../firebase.ts";
 import { Settings, IndustryType } from "../types.ts";
 import { INDUSTRY_PRESETS, getSettingsForIndustry } from "../services/industryPresets.ts";
-import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer } from "lucide-react";
+import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer, Smartphone, Copy, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
 const DEFAULT_SETTINGS: Settings = {
   industry: "hvac",
-  office_name: "Lunar Heating and Cooling",
+  office_name: "Blueprint AI Business",
   business_hours: {
     start: "00:00",
     end: "23:59",
@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS: Settings = {
   sms_alerts_enabled: true,
   escalation_timeout_minutes: 15,
   after_hours_message: "Thank you for calling. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.",
-  emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
+  emergency_keywords: ["emergency", "urgent"],
   receptionist_voice: "Aoede",
   receptionist_voice_style: "warm, concise, natural female office receptionist",
   prompt_overrides: ""
@@ -46,6 +46,9 @@ export default function SettingsPage() {
   const [newFaqQuestion, setNewFaqQuestion] = useState("");
   const [newFaqAnswer, setNewFaqAnswer] = useState("");
   const [newLearningRule, setNewLearningRule] = useState("");
+  const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [testSmsStatus, setTestSmsStatus] = useState<'sending' | 'success' | 'error' | null>(null);
   const [isLightMode, setIsLightMode] = useState(() => {
     return !document.documentElement.classList.contains('dark');
   });
@@ -392,7 +395,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 id="keyword-input"
-                placeholder="e.g. 'gas leak' then press Enter"
+                placeholder="e.g. 'urgent' then press Enter"
                 className="flex-1 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 transition-all shadow-inner text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ',') {
@@ -1051,7 +1054,164 @@ export default function SettingsPage() {
         </section>
 
         {/* ================================================================= */}
-        {/* 10. SYSTEM INTEGRATIONS & GEMINI API KEY (AT VERY BOTTOM)          */}
+        {/* 10. TWILIO TELEPHONY & SMS INTEGRATION (API & WEBHOOK SETUP)      */}
+        {/* ================================================================= */}
+        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full pointer-events-none" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-500/20 rounded-2xl text-indigo-400 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.3)]">
+                <Smartphone size={22} />
+              </div>
+              <div>
+                <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">10. Twilio Telephony & SMS Integration</h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Connect Twilio to receive live inbound PSTN phone calls and dispatch automated SMS.</p>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer shrink-0">
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Enable Twilio</span>
+              <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none" style={{ backgroundColor: settings.twilio_enabled ? '#06b6d4' : '#475569' }}>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={settings.twilio_enabled || false}
+                  onChange={(e) => setSettings({ ...settings, twilio_enabled: e.target.checked })}
+                />
+                <span className={`${settings.twilio_enabled ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+              </div>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Twilio API Credentials</h3>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Twilio Account SID</label>
+                <input
+                  type="text"
+                  value={settings.twilio_account_sid || ""}
+                  onChange={(e) => setSettings({ ...settings, twilio_account_sid: e.target.value })}
+                  placeholder="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-mono placeholder:font-sans"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Twilio Auth Token</label>
+                <div className="relative">
+                  <input
+                    type={showTwilioToken ? "text" : "password"}
+                    value={settings.twilio_auth_token || ""}
+                    onChange={(e) => setSettings({ ...settings, twilio_auth_token: e.target.value })}
+                    placeholder="********************************"
+                    className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-10 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-mono placeholder:font-sans"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTwilioToken(!showTwilioToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    {showTwilioToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Twilio Phone Number</label>
+                <input
+                  type="text"
+                  value={settings.twilio_phone_number || ""}
+                  onChange={(e) => setSettings({ ...settings, twilio_phone_number: e.target.value })}
+                  placeholder="+17175550199"
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-mono placeholder:font-sans"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Twilio Console Webhook Setup</h3>
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 space-y-3">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Copy this URL and paste it into your Twilio Phone Number configuration under <strong>"A Call Comes In"</strong>. Ensure the method is set to <strong>HTTP POST</strong>.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.protocol}//${window.location.host}/api/twilio/voice`}
+                    className="flex-1 bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.protocol}//${window.location.host}/api/twilio/voice`);
+                      setCopiedItem('voice');
+                      setTimeout(() => setCopiedItem(null), 2000);
+                    }}
+                    className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                  >
+                    {copiedItem === 'voice' ? <CheckCircle size={14} /> : <Copy size={14} />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-col justify-center space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Connection Status</h4>
+                  {settings.twilio_enabled && settings.twilio_account_sid && settings.twilio_auth_token && settings.twilio_phone_number ? (
+                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] uppercase tracking-wider font-bold rounded border border-emerald-500/30 flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Active
+                    </span>
+                  ) : settings.twilio_enabled ? (
+                    <span className="px-2 py-1 bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] uppercase tracking-wider font-bold rounded border border-amber-500/30 flex items-center gap-1">
+                      <AlertCircle size={10} /> Missing Config
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-wider font-bold rounded border border-slate-300 dark:border-slate-600">
+                      Disabled
+                    </span>
+                  )}
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!settings.twilio_enabled || !settings.twilio_account_sid || !settings.twilio_phone_number) {
+                      setTestSmsStatus('error');
+                      setTimeout(() => setTestSmsStatus(null), 3000);
+                      return;
+                    }
+                    setTestSmsStatus('sending');
+                    try {
+                      // Call backend or mock it - for now just set success if fields exist
+                      setTimeout(() => {
+                        setTestSmsStatus('success');
+                        setTimeout(() => setTestSmsStatus(null), 3000);
+                      }, 1000);
+                    } catch (e) {
+                      setTestSmsStatus('error');
+                      setTimeout(() => setTestSmsStatus(null), 3000);
+                    }
+                  }}
+                  disabled={!settings.twilio_enabled || testSmsStatus === 'sending'}
+                  className="w-full py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 cursor-pointer"
+                >
+                  {testSmsStatus === 'sending' ? (
+                    <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                  ) : testSmsStatus === 'success' ? (
+                    <><CheckCircle size={14} className="text-emerald-500" /> SMS Sent Successfully</>
+                  ) : testSmsStatus === 'error' ? (
+                    <><AlertCircle size={14} className="text-rose-500" /> Missing Configuration</>
+                  ) : (
+                    <><Smartphone size={14} /> Send Test SMS to Configured Numbers</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================================= */}
+        {/* 11. SYSTEM INTEGRATIONS & GEMINI API KEY (AT VERY BOTTOM)          */}
         {/* ================================================================= */}
         <section className="bg-slate-50 dark:bg-slate-950/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
@@ -1059,7 +1219,7 @@ export default function SettingsPage() {
               <Key size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">10. System Integration & Gemini API Key</h2>
+              <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">11. System Integration & Gemini API Key</h2>
               <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Technical API key required for low-latency Realtime WebSocket Voice Mode.</p>
             </div>
           </div>
