@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "beach-house-tanning-lounge"
+    "default": "blueprint-operations",
+    "blueprint": "blueprint-operations",
+    "lunar": "beach-house-tanning-lounge"
   }
 }

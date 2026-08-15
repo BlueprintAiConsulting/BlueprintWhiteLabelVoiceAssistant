@@ -14,6 +14,9 @@ const userRateLimits = new Map();
 const ALLOWED_ORIGINS = [
   "https://lunar-hvac.web.app",
   "https://lunar-hvac.firebaseapp.com",
+  "https://blueprint-operations.web.app",
+  "https://blueprint-operations.firebaseapp.com",
+  "https://blueprintaiconsulting.github.io",
   "https://rcruitlync.com",
   "http://localhost:5173",
   "http://127.0.0.1:5173"

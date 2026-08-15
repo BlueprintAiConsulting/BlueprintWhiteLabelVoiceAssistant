@@ -2,12 +2,43 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocFromServer, writeBatch } from "firebase/firestore";
 
-// Import the Firebase configuration
-import firebaseConfig from "../firebase-applet-config.json";
+// Multi-tenant / Multi-environment configurations
+export const BLUEPRINT_CONFIG = {
+  projectId: "blueprint-operations",
+  appId: "1:1055948083267:web:a019dc91de16c2d367c4f6",
+  apiKey: "AIzaSyDGaK7iwPiXzNJ9YbPL4R3Yr9QSCW9tspE",
+  authDomain: "blueprint-operations.firebaseapp.com",
+  firestoreDatabaseId: "(default)",
+  storageBucket: "blueprint-operations.firebasestorage.app",
+  messagingSenderId: "1055948083267",
+  measurementId: "G-206D5JPB6V"
+};
 
-// Initialize Firebase SDK
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const LUNAR_CONFIG = {
+  projectId: "beach-house-tanning-lounge",
+  appId: "1:430439016431:web:b877d5f1300561df06781a",
+  apiKey: "AIzaSyBwkuslAVMBJ7MrkOzp-H3XaycVNo6n944",
+  authDomain: "beach-house-tanning-lounge.firebaseapp.com",
+  firestoreDatabaseId: "(default)",
+  storageBucket: "beach-house-tanning-lounge.firebasestorage.app",
+  messagingSenderId: "430439016431",
+  measurementId: ""
+};
+
+export function getActiveFirebaseConfig() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.includes("lunar-hvac") || host.includes("beach-house-tanning-lounge")) {
+      return LUNAR_CONFIG;
+    }
+  }
+  return BLUEPRINT_CONFIG;
+}
+
+// Initialize Firebase SDK with active environment
+const activeConfig = getActiveFirebaseConfig();
+const app = initializeApp(activeConfig);
+export const db = getFirestore(app, activeConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
