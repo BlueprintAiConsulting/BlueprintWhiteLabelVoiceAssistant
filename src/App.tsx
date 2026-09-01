@@ -174,12 +174,44 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
   );
 }
 
+function MobileBottomNav() {
+  const location = useLocation();
+  const navItems = [
+    { path: "/", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/simulator", label: "Simulator", icon: Phone },
+    { path: "/qa-dashboard", label: "QA Audit", icon: ShieldCheck },
+    { path: "/qa", label: "QA Tests", icon: CheckCircle },
+    { path: "/settings", label: "Settings", icon: SettingsIcon },
+  ];
+
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800/80 px-2 py-1.5 flex items-center justify-around safe-area-bottom">
+      {navItems.map((item) => {
+        const isActive = location.pathname === item.path;
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={cn(
+              "flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[56px] min-h-[44px]",
+              isActive ? "text-cyan-400 font-bold" : "text-slate-400 hover:text-slate-200 font-medium"
+            )}
+          >
+            <item.icon size={18} className={cn("mb-1 transition-transform", isActive && "scale-110 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]")} />
+            <span className="text-[10px] tracking-tight leading-none">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <Router basename={import.meta.env.BASE_URL}>
-      <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-slate-950 font-sans selection:bg-cyan-500/30 selection:text-cyan-200 relative">
+      <div className="flex flex-col md:flex-row h-[100dvh] w-full overflow-hidden bg-slate-950 font-sans selection:bg-cyan-500/30 selection:text-cyan-200 relative">
         
         {/* Subtle grid background pattern */}
         <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
@@ -213,7 +245,7 @@ export default function App() {
         </header>
 
         <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
-        <main className="flex-1 overflow-hidden relative z-10 flex flex-col min-w-0">
+        <main className="flex-1 overflow-hidden relative z-10 flex flex-col min-w-0 pb-16 md:pb-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/simulator" element={<Simulator />} />
@@ -222,6 +254,7 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
+        <MobileBottomNav />
       </div>
     </Router>
   );
