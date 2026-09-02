@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, writeBatch, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
 import { Lead, CallType, CallStatus } from "../types.ts";
-import { Search, Filter, Clock, CheckCircle, XCircle, Trash2, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, Wrench, ThermometerSun, ChevronRight, Activity, Volume2 } from "lucide-react";
+import { Search, Filter, Clock, CheckCircle, XCircle, Trash2, Phone, MapPin, Calendar, MessageSquare, ShieldAlert, Wrench, ThermometerSun, ChevronRight, Activity, Volume2, Home, CloudRain, Layers } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -23,8 +23,14 @@ const STATUS_COLORS: Record<CallStatus, string> = {
 
 const TYPE_ICONS: Partial<Record<CallType, any>> = {
   estimate_request: Calendar,
+  roof_replacement_estimate: Home,
+  siding_estimate: Layers,
   emergency: ShieldAlert,
+  emergency_tarping: ShieldAlert,
+  storm_hail_damage: CloudRain,
   repair_request: Wrench,
+  roof_repair: Wrench,
+  gutter_soffit_repair: Wrench,
   maintenance_request: ThermometerSun,
   existing_customer: Clock,
   general_office: MessageSquare,

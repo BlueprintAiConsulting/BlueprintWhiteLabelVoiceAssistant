@@ -507,6 +507,20 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
 
 /**
  * Returns complete Settings populated with default presets for the chosen industry.
+export function isRoofingMode(settings?: Settings | null): boolean {
+  return settings?.industry === "roofing_siding";
+}
+
+export function toggleRoofingMode(currentSettings: Settings, enableRoofing: boolean, overwriteDefaults: boolean = false): Settings {
+  const targetIndustry: IndustryType = enableRoofing ? "roofing_siding" : "hvac";
+  if (overwriteDefaults) {
+    return getSettingsForIndustry(targetIndustry);
+  }
+  return getSettingsForIndustry(targetIndustry, currentSettings);
+}
+
+/**
+ * Returns merged industry settings given a base configuration and target industry.
  */
 export function getSettingsForIndustry(industry: IndustryType, existingSettings?: Settings): Settings {
   const preset = INDUSTRY_PRESETS[industry] || INDUSTRY_PRESETS.hvac;
@@ -533,16 +547,16 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
   return {
     ...base,
     industry: industry,
-    office_name: existingSettings?.office_name || preset.defaultOfficeName,
+    office_name: existingSettings?.office_name && existingSettings.office_name !== "Blueprint AI Business" ? existingSettings.office_name : preset.defaultOfficeName,
     owner_name: existingSettings?.owner_name || preset.defaultOwnerName,
     owner_title: existingSettings?.owner_title || preset.defaultOwnerTitle,
     owner_phone_number: existingSettings?.owner_phone_number || preset.defaultOwnerPhone,
-    emergency_keywords: existingSettings?.emergency_keywords?.length ? existingSettings.emergency_keywords : preset.emergencyKeywords,
-    pricing_service_call: existingSettings?.pricing_service_call || preset.pricingDefaults.serviceCall,
-    pricing_after_hours: existingSettings?.pricing_after_hours || preset.pricingDefaults.afterHours,
-    maintenance_plan_name: existingSettings?.maintenance_plan_name || preset.pricingDefaults.maintenancePlanName,
-    maintenance_plan_price: existingSettings?.maintenance_plan_price || preset.pricingDefaults.maintenancePlanPrice,
-    maintenance_plan_benefits: existingSettings?.maintenance_plan_benefits || preset.pricingDefaults.maintenancePlanBenefits,
-    custom_faqs: existingSettings?.custom_faqs?.length ? existingSettings.custom_faqs : preset.customFaqs
+    emergency_keywords: preset.emergencyKeywords,
+    pricing_service_call: preset.pricingDefaults.serviceCall,
+    pricing_after_hours: preset.pricingDefaults.afterHours,
+    maintenance_plan_name: preset.pricingDefaults.maintenancePlanName,
+    maintenance_plan_price: preset.pricingDefaults.maintenancePlanPrice,
+    maintenance_plan_benefits: preset.pricingDefaults.maintenancePlanBenefits,
+    custom_faqs: preset.customFaqs
   };
 }

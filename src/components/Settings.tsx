@@ -169,9 +169,9 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} className="space-y-8 max-w-6xl">
         {/* ================================================================= */}
-        {/* 0. WHITE-LABEL INDUSTRY PRESETS & MULTI-TRADE ENGINE               */}
+        {/* 0. SPECIALIZED TRADE MODE (ROOFING / HVAC)                       */}
         {/* ================================================================= */}
-        {isWhiteLabel && <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+        <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
           <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 border-b border-slate-800/80 pb-4">
             <div className="flex items-center gap-3">
@@ -245,7 +245,7 @@ export default function SettingsPage() {
               );
             })}
           </div>
-        </section>}
+        </section>
 
         {/* ================================================================= */}
         {/* 1. EMERGENCY ROUTING & SAFETY DISPATCH (TOP VALUE TO OWNER)       */}
