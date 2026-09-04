@@ -5,7 +5,33 @@ import { analyzeHvacSound } from "./hvacIntelligence.ts";
 import { buildHumanEscalationPlan } from "./humanEscalationService.ts";
 
 
+export const SETTINGS_STORAGE_KEY = "lunar_voice_settings";
+
+export function getLocalSavedSettings(): Settings | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) {
+      return JSON.parse(raw) as Settings;
+    }
+  } catch (e) {
+    console.warn("Could not read local settings:", e);
+  }
+  return null;
+}
+
+export function saveLocalSettings(settings: Settings): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent("settings-updated", { detail: settings }));
+  } catch (e) {
+    console.warn("Could not save local settings:", e);
+  }
+}
+
 const DEFAULT_SETTINGS: Settings = {
+  industry: "hvac",
   office_name: "Lunar Heating and Cooling",
   receptionist_name: "Megan",
   business_hours: {
@@ -33,23 +59,35 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export async function getSettings(): Promise<Settings> {
+  const local = getLocalSavedSettings();
+
   if (process.env.NODE_ENV === "test") {
-    return DEFAULT_SETTINGS;
+    return local || DEFAULT_SETTINGS;
   }
   try {
     const settingsDoc = await getDoc(doc(db, "settings", "config"));
     if (settingsDoc.exists()) {
-      return settingsDoc.data() as Settings;
+      const cloudSettings = settingsDoc.data() as Settings;
+      // If local storage has an active trade explicitly selected by the user, keep it in sync
+      if (local && local.industry && local.industry !== cloudSettings.industry) {
+        return { ...cloudSettings, ...local };
+      }
+      saveLocalSettings(cloudSettings);
+      return cloudSettings;
     }
-    return DEFAULT_SETTINGS;
   } catch (error) {
-    console.error("Error fetching settings:", error);
-    return DEFAULT_SETTINGS;
+    console.warn("Could not fetch Firestore settings, falling back to local storage:", error);
   }
+
+  if (local) {
+    return { ...DEFAULT_SETTINGS, ...local };
+  }
+
+  return DEFAULT_SETTINGS;
 }
 
-export async function createReceptionistChat(): Promise<any> {
-  const settings = await getSettings();
+export async function createReceptionistChat(customSettings?: Settings): Promise<any> {
+  const settings = customSettings || await getSettings();
   const turnsHistory: { role: string; text: string }[] = [];
 
   return {
@@ -58,6 +96,7 @@ export async function createReceptionistChat(): Promise<any> {
       turnsHistory.push({ role: "user", text: messageText });
       
       const fullText = turnsHistory.map(t => t.text).join("\n").toLowerCase();
+      const isRoofing = settings.industry === "roofing_siding";
       
       // Classify call type & emergency flags
       let callType: CallType = "general_office";
@@ -66,15 +105,33 @@ export async function createReceptionistChat(): Promise<any> {
       
       const hasGas = fullText.includes("gas") || fullText.includes("smell gas");
       const hasLeak = fullText.includes("leak");
-      if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || (hasGas && hasLeak) || fullText.includes("smell gas") || fullText.includes("carbon monoxide") || fullText.includes("sparks") || fullText.includes("freezing") || fullText.includes("no heat") || fullText.includes("shut off") || fullText.includes("dropping to")) {
-        callType = "emergency";
-        isEmergency = true;
-      } else if ((fullText.includes("furnace") || fullText.includes("ac") || fullText.includes("heat pump") || fullText.includes("mini-split")) && (fullText.includes("new") || fullText.includes("replace") || fullText.includes("estimate") || fullText.includes("quote") || fullText.includes("cost"))) {
-        callType = "estimate_request";
-      } else if (fullText.includes("repair") || fullText.includes("warm air") || fullText.includes("ac unit") || fullText.includes("look at my ac") || fullText.includes("stopped cooling")) {
-        callType = "repair_request";
-      } else if (fullText.includes("tune-up") || fullText.includes("tuneup") || fullText.includes("maintenance agreement") || fullText.includes("spring tune-up")) {
-        callType = "maintenance_request";
+      
+      if (isRoofing) {
+        if (fullText.includes("tarp") || fullText.includes("pouring") || fullText.includes("collapse") || fullText.includes("tree on roof") || fullText.includes("ceiling sagging")) {
+          callType = "emergency_tarping";
+          isEmergency = true;
+        } else if (fullText.includes("hail") || fullText.includes("storm") || fullText.includes("wind damage")) {
+          callType = "storm_hail_damage";
+        } else if (fullText.includes("siding")) {
+          callType = "siding_estimate";
+        } else if (fullText.includes("gutter") || fullText.includes("downspout") || fullText.includes("soffit") || fullText.includes("fascia")) {
+          callType = "gutter_soffit_repair";
+        } else if (fullText.includes("replace") || fullText.includes("new roof") || fullText.includes("tear off") || fullText.includes("estimate") || fullText.includes("quote")) {
+          callType = "roof_replacement_estimate";
+        } else if (fullText.includes("leak") || fullText.includes("repair") || fullText.includes("shingle") || fullText.includes("pipe boot")) {
+          callType = "roof_repair";
+        }
+      } else {
+        if (fullText.includes("fire") || fullText.includes("flames") || fullText.includes("gas leak") || (hasGas && hasLeak) || fullText.includes("smell gas") || fullText.includes("carbon monoxide") || fullText.includes("sparks") || fullText.includes("freezing") || fullText.includes("no heat") || fullText.includes("shut off") || fullText.includes("dropping to")) {
+          callType = "emergency";
+          isEmergency = true;
+        } else if ((fullText.includes("furnace") || fullText.includes("ac") || fullText.includes("heat pump") || fullText.includes("mini-split")) && (fullText.includes("new") || fullText.includes("replace") || fullText.includes("estimate") || fullText.includes("quote") || fullText.includes("cost"))) {
+          callType = "estimate_request";
+        } else if (fullText.includes("repair") || fullText.includes("warm air") || fullText.includes("ac unit") || fullText.includes("look at my ac") || fullText.includes("stopped cooling")) {
+          callType = "repair_request";
+        } else if (fullText.includes("tune-up") || fullText.includes("tuneup") || fullText.includes("maintenance agreement") || fullText.includes("spring tune-up")) {
+          callType = "maintenance_request";
+        }
       }
 
       // Regex field extractors
@@ -90,10 +147,16 @@ export async function createReceptionistChat(): Promise<any> {
         caller_name: extractedName,
         callback_number: phoneMatch ? phoneMatch[1].trim() : undefined,
         property_address: addressMatch ? addressMatch[1].trim() : (fullText.includes("cedar road") ? "Cedar Road" : undefined),
-        equipment_type: (fullText.includes("furnace") || fullText.includes("heat pump")) ? "Furnace / Heat Pump" : fullText.includes("ac") ? "Air Conditioning" : undefined,
+        equipment_type: isRoofing 
+          ? (fullText.includes("siding") ? "Vinyl / Hardie Siding" : fullText.includes("metal") ? "Metal Roofing" : "Architectural Shingle Roof")
+          : ((fullText.includes("furnace") || fullText.includes("heat pump")) ? "Furnace / Heat Pump" : fullText.includes("ac") ? "Air Conditioning" : undefined),
         reason_for_call: messageText,
-        issue_description: fullText.includes("warm air") ? "AC blowing warm air" : fullText.includes("stopped cooling") ? "Rooftop RTU stopped cooling" : fullText.includes("tune-up") ? "Spring AC Tune-up" : undefined,
-        emergency_type: isEmergency ? (fullText.includes("carbon monoxide") ? "Carbon Monoxide Alarm" : fullText.includes("freezing") ? "No Heat Freezing Risk" : "Gas Leak / Fire Emergency") : undefined,
+        issue_description: isRoofing
+          ? (fullText.includes("tarp") ? "Active roof leak requiring emergency tarping" : fullText.includes("hail") ? "Hail / storm damage inspection" : fullText.includes("siding") ? "Siding replacement estimate" : fullText.includes("leak") ? "Roof leak repair" : "Roof replacement estimate")
+          : (fullText.includes("warm air") ? "AC blowing warm air" : fullText.includes("stopped cooling") ? "Rooftop RTU stopped cooling" : fullText.includes("tune-up") ? "Spring AC Tune-up" : undefined),
+        emergency_type: isEmergency 
+          ? (isRoofing ? (fullText.includes("tarp") ? "Active Roof Leak / Emergency Tarp" : "Severe Storm Damage") : (fullText.includes("carbon monoxide") ? "Carbon Monoxide Alarm" : fullText.includes("freezing") ? "No Heat Freezing Risk" : "Gas Leak / Fire Emergency")) 
+          : undefined,
         maintenance_agreement: fullText.includes("maintenance agreement") || fullText.includes("maintenance plan") || fullText.includes("tune-up"),
         preferred_appointment_date: (fullText.includes("tuesday") || fullText.includes("next tuesday")) ? "Tuesday" : fullText.includes("friday") ? "Friday" : fullText.includes("tomorrow") ? "Tomorrow Morning" : (fullText.includes("schedule") || fullText.includes("tune-up") || fullText.includes("estimate") || fullText.includes("cost")) ? "Next Available" : undefined,
         preferred_time_window: fullText.includes("afternoon") ? "afternoon" : fullText.includes("morning") ? "morning" : (fullText.includes("schedule") || fullText.includes("tune-up") || fullText.includes("estimate") || fullText.includes("cost")) ? "Flexible" : undefined,
@@ -119,7 +182,13 @@ export async function createReceptionistChat(): Promise<any> {
       let isTransfer = false;
       let resText = "";
       
-      if (fullText.includes("transfer") || fullText.includes("talk to") || fullText.includes("speak with") || fullText.includes("connect me to")) {
+      const isGreeting = turnsHistory.length <= 1 || messageText.toLowerCase().includes("calling");
+      const recName = settings.receptionist_name || "Megan";
+
+      if (isGreeting) {
+        const tradeSpecialty = isRoofing ? "roofing or siding" : "heating or cooling";
+        resText = `Thanks for calling ${settings.office_name || "our office"}! This is ${recName}. How can I help you with your ${tradeSpecialty} today?`;
+      } else if (fullText.includes("transfer") || fullText.includes("talk to") || fullText.includes("speak with") || fullText.includes("connect me to") || fullText.includes("josh")) {
         isTransfer = true;
         const plan = buildHumanEscalationPlan({ reason: messageText, caller_name: extractedName, callback_number: leadData.callback_number }, settings);
         
@@ -132,11 +201,27 @@ export async function createReceptionistChat(): Promise<any> {
           }
         });
         
-        resText = `One moment while I connect you to ${plan.route === "custom_role" ? (plan.summary.split(" ")[1] || "that department") : plan.route === "owner" ? "the owner" : "our on-call technician"}.`;
+        resText = `One moment while I connect you to ${plan.route === "custom_role" ? (plan.summary.split(" ")[1] || "that department") : plan.route === "owner" ? (settings.owner_name || "the owner") : (isRoofing ? "our lead roofing specialist" : "our on-call technician")}.`;
+      } else if (isEmergency) {
+        resText = isRoofing 
+          ? `EMERGENCY TARPING DISPATCH: I understand water is actively coming in. Please ensure everyone is safe inside. I am flagging your address (${leadData.property_address || "your property"}) for emergency tarping right away.`
+          : `LIFE SAFETY ALERT: Please hang up immediately, get out to a safe location, and call 911 or the gas utility!`;
+      } else if (isRoofing) {
+        if (callType === "roof_replacement_estimate") {
+          resText = `I would be happy to schedule a free 21-point roof inspection and full replacement estimate for you. What is your property address and the best callback number?`;
+        } else if (callType === "storm_hail_damage") {
+          resText = `We specialize in storm and hail damage assessments, complete with drone photo documentation for your insurance claim. What is your property address?`;
+        } else if (callType === "siding_estimate") {
+          resText = `We can definitely help with siding replacement and exterior trim. What is your address and what type of siding are you looking for?`;
+        } else {
+          resText = `Thank you for calling ${settings.office_name || "Apex Roofing & Siding"}. I have noted all your details, and our estimator will follow up with you promptly.`;
+        }
       } else {
-        resText = isEmergency 
-          ? "LIFE SAFETY ALERT: Please hang up immediately, get out to a safe location, and call 911!"
-          : `Thank you for calling ${settings.office_name || "our office"}. I have noted your request and our office team will assist you.`;
+        if (callType === "estimate_request") {
+          resText = `I would be happy to schedule a free in-home estimate on a new replacement HVAC system. What is your address?`;
+        } else {
+          resText = `Thank you for calling ${settings.office_name || "our office"}. I have noted your request and our office team will assist you.`;
+        }
       }
 
       turnsHistory.push({ role: "assistant", text: resText });

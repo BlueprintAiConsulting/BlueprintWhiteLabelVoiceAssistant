@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onAuthStateChanged } from "../firebase.ts";
 import { Settings, IndustryType } from "../types.ts";
-import { INDUSTRY_PRESETS, getSettingsForIndustry } from "../services/industryPresets.ts";
+import { INDUSTRY_PRESETS, getSettingsForIndustry, isRoofingMode, toggleRoofingMode } from "../services/industryPresets.ts";
+import { saveLocalSettings, getLocalSavedSettings } from "../services/geminiService.ts";
 import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer, Smartphone, Copy, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
@@ -64,54 +65,91 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const fetchSettings = async () => {
-          try {
-            const settingsDoc = await getDoc(doc(db, "settings", "config"));
-            if (settingsDoc.exists()) {
-              setSettings({ ...DEFAULT_SETTINGS, ...settingsDoc.data() });
-            }
-          } catch (error) {
-            handleFirestoreError(error, OperationType.GET, "settings/config");
-          } finally {
-            const localKey = localStorage.getItem('gemini_api_key');
-            if (localKey) setGeminiApiKey(localKey);
-            setIsLoading(false);
+    // 1. Instantly load from local storage if present
+    const local = getLocalSavedSettings();
+    if (local) {
+      setSettings(prev => ({ ...prev, ...local }));
+      setIsLoading(false);
+    }
+
+    const fetchFirestoreSettings = async () => {
+      try {
+        const settingsDoc = await getDoc(doc(db, "settings", "config"));
+        if (settingsDoc.exists()) {
+          const cloudData = { ...DEFAULT_SETTINGS, ...settingsDoc.data() } as Settings;
+          if (local && local.industry && local.industry !== cloudData.industry) {
+            setSettings({ ...cloudData, ...local });
+          } else {
+            setSettings(cloudData);
+            saveLocalSettings(cloudData);
           }
-        };
-        fetchSettings();
-      } else {
+        }
+      } catch (error) {
+        console.warn("Firestore settings read note:", error);
+      } finally {
         const localKey = localStorage.getItem('gemini_api_key');
         if (localKey) setGeminiApiKey(localKey);
         setIsLoading(false);
+      }
+    };
+
+    fetchFirestoreSettings();
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchFirestoreSettings();
       }
     });
 
     return () => unsubscribeAuth();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSwitchIndustry = async (targetInd: IndustryType) => {
+    const updated = getSettingsForIndustry(targetInd, settings);
+    setSettings(updated);
+    saveLocalSettings(updated);
+
+    try {
+      if (auth.currentUser) {
+        await setDoc(doc(db, "settings", "config"), updated, { merge: true });
+      }
+    } catch (err) {
+      console.warn("Could not sync trade switch to cloud, saved locally:", err);
+    }
+
+    const tradeName = INDUSTRY_PRESETS[targetInd]?.name || targetInd;
+    setMessage({ type: "success", text: `Active Trade: ${tradeName} (Saved & Active for Voice AI)` });
+    setTimeout(() => setMessage(null), 3500);
+  };
+
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setIsSaving(true);
     setMessage(null);
 
     try {
-      // 1. Save settings to Firestore with merge: true to avoid overwriting partial/concurrent fields
-      await setDoc(doc(db, "settings", "config"), settings, { merge: true });
+      // 1. Always save to local storage immediately
+      saveLocalSettings(settings);
 
-      // 2. Only sync API key to local storage after cloud save succeeds
+      // 2. Only sync API key to local storage
       if (geminiApiKey) {
         localStorage.setItem('gemini_api_key', geminiApiKey.trim());
       } else {
         localStorage.removeItem('gemini_api_key');
       }
 
-      setMessage({ type: "success", text: "Business Profile & Voice Receptionist settings saved successfully!" });
-      setTimeout(() => setMessage(null), 3000);
+      // 3. Attempt Firestore cloud save
+      try {
+        await setDoc(doc(db, "settings", "config"), settings, { merge: true });
+        setMessage({ type: "success", text: "Business Profile & Voice Receptionist settings saved to Cloud & Local Storage!" });
+      } catch (cloudErr) {
+        console.warn("Cloud save note (requires admin auth):", cloudErr);
+        setMessage({ type: "success", text: "Settings saved locally & active for live Voice AI calls!" });
+      }
+      setTimeout(() => setMessage(null), 3500);
     } catch (error) {
-      console.error("Firestore settings save error:", error);
-      setMessage({ type: "error", text: "Failed to save settings to cloud database. Please check your network or permissions." });
+      console.error("Save error:", error);
+      setMessage({ type: "error", text: "Failed to save settings. Please check your browser storage." });
       setTimeout(() => setMessage(null), 5000);
     } finally {
       setIsSaving(false);
@@ -173,6 +211,56 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
           <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+          {/* Quick Roofing Specialist Mode Hero Switch */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-cyan-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+            <div className="flex items-center gap-3.5">
+              <div className={cn(
+                "p-3 rounded-2xl border transition-all shadow-md",
+                settings.industry === "roofing_siding" 
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]" 
+                  : "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
+              )}>
+                <Home size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold text-slate-100">Roofing Specialist Mode</span>
+                  <span className={cn(
+                    "px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full uppercase tracking-wider border",
+                    settings.industry === "roofing_siding"
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse"
+                      : "bg-slate-800 text-slate-400 border-slate-700"
+                  )}>
+                    {settings.industry === "roofing_siding" ? "Active Now" : "Inactive"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {settings.industry === "roofing_siding"
+                    ? "Voice AI receptionist is actively specialized in Apex Roofing & Siding (tarping, roof inspections, storm hail damage)."
+                    : "Toggle ON to instantly switch receptionist to Roofing & Siding protocols and storm damage triage."}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const nextInd: IndustryType = settings.industry === "roofing_siding" ? "hvac" : "roofing_siding";
+                handleSwitchIndustry(nextInd);
+              }}
+              className={cn(
+                "px-5 py-3 rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer min-h-[44px] shrink-0 border",
+                settings.industry === "roofing_siding"
+                  ? "bg-emerald-500 text-slate-950 border-emerald-400 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                  : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30"
+              )}
+            >
+              <Sparkles size={16} />
+              {settings.industry === "roofing_siding" ? "Switch Back to HVAC" : "Enable Roofing Mode"}
+            </button>
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 border-b border-slate-800/80 pb-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/40 shadow-[0_0_15px_rgba(34,211,238,0.3)]">
@@ -180,12 +268,12 @@ export default function SettingsPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">0. White-Label Industry Presets</h2>
+                  <h2 className="text-xl font-serif italic text-slate-900 dark:text-slate-100">Multi-Trade Presets</h2>
                   <span className="px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] font-mono font-bold rounded-full border border-cyan-500/40 uppercase tracking-widest">
-                    Multi-Trade AI
+                    Auto-Saved
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 dark:text-slate-400">Select your contractor trade to auto-configure emergency keywords, equipment, FAQs, and AI prompts.</p>
+                <p className="text-xs text-slate-400">Click any trade below to immediately apply and save industry-specific prompts, emergency keywords, and knowledge.</p>
               </div>
             </div>
 
@@ -193,14 +281,11 @@ export default function SettingsPage() {
               type="button"
               onClick={() => {
                 const currentInd = settings.industry || "hvac";
-                const presetSettings = getSettingsForIndustry(currentInd, settings);
-                setSettings(presetSettings);
-                setMessage({ type: "success", text: `Applied ${INDUSTRY_PRESETS[currentInd]?.name} industry presets!` });
-                setTimeout(() => setMessage(null), 3000);
+                handleSwitchIndustry(currentInd);
               }}
               className="px-4 py-2.5 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(34,211,238,0.2)] cursor-pointer"
             >
-              <Sparkles size={15} /> Apply {INDUSTRY_PRESETS[settings.industry || "hvac"]?.shortName} Presets
+              <Sparkles size={15} /> Reset {INDUSTRY_PRESETS[settings.industry || "hvac"]?.shortName} Defaults
             </button>
           </div>
 
@@ -212,16 +297,11 @@ export default function SettingsPage() {
                 <button
                   key={indKey}
                   type="button"
-                  onClick={() => {
-                    const updated = getSettingsForIndustry(indKey, settings);
-                    setSettings(updated);
-                    setMessage({ type: "success", text: `Switched trade to ${item.name}` });
-                    setTimeout(() => setMessage(null), 2500);
-                  }}
+                  onClick={() => handleSwitchIndustry(indKey)}
                   className={cn(
                     "p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between space-y-3 cursor-pointer group relative overflow-hidden",
                     isSelected
-                      ? "bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)] text-slate-100"
+                      ? "bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)] text-slate-100 ring-1 ring-cyan-400/50"
                       : "bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-slate-200"
                   )}
                 >

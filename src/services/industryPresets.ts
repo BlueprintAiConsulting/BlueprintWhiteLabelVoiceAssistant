@@ -507,6 +507,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
 
 /**
  * Returns complete Settings populated with default presets for the chosen industry.
+ */
 export function isRoofingMode(settings?: Settings | null): boolean {
   return settings?.industry === "roofing_siding";
 }
@@ -519,11 +520,32 @@ export function toggleRoofingMode(currentSettings: Settings, enableRoofing: bool
   return getSettingsForIndustry(targetIndustry, currentSettings);
 }
 
+const DEFAULT_TRADE_NAMES = [
+  "Blueprint AI Business",
+  "Lunar Heating and Cooling",
+  "Lunar Heating & Air",
+  "Apex Roofing & Siding",
+  "Blue Wave Plumbing & Drains",
+  "VoltCraft Electrical Solutions",
+  "Timberline Tree & Storm Care",
+  "Heritage Builders & Remodeling"
+];
+
 /**
  * Returns merged industry settings given a base configuration and target industry.
  */
 export function getSettingsForIndustry(industry: IndustryType, existingSettings?: Settings): Settings {
   const preset = INDUSTRY_PRESETS[industry] || INDUSTRY_PRESETS.hvac;
+  const isChangingTrade = existingSettings?.industry && existingSettings.industry !== industry;
+
+  // Determine office name: if changing trade, or if currently using any default trade name, update to preset default
+  let resolvedOfficeName = preset.defaultOfficeName;
+  if (existingSettings?.office_name && !isChangingTrade) {
+    resolvedOfficeName = existingSettings.office_name;
+  } else if (existingSettings?.office_name && isChangingTrade) {
+    const wasDefault = DEFAULT_TRADE_NAMES.includes(existingSettings.office_name.trim());
+    resolvedOfficeName = wasDefault ? preset.defaultOfficeName : `${existingSettings.office_name} (${preset.shortName})`;
+  }
 
   const base: Settings = existingSettings || {
     office_name: preset.defaultOfficeName,
@@ -547,10 +569,11 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
   return {
     ...base,
     industry: industry,
-    office_name: existingSettings?.office_name && existingSettings.office_name !== "Blueprint AI Business" ? existingSettings.office_name : preset.defaultOfficeName,
-    owner_name: existingSettings?.owner_name || preset.defaultOwnerName,
-    owner_title: existingSettings?.owner_title || preset.defaultOwnerTitle,
+    office_name: resolvedOfficeName,
+    owner_name: isChangingTrade ? preset.defaultOwnerName : (existingSettings?.owner_name || preset.defaultOwnerName),
+    owner_title: isChangingTrade ? preset.defaultOwnerTitle : (existingSettings?.owner_title || preset.defaultOwnerTitle),
     owner_phone_number: existingSettings?.owner_phone_number || preset.defaultOwnerPhone,
+    after_hours_message: `Thank you for calling ${resolvedOfficeName}. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.`,
     emergency_keywords: preset.emergencyKeywords,
     pricing_service_call: preset.pricingDefaults.serviceCall,
     pricing_after_hours: preset.pricingDefaults.afterHours,

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { createReceptionistChat, processLead, triggerMissedCallTextBack, getSettings } from "../services/geminiService.ts";
+import { createReceptionistChat, processLead, triggerMissedCallTextBack, getSettings, saveLocalSettings, getLocalSavedSettings } from "../services/geminiService.ts";
+import { db, doc, setDoc } from "../firebase.ts";
+import { getSettingsForIndustry } from "../services/industryPresets.ts";
 import { GeminiLiveSession } from "../services/geminiLiveService.ts";
 import { requestGeminiEphemeralToken } from "../services/ephemeralTokenService.ts";
 import { auth } from "../firebase.ts";
@@ -7,7 +9,7 @@ import { TranscriptEntry, Lead } from "../types.ts";
 import { buildHumanEscalationPlan } from "../services/humanEscalationService.ts";
 import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
 import { INDUSTRY_PRESETS, IndustryType } from "../services/industryPresets.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees, Wind } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -40,13 +42,52 @@ export default function Simulator() {
   const timerRef = useRef<any>(null);
 
   useEffect(() => {
+    // 1. Instantly read local settings for zero-flicker render
+    const local = getLocalSavedSettings();
+    if (local) {
+      setSettings(local);
+      if (local.industry) setActiveIndustry(local.industry);
+      if (local.receptionist_voice) setActiveVoiceName(local.receptionist_voice);
+      if (local.receptionist_name) setActivePersonaName(local.receptionist_name);
+    }
+
     getSettings().then((s) => {
       setSettings(s);
       if (s.industry) setActiveIndustry(s.industry);
       if (s.receptionist_voice) setActiveVoiceName(s.receptionist_voice);
       if (s.receptionist_name) setActivePersonaName(s.receptionist_name);
     }).catch(() => {});
+
+    const handleSettingsUpdated = (e: any) => {
+      const updated = e.detail;
+      if (updated) {
+        setSettings(updated);
+        if (updated.industry) setActiveIndustry(updated.industry);
+        if (updated.receptionist_voice) setActiveVoiceName(updated.receptionist_voice);
+        if (updated.receptionist_name) setActivePersonaName(updated.receptionist_name);
+      }
+    };
+    window.addEventListener("settings-updated", handleSettingsUpdated);
+    return () => window.removeEventListener("settings-updated", handleSettingsUpdated);
   }, []);
+
+  const handleSwitchTrade = async (trade: IndustryType) => {
+    setActiveIndustry(trade);
+    const current = settings || await getSettings();
+    const updated = getSettingsForIndustry(trade, current);
+    setSettings(updated);
+    saveLocalSettings(updated);
+    if (updated.receptionist_voice) setActiveVoiceName(updated.receptionist_voice);
+    if (updated.receptionist_name) setActivePersonaName(updated.receptionist_name);
+
+    try {
+      if (auth.currentUser) {
+        await setDoc(doc(db, "settings", "config"), updated, { merge: true });
+      }
+    } catch (e) {
+      console.warn("Could not sync to cloud, saved locally:", e);
+    }
+  };
 
   const scrollToBottom = () => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -91,7 +132,8 @@ export default function Simulator() {
     
     setIsLoading(true);
     try {
-      const newChat = await createReceptionistChat();
+      const activeConf = getSettingsForIndustry(activeIndustry, settings || await getSettings());
+      const newChat = await createReceptionistChat(activeConf);
       setChat(newChat);
       setIsCalling(true);
       setTranscript([]);
@@ -99,7 +141,7 @@ export default function Simulator() {
       setCapturedLead(null);
       setTransferDetails(null);
 
-      const officeName = settings?.office_name || "our office";
+      const officeName = activeConf.office_name || "our office";
       const response = await newChat.sendMessage({ message: `Hello, I'm calling ${officeName}.` });
       setTranscript([{ role: "assistant", text: response.text }]);
       
@@ -136,14 +178,17 @@ export default function Simulator() {
     try {
       let activeSettings;
       try {
-        activeSettings = await getSettings();
+        const fetched = await getSettings();
+        activeSettings = getSettingsForIndustry(activeIndustry, fetched);
         const loadedVoice = activeSettings.receptionist_voice || "Aoede";
-        const loadedName = activeSettings.receptionist_name || "Sarah";
+        const loadedName = activeSettings.receptionist_name || "Megan";
         setActiveVoiceName(loadedVoice);
         setActivePersonaName(loadedName);
-        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Loaded Firestore business profile: "${activeSettings.office_name}". Active Voice: ${loadedVoice} (${loadedName})` }]);
+        const tradeTitle = INDUSTRY_PRESETS[activeIndustry]?.name || activeIndustry;
+        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Trade: ${tradeTitle} | Business: "${activeSettings.office_name}" | Receptionist: ${loadedName} (${loadedVoice})` }]);
       } catch (sErr) {
-        setTranscript(prev => [...prev, { role: "system", text: "[SETTINGS WARNING] Could not fetch Firestore config. Operating on fallback system settings." }]);
+        activeSettings = getSettingsForIndustry(activeIndustry);
+        setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS WARNING] Operating on local trade preset: "${activeSettings.office_name}".` }]);
       }
 
       let tokenRes;
@@ -393,14 +438,46 @@ export default function Simulator() {
       {/* Top Bar Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4 shrink-0 relative z-10">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-100 tracking-tight">Call Simulator</h1>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-glow-cyan-sm">
               <Zap size={13} className="text-cyan-400 animate-pulse" />
               GEMINI 2.0 MULTIMODAL
             </span>
+
+            {/* Quick 1-Click Trade Switcher */}
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-950/80 border border-slate-800 rounded-full shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleSwitchTrade("hvac")}
+                disabled={isCalling}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
+                  activeIndustry === "hvac"
+                    ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                <Wind size={13} /> HVAC Mode
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchTrade("roofing_siding")}
+                disabled={isCalling}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
+                  activeIndustry === "roofing_siding"
+                    ? "bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.5)] font-black"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                <Home size={13} /> Roofing Mode
+              </button>
+            </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">Simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.</p>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            Active Trade: <span className="text-cyan-300 font-semibold">{INDUSTRY_PRESETS[activeIndustry]?.name}</span> ({settings?.office_name || INDUSTRY_PRESETS[activeIndustry]?.defaultOfficeName}) — simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2.5 shrink-0">
           {isCalling ? (
