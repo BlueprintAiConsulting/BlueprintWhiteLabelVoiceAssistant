@@ -63,3 +63,103 @@ describe("VAD & Turn-Taking Integration Tests", () => {
     expect(sentMessages.some(m => m.includes("audioStreamEnd"))).toBe(true);
   });
 });
+
+describe("AudioPlaybackQueue Skip Prevention Tests", () => {
+  it("does NOT clear or skip audio mid-sentence when >8 seconds of audio is queued ahead", async () => {
+    const { AudioPlaybackQueue } = await import("../../lib/audioPlaybackQueue.ts");
+
+    class MockSource {
+      buffer: any = null;
+      onended: (() => void) | null = null;
+      connect() {}
+      disconnect() {}
+      start() {}
+      stop() {}
+    }
+
+    const origAudioContext = (globalThis as any).AudioContext;
+    (globalThis as any).AudioContext = class {
+      currentTime = 0;
+      state = "running";
+      destination = {};
+      createBuffer(ch: number, len: number, sr: number) {
+        return { duration: len / sr, length: len, sampleRate: sr, copyToChannel: () => {} };
+      }
+      createBufferSource() {
+        return new MockSource();
+      }
+      resume() { return Promise.resolve(); }
+      close() { return Promise.resolve(); }
+    };
+
+    let stateChanges: boolean[] = [];
+    const queue = new AudioPlaybackQueue(24000, (playing) => {
+      stateChanges.push(playing);
+    });
+
+    queue.init();
+
+    // 1-second chunk of 24kHz 16-bit PCM (48000 bytes)
+    const chunk = new Uint8Array(48000);
+    let binary = "";
+    for (let i = 0; i < 48000; i++) binary += String.fromCharCode(chunk[i]);
+    const base64OneSec = btoa(binary);
+
+    // Enqueue 12 seconds worth of audio chunks rapidly (Gemini streaming burst)
+    for (let i = 0; i < 12; i++) {
+      queue.enqueueBase64Pcm(base64OneSec);
+    }
+
+    // Crucial check: all 12 sources must be preserved in queue, NOT wiped or stopped!
+    expect((queue as any).activeSources.length).toBe(12);
+    expect(queue.isPlaying()).toBe(true);
+    expect((queue as any).nextPlayTime).toBe(12);
+    expect(stateChanges[0]).toBe(true);
+
+    queue.close();
+    (globalThis as any).AudioContext = origAudioContext;
+  });
+
+  it("safely handles odd-byte base64 PCM strings without throwing RangeError", async () => {
+    const { AudioPlaybackQueue } = await import("../../lib/audioPlaybackQueue.ts");
+
+    class MockSource {
+      buffer: any = null;
+      onended: (() => void) | null = null;
+      connect() {}
+      disconnect() {}
+      start() {}
+      stop() {}
+    }
+
+    const origAudioContext = (globalThis as any).AudioContext;
+    (globalThis as any).AudioContext = class {
+      currentTime = 0;
+      state = "running";
+      destination = {};
+      createBuffer(ch: number, len: number, sr: number) {
+        return { duration: len / sr, length: len, sampleRate: sr, copyToChannel: () => {} };
+      }
+      createBufferSource() {
+        return new MockSource();
+      }
+      resume() { return Promise.resolve(); }
+      close() { return Promise.resolve(); }
+    };
+
+    const queue = new AudioPlaybackQueue(24000);
+    queue.init();
+
+    // Odd number of bytes (5 bytes)
+    const oddBytes = new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05]);
+    let binary = "";
+    for (let i = 0; i < oddBytes.length; i++) binary += String.fromCharCode(oddBytes[i]);
+    const base64Odd = btoa(binary);
+
+    expect(() => queue.enqueueBase64Pcm(base64Odd)).not.toThrow();
+    expect((queue as any).activeSources.length).toBe(1);
+
+    queue.close();
+    (globalThis as any).AudioContext = origAudioContext;
+  });
+});

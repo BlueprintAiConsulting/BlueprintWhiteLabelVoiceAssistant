@@ -6,11 +6,23 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
     this.pendingSamples = [];
     this.targetSampleRate = 16000;
     this.resampleRatio = sampleRate / this.targetSampleRate;
-    // Low-level room tone should not become a barge-in. Speech must reach a
-    // medium-level energy before the gate opens; hysteresis prevents chatter.
+    this.isReceptionistSpeaking = false;
     this.gateOpen = false;
+    // Normal caller speaking thresholds
     this.gateOpenThreshold = 0.018;
     this.gateCloseThreshold = 0.010;
+    // Elevated thresholds during receptionist speech to suppress speaker acoustic bleed
+    this.speakingOpenThreshold = 0.060;
+    this.speakingCloseThreshold = 0.040;
+
+    this.port.onmessage = (event) => {
+      if (event.data && typeof event.data.isReceptionistSpeaking === 'boolean') {
+        this.isReceptionistSpeaking = event.data.isReceptionistSpeaking;
+        if (this.isReceptionistSpeaking) {
+          this.gateOpen = false;
+        }
+      }
+    };
   }
 
   process(inputs, outputs, parameters) {
@@ -20,10 +32,17 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
       let energy = 0;
       for (let i = 0; i < channelData.length; i++) energy += channelData[i] * channelData[i];
       const rms = Math.sqrt(energy / channelData.length);
-      if (this.gateOpen ? rms < this.gateCloseThreshold : rms >= this.gateOpenThreshold) {
+
+      const openThresh = this.isReceptionistSpeaking ? this.speakingOpenThreshold : this.gateOpenThreshold;
+      const closeThresh = this.isReceptionistSpeaking ? this.speakingCloseThreshold : this.gateCloseThreshold;
+
+      if (this.gateOpen ? rms < closeThresh : rms >= openThresh) {
         this.gateOpen = !this.gateOpen;
       }
-      const gateGain = this.gateOpen ? 1 : 0.05;
+
+      // When the gate is closed, emit pure digital silence (0) to prevent
+      // background hum or laptop speaker bleed from leaking into Gemini's VAD.
+      const gateGain = this.gateOpen ? 1 : 0;
       for (let i = 0; i < channelData.length; i++) this.sourceBuffer.push(channelData[i]);
 
       // Linear resampling prevents browsers that ignore the requested

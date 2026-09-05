@@ -3,20 +3,26 @@ export class AudioPlaybackQueue {
   private sampleRate: number;
   private nextPlayTime: number = 0;
   private activeSources: AudioBufferSourceNode[] = [];
-  // Gemini can deliver several short PCM chunks ahead of the browser clock.
-  // A sub-second cap made long answers get cleared mid-sentence, which sounded
-  // like Megan was speaking rapidly and dropping words. Keep a generous safety
-  // cap and preserve the complete response during normal streaming.
-  private readonly maxBufferedSeconds = 8;
+  private onPlaybackStateChange?: (isPlaying: boolean) => void;
+  private playbackEndTimer: any = null;
 
-  constructor(sampleRate: number = 24000) {
+  constructor(sampleRate: number = 24000, onPlaybackStateChange?: (isPlaying: boolean) => void) {
     this.sampleRate = sampleRate;
+    this.onPlaybackStateChange = onPlaybackStateChange;
+  }
+
+  public setPlaybackStateChangeCallback(cb: (isPlaying: boolean) => void) {
+    this.onPlaybackStateChange = cb;
   }
 
   public init() {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
+      const AudioCtx = typeof window !== "undefined"
+        ? (window.AudioContext || (window as any).webkitAudioContext)
+        : (globalThis as any).AudioContext;
+      if (AudioCtx) {
+        this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
+      }
     }
     if (this.ctx.state === "suspended") {
       void this.ctx.resume();
@@ -33,30 +39,34 @@ export class AudioPlaybackQueue {
     this.nextPlayTime = this.ctx.currentTime;
   }
 
+  public isPlaying(): boolean {
+    if (!this.ctx) return false;
+    return this.activeSources.length > 0 && this.nextPlayTime > this.ctx.currentTime;
+  }
+
   public enqueueBase64Pcm(base64Data: string) {
     if (!this.ctx) this.init();
     if (!this.ctx) return;
 
     if (this.ctx.state === "suspended") void this.ctx.resume();
 
-    // Keep response latency bounded only for a genuinely stalled tab. Normal
-    // Gemini streaming must not clear queued chunks or words disappear.
-    if (this.nextPlayTime - this.ctx.currentTime > this.maxBufferedSeconds) {
-      this.clear();
-    }
-
     try {
       const binaryStr = atob(base64Data);
       const len = binaryStr.length;
+      if (len === 0) return;
+
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i++) {
         bytes[i] = binaryStr.charCodeAt(i);
       }
 
-      // Convert Int16Array to Float32Array
-      const int16 = new Int16Array(bytes.buffer);
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) {
+      // Safe 16-bit PCM integer decoding (safely handles odd byte length without RangeError)
+      const numSamples = Math.floor(len / 2);
+      if (numSamples === 0) return;
+
+      const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, numSamples);
+      const float32 = new Float32Array(numSamples);
+      for (let i = 0; i < numSamples; i++) {
         float32[i] = int16[i] / 32768.0;
       }
 
@@ -67,23 +77,62 @@ export class AudioPlaybackQueue {
       source.buffer = audioBuffer;
       source.connect(this.ctx.destination);
 
-      const startTime = Math.max(this.nextPlayTime, this.ctx.currentTime);
+      const wasPlaying = this.isPlaying();
+      const currentTime = this.ctx.currentTime;
+      // Schedule gaplessly onto Web Audio timeline. If audio clock advanced past nextPlayTime, start immediately.
+      const startTime = Math.max(this.nextPlayTime, currentTime);
       source.start(startTime);
       this.nextPlayTime = startTime + audioBuffer.duration;
 
       this.activeSources.push(source);
+
+      if (!wasPlaying) {
+        this.onPlaybackStateChange?.(true);
+      }
+
+      this.schedulePlaybackEndCheck();
+
       source.onended = () => {
         const idx = this.activeSources.indexOf(source);
         if (idx > -1) this.activeSources.splice(idx, 1);
+        this.checkPlaybackEnded();
       };
     } catch (err) {
       console.error("Error decoding PCM audio chunk:", err);
     }
   }
 
+  private schedulePlaybackEndCheck() {
+    if (this.playbackEndTimer) clearTimeout(this.playbackEndTimer);
+    if (!this.ctx) return;
+    const remainingMs = Math.max(0, (this.nextPlayTime - this.ctx.currentTime) * 1000) + 60;
+    this.playbackEndTimer = setTimeout(() => {
+      this.checkPlaybackEnded();
+    }, remainingMs);
+  }
+
+  private checkPlaybackEnded() {
+    if (!this.ctx) {
+      this.onPlaybackStateChange?.(false);
+      return;
+    }
+    if (this.activeSources.length === 0 || this.ctx.currentTime >= this.nextPlayTime - 0.05) {
+      if (this.playbackEndTimer) {
+        clearTimeout(this.playbackEndTimer);
+        this.playbackEndTimer = null;
+      }
+      this.onPlaybackStateChange?.(false);
+    }
+  }
+
   public clear() {
+    if (this.playbackEndTimer) {
+      clearTimeout(this.playbackEndTimer);
+      this.playbackEndTimer = null;
+    }
     this.activeSources.forEach((source) => {
       try {
+        source.onended = null;
         source.stop();
         source.disconnect();
       } catch (_) {}
@@ -92,6 +141,7 @@ export class AudioPlaybackQueue {
     if (this.ctx) {
       this.nextPlayTime = this.ctx.currentTime;
     }
+    this.onPlaybackStateChange?.(false);
   }
 
   public close() {

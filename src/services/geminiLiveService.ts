@@ -33,6 +33,7 @@ export class GeminiLiveSession {
   private micMuteGain: GainNode | null = null;
   private isConnected: boolean = false;
   private hasGreeted: boolean = false;
+  private turnCompleteReceived: boolean = false;
   private options: GeminiLiveOptions;
   private conversationState = new ConversationState();
   private telemetry: CallTelemetry | null = null;
@@ -40,7 +41,25 @@ export class GeminiLiveSession {
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
-    this.audioQueue = new AudioPlaybackQueue(24000);
+    this.audioQueue = new AudioPlaybackQueue(24000, (isPlaying) => {
+      this.handlePlaybackStateChange(isPlaying);
+    });
+  }
+
+  private handlePlaybackStateChange(isPlaying: boolean) {
+    if (this.workletNode) {
+      try {
+        this.workletNode.port.postMessage({ isReceptionistSpeaking: isPlaying });
+      } catch (_) {}
+    }
+    if (isPlaying) {
+      this.options.onTurnStateChange?.("receptionist_speaking");
+    } else {
+      // Once playback drains and turn complete has been received, transition to listening
+      if (this.turnCompleteReceived && this.isConnected) {
+        this.options.onTurnStateChange?.("listening");
+      }
+    }
   }
 
   public async start() {
@@ -48,6 +67,7 @@ export class GeminiLiveSession {
 
     this.conversationState.reset();
     this.hasGreeted = false;
+    this.turnCompleteReceived = false;
     this.telemetryFlushed = false;
     this.telemetry = this.options.settings ? new CallTelemetry(this.options.settings) : null;
     this.audioQueue.init();
@@ -353,6 +373,9 @@ export class GeminiLiveSession {
       this.micMuteGain.gain.value = 0;
       this.workletNode.connect(this.micMuteGain);
       this.micMuteGain.connect(this.audioCtx.destination);
+      try {
+        this.workletNode.port.postMessage({ isReceptionistSpeaking: this.audioQueue.isPlaying() });
+      } catch (_) {}
       this.audioCtx.onstatechange = () => {
         if (this.audioCtx?.state === "suspended" && this.isConnected) {
           void this.audioCtx.resume();
@@ -368,6 +391,7 @@ export class GeminiLiveSession {
     if (this.hasGreeted || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     this.hasGreeted = true;
+    this.turnCompleteReceived = false;
     this.options.onTurnStateChange?.("receptionist_speaking");
 
     let officeName = this.options.settings?.office_name || this.options.officeName || "our office";
@@ -408,6 +432,7 @@ export class GeminiLiveSession {
 
       const modelTurn = msg.serverContent.modelTurn;
       if (modelTurn?.parts) {
+        this.turnCompleteReceived = false;
         this.options.onTurnStateChange?.("receptionist_speaking");
         for (const part of modelTurn.parts) {
           if (part.inlineData?.mimeType?.startsWith("audio/pcm")) {
@@ -420,15 +445,24 @@ export class GeminiLiveSession {
         }
       }
       if (msg.serverContent.turnComplete) {
-        this.options.onTurnStateChange?.("listening");
+        this.turnCompleteReceived = true;
+        // Only set turn state back to listening if audio playback has finished
+        if (!this.audioQueue.isPlaying()) {
+          this.options.onTurnStateChange?.("listening");
+        }
       }
       if (msg.serverContent.interrupted) {
+        this.turnCompleteReceived = true;
         // User interrupted model! Clear audio queue (Barge-in handling)
         this.audioQueue.clear();
         this.telemetry?.recordInterruption();
         this.options.onInterrupted?.();
         this.options.onTurnStateChange?.("interrupted");
-        setTimeout(() => this.options.onTurnStateChange?.("caller_speaking"), 300);
+        setTimeout(() => {
+          if (this.isConnected) {
+            this.options.onTurnStateChange?.("caller_speaking");
+          }
+        }, 300);
       }
     }
 
@@ -487,6 +521,7 @@ export class GeminiLiveSession {
     void this.flushTelemetry();
     this.sendAudioStreamEnd();
     this.isConnected = false;
+    this.turnCompleteReceived = false;
     this.audioQueue.close();
 
     if (this.workletNode) {
