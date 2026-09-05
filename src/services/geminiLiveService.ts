@@ -246,12 +246,12 @@ export class GeminiLiveSession {
               },
               {
                 name: "checkAppointmentSlots",
-                description: "Queries available technician time slots for estimates, repairs, or seasonal tune-ups.",
+                description: "Queries open technician/estimator time slots on the company calendar for estimates, roof inspections, repairs, or tune-ups. Use whenever a caller asks to schedule, book, or find an appointment date and time.",
                 parameters: {
                   type: "OBJECT",
                   properties: {
-                    service_type: { type: "STRING", description: "Type of service." },
-                    requested_date: { type: "STRING", description: "Requested date." },
+                    service_type: { type: "STRING", description: "Type of service (e.g. roof replacement estimate, roof inspection, siding quote, repair, tune-up)." },
+                    requested_date: { type: "STRING", description: "Requested date in YYYY-MM-DD format (or next business day if unspecified)." },
                     preferred_window: { type: "STRING", description: "'morning' or 'afternoon'" }
                   },
                   required: ["service_type"]
@@ -271,16 +271,18 @@ export class GeminiLiveSession {
               },
               {
                 name: "bookAppointment",
-                description: "Books a confirmed HVAC technician appointment slot after caller agreement.",
+                description: "Locks in and confirms a scheduled appointment slot on the calendar once the caller agrees to a date and time and provides their contact details.",
                 parameters: {
                   type: "OBJECT",
                   properties: {
-                    caller_name: { type: "STRING", description: "Name of the caller." },
+                    caller_name: { type: "STRING", description: "Full name of the caller." },
                     callback_number: { type: "STRING", description: "Callback phone number." },
                     appointment_start: { type: "STRING", description: "Exact date and time selected (e.g. 2026-08-10 10:00)." },
-                    property_address: { type: "STRING", description: "Property address for service." },
-                    service_type: { type: "STRING", description: "Service type requested." },
-                    issue_description: { type: "STRING" }
+                    property_address: { type: "STRING", description: "Full service property address including ZIP code." },
+                    service_type: { type: "STRING", description: "Service type requested (e.g. roof replacement estimate, repair, inspection)." },
+                    issue_description: { type: "STRING", description: "Brief description of the service request or issue." },
+                    appointment_confirmed: { type: "BOOLEAN", description: "Pass true when the caller agreed to this appointment slot." },
+                    address_confirmed: { type: "BOOLEAN", description: "Pass true when the caller confirmed their service address." }
                   },
                   required: ["callback_number", "appointment_start"]
                 }
@@ -377,7 +379,7 @@ export class GeminiLiveSession {
     }
     const receptionistName = this.options.personaName || this.options.settings?.receptionist_name || "Megan";
 
-    const greetingPrompt = `[INBOUND CALL CONNECTED] Answer the phone now with your official greeting: "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?"`;
+    const greetingPrompt = `[INBOUND CALL CONNECTED] Answer the phone immediately and cleanly with your official greeting: "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?" Speak with crisp, confident clarity. Never use vocal fillers like "uh", "um", "ugh", or hesitation.`;
 
     const initialGreetingPayload = {
       realtimeInput: {

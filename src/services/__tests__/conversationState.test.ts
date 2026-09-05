@@ -61,4 +61,20 @@ describe("ConversationState", () => {
     expect(result.allowed).toBe(false);
     expect(result.missing).toContain("address_confirmation");
   });
+
+  it("allows direct booking when appointment_confirmed and address_confirmed flags are provided in args", () => {
+    const state = new ConversationState();
+    const details = {
+      caller_name: "Chris Booth",
+      callback_number: "+17175550199",
+      property_address: "740 High Ridge Rd, Red Lion, PA 17401",
+      appointment_start: "2026-08-12 14:00",
+      appointment_confirmed: true,
+      address_confirmed: true
+    };
+
+    const result = state.canBookAppointment(details);
+    expect(result.allowed).toBe(true);
+    expect(result.missing).toHaveLength(0);
+  });
 });

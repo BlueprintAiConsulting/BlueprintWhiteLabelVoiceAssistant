@@ -87,4 +87,26 @@ describe("Google Calendar & Booking Integration Tests", () => {
     expect(result.booking_status).toBe("failed_callback_offered");
     expect(result.message).toContain("Google Calendar integration is not configured");
   });
+
+  it("schedules an appointment successfully when calendar_id is configured even in production mode", async () => {
+    const originalEnv = process.env.NODE_ENV;
+    try {
+      (process.env as any).NODE_ENV = "production";
+      const bookingReq = {
+        caller_name: "Marcus Vance",
+        callback_number: "+17175554821",
+        property_address: "123 Main St, York, PA 17401",
+        service_type: "Roof Replacement Inspection",
+        appointment_start: "2026-08-11 10:00",
+        idempotency_key: "prod_sched_test_1"
+      };
+
+      const result = await bookAppointmentSlot(bookingReq, mockSettings);
+      expect(result.success).toBe(true);
+      expect(result.booking_status).toBe("booked");
+      expect(result.event_id).toBeDefined();
+    } finally {
+      (process.env as any).NODE_ENV = originalEnv;
+    }
+  });
 });

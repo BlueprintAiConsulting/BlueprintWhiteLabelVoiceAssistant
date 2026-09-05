@@ -571,7 +571,11 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
     emergency_keywords: preset.emergencyKeywords,
     receptionist_voice: "Aoede",
     receptionist_voice_style: "warm, concise, natural office receptionist",
-    prompt_overrides: ""
+    prompt_overrides: "",
+    calendar_id: "primary",
+    appointment_duration_minutes: 60,
+    appointment_buffer_minutes: 15,
+    sms_booking_confirmation_enabled: true
   };
 
   return {

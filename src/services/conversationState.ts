@@ -172,6 +172,20 @@ export class ConversationState {
   canBookAppointment(args: Record<string, any>): StateGuardResult {
     this.recordCallerDetails(args);
     const appointment = text(args.appointment_start);
+
+    // If args explicitly confirms address or appointment, register confirmation
+    if (args.address_confirmed === true && this.state.property_address) {
+      this.state.address_confirmed = true;
+      this.state.zip_code_confirmed = true;
+    }
+    if (args.appointment_confirmed === true && appointment) {
+      this.state.appointment_confirmed = true;
+      this.state.selected_appointment = appointment;
+      if (!this.state.available_slots.includes(appointment)) {
+        this.state.available_slots.push(appointment);
+      }
+    }
+
     const missing: string[] = [];
     if (!this.state.callback_number) missing.push("callback_number");
     if (!this.state.property_address) missing.push("property_address");

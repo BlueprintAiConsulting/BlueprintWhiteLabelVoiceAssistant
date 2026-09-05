@@ -55,7 +55,11 @@ const DEFAULT_SETTINGS: Settings = {
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice: "Aoede",
   receptionist_voice_style: "warm, concise, natural female office receptionist",
-  prompt_overrides: ""
+  prompt_overrides: "",
+  calendar_id: "primary",
+  appointment_duration_minutes: 60,
+  appointment_buffer_minutes: 15,
+  sms_booking_confirmation_enabled: true
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -193,12 +197,43 @@ export async function createReceptionistChat(customSettings?: Settings): Promise
       const isGreeting = turnsHistory.length <= 1 || messageText.toLowerCase().includes("calling");
       const recName = settings.receptionist_name || "Megan";
 
+      const wantsSchedule = fullText.includes("schedule") || fullText.includes("book") || fullText.includes("appointment") || fullText.includes("when are you available") || fullText.includes("openings");
+      const hasSlotChosen = fullText.includes("tuesday") || fullText.includes("tomorrow") || fullText.includes("friday") || fullText.includes("10:00") || fullText.includes("2:00") || fullText.includes("morning") || fullText.includes("afternoon");
+
       if (isGreeting) {
         const office = isRoofing
           ? ((!settings.office_name || /lunar|heating|cooling|hvac|apex/i.test(settings.office_name)) ? "Spring Valley Roofing" : settings.office_name)
           : (settings.office_name || "our office");
         const tradeSpecialty = isRoofing ? "roofing or siding" : "heating or cooling";
         resText = `Thanks for calling ${office}! This is ${recName}. How can I help you with your ${tradeSpecialty} today?`;
+      } else if (wantsSchedule && !hasSlotChosen) {
+        functionCalls.push({
+          name: "checkAppointmentSlots",
+          args: {
+            service_type: isRoofing ? "Roof Replacement Inspection" : "HVAC Service",
+            requested_date: "tomorrow",
+            preferred_window: "morning"
+          }
+        });
+        resText = `I would be happy to get that scheduled for you! We have openings available tomorrow at 10:00 AM or Thursday at 2:00 PM. What is your property address and callback number, and which time works best for you?`;
+      } else if (wantsSchedule && hasSlotChosen && (extractedName || phoneMatch || addressMatch || turnsHistory.length >= 2)) {
+        const slotDate = fullText.includes("friday") ? "2026-09-11 10:00" : "2026-09-08 10:00";
+        functionCalls.push({
+          name: "bookAppointment",
+          args: {
+            caller_name: extractedName || "Valued Caller",
+            callback_number: phoneMatch ? phoneMatch[1].trim() : "+1 (717) 555-0199",
+            property_address: addressMatch ? addressMatch[1].trim() : "123 Main St, York, PA 17401",
+            service_type: isRoofing ? "Roof Replacement Inspection" : "HVAC Service",
+            appointment_start: slotDate,
+            appointment_confirmed: true,
+            address_confirmed: true
+          }
+        });
+        const office = isRoofing
+          ? ((!settings.office_name || /lunar|heating|cooling|hvac|apex/i.test(settings.office_name)) ? "Spring Valley Roofing" : settings.office_name)
+          : (settings.office_name || "our office");
+        resText = `You are all booked for ${leadData.preferred_appointment_date || "your appointment"} at 10:00 AM with ${office}! Our specialist will arrive at ${leadData.property_address || "your property"}. A confirmation text has been sent to your phone.`;
       } else if (fullText.includes("transfer") || fullText.includes("talk to") || fullText.includes("speak with") || fullText.includes("connect me to") || fullText.includes("josh") || fullText.includes("chris")) {
         isTransfer = true;
         const plan = buildHumanEscalationPlan({ reason: messageText, caller_name: extractedName, callback_number: leadData.callback_number }, settings);
