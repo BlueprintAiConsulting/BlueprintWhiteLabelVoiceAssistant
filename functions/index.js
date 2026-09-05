@@ -40,40 +40,53 @@ exports.issueGeminiEphemeralToken = onRequest(
     }
 
     try {
-      // 1. Verify Authorization Bearer Token
+      // 1. Identify Client (Bearer token OR authorized origin demo request)
       const authHeader = req.headers.authorization || "";
-      if (!authHeader.startsWith("Bearer ")) {
-        res.status(401).json({ error: "UNAUTHORIZED", message: "Missing or invalid Bearer Authorization token." });
-        return;
+      let clientIdentifier = null;
+
+      if (authHeader.startsWith("Bearer ")) {
+        const idToken = authHeader.split("Bearer ")[1];
+        try {
+          const decodedToken = await admin.auth().verifyIdToken(idToken);
+          clientIdentifier = `auth_${decodedToken.uid}`;
+        } catch (authErr) {
+          res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid or expired Firebase ID token." });
+          return;
+        }
+      } else {
+        const origin = req.headers.origin;
+        const referer = req.headers.referer || "";
+        const forwardedHost = req.headers["x-forwarded-host"] || "";
+        const isAllowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ||
+          ALLOWED_ORIGINS.some(allowed => referer.startsWith(allowed)) ||
+          forwardedHost.includes("lunar-hvac");
+
+        if (!isAllowedOrigin && process.env.NODE_ENV === "production") {
+          res.status(401).json({ error: "UNAUTHORIZED", message: "Missing or invalid Bearer Authorization token." });
+          return;
+        }
+
+        const clientIp = (req.headers["x-forwarded-for"] || req.ip || "unknown").split(",")[0].trim();
+        clientIdentifier = `demo_${clientIp}`;
       }
 
-      const idToken = authHeader.split("Bearer ")[1];
-      let decodedToken;
-      try {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
-      } catch (authErr) {
-        res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid or expired Firebase ID token." });
-        return;
-      }
-
-      const uid = decodedToken.uid;
-
-      // 2. Rate limiting check (Max 10 requests per 5 minutes per UID)
+      // 2. Rate limiting check (Max 30 for authenticated, 15 for demo per 5 min)
       const now = Date.now();
-      const userRecord = userRateLimits.get(uid) || { count: 0, resetAt: now + 300000 };
+      const record = userRateLimits.get(clientIdentifier) || { count: 0, resetAt: now + 300000 };
 
-      if (now > userRecord.resetAt) {
-        userRecord.count = 0;
-        userRecord.resetAt = now + 300000;
+      if (now > record.resetAt) {
+        record.count = 0;
+        record.resetAt = now + 300000;
       }
 
-      if (userRecord.count >= 10) {
-        res.status(429).json({ error: "RATE_LIMITED", message: "Too many token requests. Please try again later." });
+      const limit = clientIdentifier.startsWith("auth_") ? 30 : 15;
+      if (record.count >= limit) {
+        res.status(429).json({ error: "RATE_LIMITED", message: "Too many voice session requests. Please wait a few minutes." });
         return;
       }
 
-      userRecord.count++;
-      userRateLimits.set(uid, userRecord);
+      record.count++;
+      userRateLimits.set(clientIdentifier, record);
 
       // 3. Request real Gemini Ephemeral Token from Google API
       const apiKey = geminiApiKey.value() || process.env.GEMINI_API_KEY;

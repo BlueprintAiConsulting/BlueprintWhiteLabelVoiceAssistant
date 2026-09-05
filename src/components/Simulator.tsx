@@ -167,14 +167,6 @@ export default function Simulator() {
     setCapturedLead(null);
     setTransferDetails(null);
     setTurnState("listening");
-
-    if (!auth.currentUser) {
-      setTranscript(prev => [...prev, { role: "system", text: "[SECURITY ERROR] You must be logged in as an authorized admin to start Voice Call mode. Please log in using the Admin Login button." }]);
-      setIsLoading(false);
-      setIsVoiceMode(false);
-      return;
-    }
-
     try {
       let activeSettings;
       try {
@@ -193,17 +185,17 @@ export default function Simulator() {
 
       let tokenRes;
       try {
-        tokenRes = await requestGeminiEphemeralToken();
-        setTranscript(prev => [...prev, { role: "system", text: "[SECURITY] Server-issued Gemini 2.0 Live WebSocket token received." }]);
+        tokenRes = await requestGeminiEphemeralToken({ allowDemo: true });
+        setTranscript(prev => [...prev, { role: "system", text: "[SECURITY] Server-issued Gemini Live WebSocket token received." }]);
       } catch (tErr: any) {
-        setTranscript(prev => [...prev, { role: "system", text: `[SECURITY ERROR] ${tErr.message || "Failed to obtain Gemini Live ephemeral token from server."}` }]);
+        setTranscript(prev => [...prev, { role: "system", text: `[CONNECTION NOTICE] ${tErr.message || "Failed to obtain Gemini Live ephemeral token from server. You can also provide a Gemini API key in Settings or log in as admin."}` }]);
         setIsLoading(false);
         setIsVoiceMode(false);
         return;
       }
 
       const loadedVoice = activeSettings?.receptionist_voice || "Aoede";
-      const loadedName = activeSettings?.receptionist_name || "Sarah";
+      const loadedName = activeSettings?.receptionist_name || "Megan";
       
       const session = new GeminiLiveSession({
         accessToken: tokenRes.access_token,

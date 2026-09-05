@@ -53,11 +53,13 @@ export class GeminiLiveSession {
     this.audioQueue.init();
 
     const accessToken = this.options.accessToken || "";
-    if (!accessToken) {
-      throw new Error("UNAUTHORIZED: Missing Gemini Live access_token. Please log in to request a token.");
+    const apiKey = this.options.apiKey || "";
+    if (!accessToken && !apiKey) {
+      throw new Error("UNAUTHORIZED: Missing Gemini Live access token or API key.");
     }
 
-    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${accessToken}`;
+    const authQuery = accessToken ? `access_token=${accessToken}` : `key=${apiKey}`;
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?${authQuery}`;
 
     this.ws = new WebSocket(wsUrl);
 
