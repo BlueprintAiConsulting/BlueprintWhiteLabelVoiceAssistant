@@ -180,16 +180,6 @@ export default function Simulator() {
 
   const [turnState, setTurnState] = useState<"listening" | "caller_speaking" | "receptionist_speaking" | "interrupted" | "waiting_for_turn">("listening");
 
-  const checkMicPermissionStatus = async (): Promise<"granted" | "prompt" | "denied" | "unknown"> => {
-    try {
-      if (typeof navigator !== "undefined" && navigator.permissions?.query) {
-        const res = await navigator.permissions.query({ name: "microphone" as PermissionName });
-        return res.state as "granted" | "prompt" | "denied";
-      }
-    } catch (_) {}
-    return "unknown";
-  };
-
   const handleInitiateVoiceCall = async () => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setMicPermissionError("unsupported");
@@ -197,42 +187,63 @@ export default function Simulator() {
       return;
     }
 
-    const perm = await checkMicPermissionStatus();
-    if (perm === "granted") {
-      await startVoiceCall();
-      return;
-    }
-
-    if (perm === "denied") {
-      setMicPermissionError("denied");
-      setMicPermissionModalOpen(true);
-      return;
-    }
-
-    // Permission state is "prompt" or "unknown" (common on mobile Safari) -> prompt explicitly
-    setMicPermissionError(null);
-    setMicPermissionModalOpen(true);
-  };
-
-  const handleGrantMicAndStart = async () => {
     try {
       setIsLoading(true);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-      });
+
+      // 1. Immediately unlock and resume Web Audio within the direct user gesture (essential for iOS Safari)
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        try {
+          if (!(window as any).__prewarmedAudioCtx || (window as any).__prewarmedAudioCtx.state === "closed") {
+            (window as any).__prewarmedAudioCtx = new AudioCtx();
+          }
+          if ((window as any).__prewarmedAudioCtx.state === "suspended") {
+            (window as any).__prewarmedAudioCtx.resume().catch(() => {});
+          }
+        } catch (_) {}
+      }
+
+      // 2. Directly trigger the browser's native microphone permission prompt ("Would Like to Access the Microphone")
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (gErr: any) {
+        if (gErr?.name === "OverconstrainedError" || gErr?.name === "TypeError") {
+          // Fallback for older Safari or WebKit with strict constraint rejection
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+          throw gErr;
+        }
+      }
+
+      // Permission was granted by caller!
       (window as any).__prewarmedMicStream = stream;
       setMicPermissionModalOpen(false);
       setMicPermissionError(null);
+
+      // Start the voice call immediately with the active stream
       await startVoiceCall(stream);
     } catch (err: any) {
-      console.warn("Microphone permission prompt response:", err);
+      console.warn("Microphone access prompt error:", err);
       setIsLoading(false);
-      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError" || /permission|denied|not allowed/i.test(err?.message || "")) {
         setMicPermissionError("denied");
+        setMicPermissionModalOpen(true);
       } else {
         setMicPermissionError("unsupported");
+        setMicPermissionModalOpen(true);
       }
     }
+  };
+
+  const handleGrantMicAndStart = async () => {
+    await handleInitiateVoiceCall();
   };
 
   const startVoiceCall = async (existingStream?: MediaStream) => {
@@ -248,24 +259,15 @@ export default function Simulator() {
     setTurnState("listening");
     setCallerAudioLevel(0);
 
-    if (existingStream && existingStream.active) {
-      (window as any).__prewarmedMicStream = existingStream;
-    } else {
-      // Pre-warm microphone hardware immediately within the user gesture window (critical for iOS WebKit/Safari)
-      try {
-        if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-          navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-          }).then(stream => {
-            (window as any).__prewarmedMicStream = stream;
-          }).catch((wErr) => {
-            if (wErr?.name === "NotAllowedError" || wErr?.name === "PermissionDeniedError") {
-              setMicPermissionError("denied");
-              setMicPermissionModalOpen(true);
-            }
-          });
-        }
-      } catch (_) {}
+    let stream = existingStream;
+    if (!stream || !stream.active) {
+      const prewarmed = typeof window !== "undefined" ? (window as any).__prewarmedMicStream : null;
+      if (prewarmed && prewarmed.active && prewarmed.getAudioTracks().some((t: any) => t.readyState === "live")) {
+        stream = prewarmed;
+      }
+    }
+    if (stream && stream.active) {
+      (window as any).__prewarmedMicStream = stream;
     }
 
     try {
@@ -306,6 +308,7 @@ export default function Simulator() {
       
       const session = new GeminiLiveSession({
         accessToken: tokenRes.access_token,
+        mediaStream: stream,
         voiceName: loadedVoice,
         personaName: loadedName,
         settings: activeSettings,
@@ -882,14 +885,23 @@ export default function Simulator() {
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             <AnimatePresence initial={false}>
               {transcript.length === 0 && !isCalling && (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-5 opacity-60 my-12">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4 my-8 sm:my-12">
                   <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-inner">
                     <Phone size={36} strokeWidth={1.5} className="text-cyan-600 dark:text-cyan-400/60" />
                   </div>
                   <div className="text-center space-y-1">
-                    <p className="text-sm font-mono tracking-widest text-slate-700 dark:text-slate-300">SYSTEM.READY</p>
-                    <p className="text-xs text-slate-500">Select a scenario or click "Live Voice Call" to talk to Megan.</p>
+                    <p className="text-sm font-mono tracking-widest text-slate-700 dark:text-slate-300 font-bold">SYSTEM.READY</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Tap below to allow microphone access and start speaking with {activePersonaName}.</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleInitiateVoiceCall}
+                    disabled={isLoading}
+                    className="mt-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(34,211,238,0.4)] flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 disabled:opacity-50 min-h-[48px]"
+                  >
+                    <Mic size={18} className="animate-pulse" />
+                    <span>Live Voice Call (Mic)</span>
+                  </button>
                 </div>
               )}
 

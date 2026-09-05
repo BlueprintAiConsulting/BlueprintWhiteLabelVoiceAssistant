@@ -15,6 +15,7 @@ export interface GeminiLiveOptions {
   emergencyKeywords?: string[];
   systemInstruction?: string;
   settings?: Settings;
+  mediaStream?: MediaStream;
   onTranscript?: (entry: { role: "user" | "assistant" | "system"; text: string }) => void;
   onToolCall?: (toolInfo: { name: string; args: any }) => void;
   onCapturedLead?: (lead: Partial<Lead>) => void;
@@ -462,18 +463,30 @@ export class GeminiLiveSession {
     if (this.mediaStream && this.audioCtx) return;
     try {
       if (!this.mediaStream) {
-        const prewarmed = typeof window !== "undefined" ? (window as any).__prewarmedMicStream : null;
-        if (prewarmed && prewarmed.active && prewarmed.getAudioTracks().some((t: any) => t.readyState === "live")) {
-          this.mediaStream = prewarmed;
-          (window as any).__prewarmedMicStream = null;
+        if (this.options.mediaStream && this.options.mediaStream.active && this.options.mediaStream.getAudioTracks().some((t: any) => t.readyState === "live")) {
+          this.mediaStream = this.options.mediaStream;
         } else {
-          this.mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
+          const prewarmed = typeof window !== "undefined" ? (window as any).__prewarmedMicStream : null;
+          if (prewarmed && prewarmed.active && prewarmed.getAudioTracks().some((t: any) => t.readyState === "live")) {
+            this.mediaStream = prewarmed;
+            (window as any).__prewarmedMicStream = null;
+          } else {
+            try {
+              this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                }
+              });
+            } catch (err: any) {
+              if (err?.name === "OverconstrainedError" || err?.name === "TypeError") {
+                this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              } else {
+                throw err;
+              }
             }
-          });
+          }
         }
       }
 
@@ -482,15 +495,24 @@ export class GeminiLiveSession {
         throw new Error("Web Audio API is not supported in this browser.");
       }
 
-      try {
-        this.audioCtx = new AudioCtx({ sampleRate: 16000 });
-      } catch (_) {
-        // Fallback for Safari/iOS WebKit where non-native sampleRate throws NotSupportedError
-        this.audioCtx = new AudioCtx();
-      }
+      const prewarmedCtx = typeof window !== "undefined" ? (window as any).__prewarmedAudioCtx : null;
+      if (prewarmedCtx && prewarmedCtx.state !== "closed") {
+        this.audioCtx = prewarmedCtx;
+        (window as any).__prewarmedAudioCtx = null;
+        if (this.audioCtx.state === "suspended") {
+          await this.audioCtx.resume();
+        }
+      } else {
+        try {
+          this.audioCtx = new AudioCtx({ sampleRate: 16000 });
+        } catch (_) {
+          // Fallback for Safari/iOS WebKit where non-native sampleRate throws NotSupportedError
+          this.audioCtx = new AudioCtx();
+        }
 
-      if (this.audioCtx.state === "suspended") {
-        await this.audioCtx.resume();
+        if (this.audioCtx.state === "suspended") {
+          await this.audioCtx.resume();
+        }
       }
 
       const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
