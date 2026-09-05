@@ -200,7 +200,7 @@ function MobileBottomNav() {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800/80 px-2 py-1.5 flex items-center justify-around safe-area-bottom shadow-lg">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800/80 px-2 py-1.5 flex items-center justify-around safe-area-bottom shadow-lg">
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;
         return (
@@ -209,7 +209,9 @@ function MobileBottomNav() {
             to={item.path}
             className={cn(
               "flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[56px] min-h-[44px]",
-              isActive ? "text-cyan-600 dark:text-cyan-400 font-bold" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+              isActive
+                ? "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 dark:bg-cyan-500/15 font-bold"
+                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
             )}
           >
             <item.icon size={18} className={cn("mb-1 transition-transform", isActive && "scale-110 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]")} />
@@ -272,7 +274,7 @@ export default function App() {
         <div className="absolute bottom-0 right-[10%] w-[600px] h-[600px] bg-blue-500/10 dark:bg-blue-900/10 rounded-full blur-[150px] pointer-events-none mix-blend-multiply dark:mix-blend-screen z-0"></div>
 
         {/* Mobile Top Navigation Header */}
-        <header className="flex md:hidden items-center justify-between px-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 z-30 shrink-0 shadow-sm">
+        <header className="flex md:hidden items-center justify-between px-4 py-3 safe-area-top bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 z-30 shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
             <img
               src={logoImg}

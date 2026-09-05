@@ -7,20 +7,11 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
     this.targetSampleRate = 16000;
     this.resampleRatio = sampleRate / this.targetSampleRate;
     this.isReceptionistSpeaking = false;
-    this.gateOpen = false;
-    // Normal caller speaking thresholds
-    this.gateOpenThreshold = 0.018;
-    this.gateCloseThreshold = 0.010;
-    // Elevated thresholds during receptionist speech to suppress speaker acoustic bleed
-    this.speakingOpenThreshold = 0.060;
-    this.speakingCloseThreshold = 0.040;
+    this.lastReportTime = 0;
 
     this.port.onmessage = (event) => {
       if (event.data && typeof event.data.isReceptionistSpeaking === 'boolean') {
         this.isReceptionistSpeaking = event.data.isReceptionistSpeaking;
-        if (this.isReceptionistSpeaking) {
-          this.gateOpen = false;
-        }
       }
     };
   }
@@ -30,23 +21,36 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
     if (input && input[0] && input[0].length > 0) {
       const channelData = input[0]; // Mono channel Float32Array
       let energy = 0;
-      for (let i = 0; i < channelData.length; i++) energy += channelData[i] * channelData[i];
+      for (let i = 0; i < channelData.length; i++) {
+        energy += channelData[i] * channelData[i];
+      }
       const rms = Math.sqrt(energy / channelData.length);
 
-      const openThresh = this.isReceptionistSpeaking ? this.speakingOpenThreshold : this.gateOpenThreshold;
-      const closeThresh = this.isReceptionistSpeaking ? this.speakingCloseThreshold : this.gateCloseThreshold;
-
-      if (this.gateOpen ? rms < closeThresh : rms >= openThresh) {
-        this.gateOpen = !this.gateOpen;
+      // Periodically report microphone RMS energy back to UI (~12 times/sec) for live VU meter
+      const now = currentTime;
+      if (now - this.lastReportTime > 0.08) {
+        this.lastReportTime = now;
+        this.port.postMessage({ type: 'audio-level', level: rms });
       }
 
-      // When the gate is closed, emit pure digital silence (0) to prevent
-      // background hum or laptop speaker bleed from leaking into Gemini's VAD.
-      const gateGain = this.gateOpen ? 1 : 0;
-      for (let i = 0; i < channelData.length; i++) this.sourceBuffer.push(channelData[i]);
+      // CRITICAL FOR MOBILE:
+      // When the receptionist is listening (!isReceptionistSpeaking), ALWAYS pass audio through
+      // with full gain (1.0). Gemini Live's native neural VAD handles start-of-speech & room noise.
+      // A client-side noise gate muting lower-RMS mobile microphone input caused mobile speech
+      // to be zeroed out (0x0000), making Gemini never hear the caller.
+      //
+      // When receptionist IS speaking, duck audio unless caller is speaking loud (barge-in)
+      // to prevent the smartphone speaker output from looping back into the microphone.
+      let gateGain = 1.0;
+      if (this.isReceptionistSpeaking) {
+        gateGain = rms >= 0.045 ? 1.0 : 0.0;
+      }
 
-      // Linear resampling prevents browsers that ignore the requested
-      // AudioContext rate (often 44.1/48 kHz) from sending mislabeled audio.
+      for (let i = 0; i < channelData.length; i++) {
+        this.sourceBuffer.push(channelData[i]);
+      }
+
+      // Linear resampling to 16,000 Hz regardless of native device rate (44.1k/48k)
       while (this.sourceBuffer.length >= 2) {
         const index = Math.floor(this.sourceOffset);
         if (index + 1 >= this.sourceBuffer.length) break;
@@ -64,8 +68,7 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
         }
       }
 
-      // Send ~20 ms packets, reducing WebSocket overhead while keeping input
-      // latency low enough for natural turn-taking.
+      // Send ~20 ms packets (320 samples @ 16kHz) for low latency
       const packetSize = 320;
       while (this.pendingSamples.length >= packetSize) {
         const packet = this.pendingSamples.splice(0, packetSize);

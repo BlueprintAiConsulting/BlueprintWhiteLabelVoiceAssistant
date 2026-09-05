@@ -21,10 +21,14 @@ export class AudioPlaybackQueue {
         ? (window.AudioContext || (window as any).webkitAudioContext)
         : (globalThis as any).AudioContext;
       if (AudioCtx) {
-        this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
+        try {
+          this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
+        } catch (_) {
+          this.ctx = new AudioCtx();
+        }
       }
     }
-    if (this.ctx.state === "suspended") {
+    if (this.ctx && this.ctx.state === "suspended") {
       void this.ctx.resume();
     }
     // Unlock iOS AudioContext by playing a silent 1-sample buffer

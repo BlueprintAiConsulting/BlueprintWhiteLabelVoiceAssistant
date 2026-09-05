@@ -62,6 +62,38 @@ describe("VAD & Turn-Taking Integration Tests", () => {
     session.sendAudioStreamEnd();
     expect(sentMessages.some(m => m.includes("audioStreamEnd"))).toBe(true);
   });
+
+  it("handles mobile microphone prepareAudio and streams PCM chunks to WebSocket", async () => {
+    const sentMessages: string[] = [];
+    const audioLevels: number[] = [];
+
+    const mockWs: any = {
+      readyState: 1, // OPEN
+      send: (msg: string) => sentMessages.push(msg),
+      close: () => {}
+    };
+
+    const session = new GeminiLiveSession({
+      accessToken: "test_token_123",
+      onAudioLevel: (lvl) => audioLevels.push(lvl)
+    });
+
+    (session as any).ws = mockWs;
+    (session as any).isConnected = true;
+
+    // Test handleMicPcmPacket
+    const dummyPcm = new Int16Array(320).buffer;
+    (session as any).handleMicPcmPacket(dummyPcm);
+
+    expect(sentMessages.length).toBe(1);
+    const parsed = JSON.parse(sentMessages[0]);
+    expect(parsed.realtimeInput.audio.mimeType).toBe("audio/pcm;rate=16000");
+    expect(typeof parsed.realtimeInput.audio.data).toBe("string");
+
+    // Test onAudioLevel forwarding
+    (session as any).options.onAudioLevel?.(0.042);
+    expect(audioLevels).toContain(0.042);
+  });
 });
 
 describe("AudioPlaybackQueue Skip Prevention Tests", () => {

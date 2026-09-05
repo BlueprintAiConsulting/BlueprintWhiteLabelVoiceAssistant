@@ -37,6 +37,7 @@ export default function Simulator() {
   const [settings, setSettings] = useState<any>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<"call" | "scenarios" | "telemetry">("call");
+  const [callerAudioLevel, setCallerAudioLevel] = useState<number>(0);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
@@ -188,6 +189,21 @@ export default function Simulator() {
     setCapturedLead(null);
     setTransferDetails(null);
     setTurnState("listening");
+    setCallerAudioLevel(0);
+
+    // Pre-warm microphone hardware immediately within the user gesture window (critical for iOS WebKit/Safari)
+    try {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        }).then(stream => {
+          (window as any).__prewarmedMicStream = stream;
+        }).catch((wErr) => {
+          console.warn("User gesture microphone warmup note:", wErr);
+        });
+      }
+    } catch (_) {}
+
     try {
       let activeSettings;
       try {
@@ -229,6 +245,9 @@ export default function Simulator() {
         voiceName: loadedVoice,
         personaName: loadedName,
         settings: activeSettings,
+        onAudioLevel: (level: number) => {
+          setCallerAudioLevel(level);
+        },
         onTranscript: (entry) => {
           setTranscript(prev => {
             if (entry.role === "assistant" && prev.length > 0 && prev[prev.length - 1].role === "assistant") {
@@ -302,6 +321,7 @@ export default function Simulator() {
           };
           const label = reasonLabels[info.reason] || info.reason || "Call terminated";
           setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] Megan hung up the call (${label}).` }]);
+          setCallerAudioLevel(0);
           setTimeout(() => {
             setIsCalling(false);
             setIsVoiceMode(false);
@@ -314,6 +334,7 @@ export default function Simulator() {
         },
         onClose: () => {
           callTransferAudioFX.stopRingback();
+          setCallerAudioLevel(0);
           setIsCalling(false);
           setIsVoiceMode(false);
         }
@@ -343,6 +364,7 @@ export default function Simulator() {
   const endCall = () => {
     callTransferAudioFX.stopRingback();
     setTransferDetails(null);
+    setCallerAudioLevel(0);
     if (liveSessionRef.current) {
       liveSessionRef.current.stop();
       liveSessionRef.current = null;
@@ -539,7 +561,7 @@ export default function Simulator() {
           {isCalling ? (
             <button
               onClick={endCall}
-              className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-rose-500/25 text-rose-200 border border-rose-500/60 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm hover:bg-rose-500/35 transition-all shadow-[0_0_25px_rgba(244,63,94,0.4)] min-h-[48px] active:scale-[0.98] cursor-pointer"
+              className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-500/25 dark:text-rose-200 dark:border-rose-500/60 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(244,63,94,0.2)] min-h-[48px] active:scale-[0.98] cursor-pointer"
             >
               <PhoneOff size={18} />
               <span>Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})</span>
@@ -558,7 +580,7 @@ export default function Simulator() {
                 <button
                   onClick={() => startCall()}
                   disabled={isLoading}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-900/80 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 dark:border-emerald-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
                 >
                   <Phone size={15} />
                   Text Call
@@ -566,7 +588,7 @@ export default function Simulator() {
                 <button
                   onClick={simulateMissedCall}
                   disabled={isLoading}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-900/80 hover:bg-slate-800 text-amber-400 border border-amber-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 border border-amber-500/30 dark:border-amber-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
                 >
                   <MessageSquare size={15} />
                   Missed Text
@@ -578,7 +600,7 @@ export default function Simulator() {
       </div>
 
       {/* Mobile Segmented View Switcher (< lg screens) */}
-      <div className="lg:hidden flex items-center bg-white/90 dark:bg-slate-900/90 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800/90 shadow-sm dark:shadow-lg shrink-0 gap-1.5 z-10">
+      <div className="lg:hidden flex items-center bg-white/95 dark:bg-slate-900/90 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800/90 shadow-sm dark:shadow-lg shrink-0 gap-1.5 z-10">
         <button
           type="button"
           onClick={() => setMobileTab("call")}
@@ -600,7 +622,7 @@ export default function Simulator() {
           className={cn(
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
             mobileTab === "scenarios"
-              ? "bg-slate-800 text-cyan-300 shadow-sm border border-slate-700/80 font-black"
+              ? "bg-slate-900 text-cyan-400 dark:bg-slate-800 dark:text-cyan-300 shadow-sm border border-slate-800 dark:border-slate-700/80 font-black"
               : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           )}
         >
@@ -614,7 +636,7 @@ export default function Simulator() {
           className={cn(
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
             mobileTab === "telemetry"
-              ? "bg-slate-800 text-cyan-300 shadow-sm border border-slate-700/80 font-black"
+              ? "bg-slate-900 text-cyan-400 dark:bg-slate-800 dark:text-cyan-300 shadow-sm border border-slate-800 dark:border-slate-700/80 font-black"
               : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           )}
         >
@@ -629,28 +651,28 @@ export default function Simulator() {
           {/* Receptionist Settings Display */}
           <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 p-4 rounded-2xl shadow-sm dark:shadow-lg space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
                 <UserCheck size={14} />
                 Receptionist Persona
               </h3>
-              <span className="text-[9px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
+              <span className="text-[9px] font-mono text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
                 Voice: {activeVoiceName}
               </span>
             </div>
-            <div className="w-full text-left p-3 rounded-xl border bg-slate-950/40 border-slate-800/80 text-slate-400 flex items-center justify-between text-xs">
+            <div className="w-full text-left p-3 rounded-xl border bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/80 text-slate-700 dark:text-slate-400 flex items-center justify-between text-xs">
               <div>
-                <div className="font-semibold text-slate-200">{activePersonaName}</div>
+                <div className="font-semibold text-slate-900 dark:text-slate-200">{activePersonaName}</div>
                 <div className="text-[10px] text-slate-500 mt-1">Configured in Dashboard Settings</div>
               </div>
-              <Sparkles size={14} className="text-cyan-400/50" />
+              <Sparkles size={14} className="text-cyan-500 dark:text-cyan-400/50" />
             </div>
           </section>
 
           {/* Quick Launch Scenarios */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-300">{INDUSTRY_PRESETS[activeIndustry]?.name || "Trade"} Scenarios</h2>
-              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 uppercase font-bold">
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-300">{INDUSTRY_PRESETS[activeIndustry]?.name || "Trade"} Scenarios</h2>
+              <span className="text-[10px] font-mono text-cyan-700 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 uppercase font-bold">
                 {INDUSTRY_PRESETS[activeIndustry]?.shortName}
               </span>
             </div>
@@ -662,19 +684,19 @@ export default function Simulator() {
                   disabled={isLoading}
                   className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-sm dark:shadow-md cursor-pointer active:scale-[0.99]"
                 >
-                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0 group-hover:bg-cyan-500/20 transition-all">
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 shrink-0 group-hover:bg-cyan-500/20 transition-all">
                     <Sparkles size={16} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
-                      <div className="font-semibold text-xs text-slate-200 truncate">{scenario.title || scenario.label}</div>
+                      <div className="font-semibold text-xs text-slate-900 dark:text-slate-200 truncate">{scenario.title || scenario.label}</div>
                       {scenario.badge && (
-                        <span className="text-[9px] font-mono text-cyan-300 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 font-bold shrink-0">
+                        <span className="text-[9px] font-mono text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-cyan-200 dark:border-slate-700 font-bold shrink-0">
                           {scenario.badge}
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-slate-400 line-clamp-1 italic mt-0.5">"{scenario.prompt}"</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 italic mt-0.5">"{scenario.prompt}"</div>
                   </div>
                 </button>
               ))}
@@ -695,75 +717,106 @@ export default function Simulator() {
                 disabled={isLoading}
                 className="px-3 py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-medium whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[36px] cursor-pointer"
               >
-                <Sparkles size={12} className="text-cyan-400" />
+                <Sparkles size={12} className="text-cyan-500 dark:text-cyan-400" />
                 <span>{sc.title || sc.label}</span>
               </button>
             ))}
           </div>
 
           {/* Call Status Header */}
-          <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex justify-between items-center shrink-0">
+          <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
-              <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-cyan-400 animate-pulse shadow-glow-cyan-strong" : "bg-slate-600")} />
+              <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-cyan-400 animate-pulse shadow-glow-cyan-strong" : "bg-slate-400 dark:bg-slate-600")} />
               <div>
-                <span className="text-xs font-bold text-slate-200 uppercase tracking-widest font-mono">
+                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest font-mono">
                   {isCalling ? `LIVE CALL IN PROGRESS (${isVoiceMode ? "Voice Mode" : "Text Mode"})` : "VOICE LINE READY"}
                 </span>
                 {isCalling && (
-                  <div className="text-[10px] font-mono text-cyan-400 mt-0.5">
+                  <div className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 mt-0.5">
                     Receptionist: {activePersonaName}
                   </div>
                 )}
               </div>
             </div>
             {isCalling && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-full text-xs font-mono text-cyan-300 shadow-inner">
-                <Clock size={13} className="text-cyan-400" />
+              <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-full text-xs font-mono text-cyan-700 dark:text-cyan-300 shadow-inner">
+                <Clock size={13} className="text-cyan-600 dark:text-cyan-400" />
                 {formatDuration(callDuration)}
               </div>
             )}
           </div>
 
-          {/* Interactive Live Audio Waveform Visualizer Bar */}
+          {/* Interactive Live Audio Waveform & Caller Input VU Meter */}
           {isCalling && isVoiceMode && (
-            <div className="bg-slate-950 border-b border-slate-800/80 p-3 px-6 flex items-center justify-between gap-4 shrink-0">
-              <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
-                <Volume2 size={15} className={turnState === "receptionist_speaking" ? "text-cyan-400 animate-pulse" : "text-slate-500"} />
-                <span className="uppercase text-[11px] font-bold tracking-wider">
-                  {turnState === "receptionist_speaking" ? `${activePersonaName} Speaking...` : turnState === "caller_speaking" ? "Caller Speaking..." : turnState === "interrupted" ? "Barge-In Interrupted!" : "Listening for Voice..."}
-                </span>
+            <div className="bg-slate-900 dark:bg-slate-950 border-b border-slate-800/80 p-3 px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+              {/* Receptionist Speaking Status & Equalizer */}
+              <div className="flex items-center justify-between sm:justify-start gap-4">
+                <div className="flex items-center gap-2 text-xs font-mono text-slate-200">
+                  <Volume2 size={15} className={turnState === "receptionist_speaking" ? "text-cyan-400 animate-pulse" : "text-slate-400"} />
+                  <span className="uppercase text-[11px] font-bold tracking-wider">
+                    {turnState === "receptionist_speaking" ? `${activePersonaName} Speaking...` : turnState === "caller_speaking" ? "Caller Speaking..." : turnState === "interrupted" ? "Barge-In Interrupted!" : "Listening for Voice..."}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 h-5">
+                  {[40, 75, 55, 90, 60, 85, 45, 95, 70, 50].map((height, i) => (
+                    <div
+                      key={i}
+                      style={{ height: turnState !== "listening" ? `${height}%` : "20%" }}
+                      className={cn(
+                        "w-1 rounded-full transition-all duration-150",
+                        turnState === "receptionist_speaking" && "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse",
+                        turnState === "caller_speaking" && "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse",
+                        turnState === "interrupted" && "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse",
+                        turnState === "listening" && "bg-slate-700"
+                      )}
+                    />
+                  ))}
+                </div>
               </div>
-              
-              {/* Dynamic Animated Equalizer Bars */}
-              <div className="flex items-center gap-1.5 h-6">
-                {[40, 75, 55, 90, 60, 85, 45, 95, 70, 50].map((height, i) => (
-                  <div
-                    key={i}
-                    style={{ height: turnState !== "listening" ? `${height}%` : "20%" }}
-                    className={cn(
-                      "w-1 rounded-full transition-all duration-150",
-                      turnState === "receptionist_speaking" && "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse",
-                      turnState === "caller_speaking" && "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse",
-                      turnState === "interrupted" && "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse",
-                      turnState === "listening" && "bg-slate-700"
-                    )}
-                  />
-                ))}
+
+              {/* Real-time Caller Microphone VU Meter */}
+              <div className="flex items-center justify-between sm:justify-end gap-2.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 shadow-inner">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                  <Mic size={13} className={callerAudioLevel > 0.012 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
+                  <span>Your Mic:</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[0.005, 0.015, 0.03, 0.05, 0.08, 0.12].map((thresh, idx) => {
+                    const active = callerAudioLevel >= thresh;
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "w-1.5 h-3.5 rounded-sm transition-all duration-75",
+                          active
+                            ? idx < 4
+                              ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]"
+                              : "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+                            : "bg-slate-700/60"
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-[9px] font-mono font-semibold text-slate-300 min-w-[55px] text-right">
+                  {callerAudioLevel > 0.012 ? "Speaking" : "Listening"}
+                </span>
               </div>
             </div>
           )}
 
           {/* Transcript Scroll Container */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             <AnimatePresence initial={false}>
               {transcript.length === 0 && !isCalling && (
                 <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-5 opacity-60 my-12">
-                  <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-800 shadow-inner">
-                    <Phone size={36} strokeWidth={1.5} className="text-cyan-400/60" />
+                  <div className="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-inner">
+                    <Phone size={36} strokeWidth={1.5} className="text-cyan-600 dark:text-cyan-400/60" />
                   </div>
                   <div className="text-center space-y-1">
-                    <p className="text-sm font-mono tracking-widest text-slate-300">SYSTEM.READY</p>
-                    <p className="text-xs text-slate-500">Select a scenario on the left or click "Live Voice Call" to test the AI Receptionist.</p>
+                    <p className="text-sm font-mono tracking-widest text-slate-700 dark:text-slate-300">SYSTEM.READY</p>
+                    <p className="text-xs text-slate-500">Select a scenario or click "Live Voice Call" to talk to Megan.</p>
                   </div>
                 </div>
               )}
@@ -774,22 +827,22 @@ export default function Simulator() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
-                    "flex flex-col max-w-[85%]",
+                    "flex flex-col max-w-[88%] sm:max-w-[85%]",
                     entry.role === "user" ? "ml-auto items-end" : "mr-auto items-start",
                     entry.role === "system" && "mx-auto items-center w-full max-w-full"
                   )}
                 >
                   {entry.role !== "system" && (
-                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-1 px-1 font-mono">
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400 mb-1 px-1 font-mono">
                       {entry.role === "assistant" ? `AI Receptionist (${activePersonaName})` : "Caller"}
                     </span>
                   )}
                   <div
                     className={cn(
                       "px-4 py-3 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-md backdrop-blur-sm border",
-                      entry.role === "user" ? "bg-slate-800/90 text-slate-100 rounded-tr-none border-slate-700/80" : 
-                      entry.role === "assistant" ? "bg-cyan-950/40 text-cyan-100 rounded-tl-none border-cyan-800/50 shadow-[0_0_12px_rgba(34,211,238,0.05)]" :
-                      "bg-amber-500/10 text-amber-300 italic text-[11px] border border-amber-500/20 rounded-xl text-center font-mono py-2"
+                      entry.role === "user" ? "bg-slate-900 text-white dark:bg-slate-800/90 dark:text-slate-100 rounded-tr-none border-slate-800 dark:border-slate-700/80" : 
+                      entry.role === "assistant" ? "bg-cyan-50 dark:bg-cyan-950/40 text-cyan-950 dark:text-cyan-100 rounded-tl-none border-cyan-200 dark:border-cyan-800/50 shadow-[0_0_12px_rgba(34,211,238,0.05)]" :
+                      "bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-300 italic text-[11px] border border-amber-200 dark:border-amber-500/20 rounded-xl text-center font-mono py-2"
                     )}
                   >
                     {entry.text}
@@ -799,33 +852,33 @@ export default function Simulator() {
             </AnimatePresence>
 
             {isLoading && (
-              <div className="flex gap-1.5 items-center px-4 py-2.5 bg-slate-800/60 rounded-2xl w-fit border border-slate-700/60">
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+              <div className="flex gap-1.5 items-center px-4 py-2.5 bg-slate-100 dark:bg-slate-800/60 rounded-2xl w-fit border border-slate-200 dark:border-slate-700/60">
+                <div className="w-1.5 h-1.5 bg-cyan-500 dark:bg-cyan-400 rounded-full animate-pulse [animation-delay:-0.3s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-500 dark:bg-cyan-400 rounded-full animate-pulse [animation-delay:-0.15s] shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                <div className="w-1.5 h-1.5 bg-cyan-500 dark:bg-cyan-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
               </div>
             )}
             <div ref={transcriptEndRef} />
           </div>
 
           {/* Text Input / VAD Status Bar */}
-          <div className="p-4 bg-slate-900 border-t border-slate-800/80">
+          <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800/80">
             {isVoiceMode ? (
-              <div className="flex items-center justify-between px-5 py-3 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs shadow-inner">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs shadow-inner">
+                <div className="flex items-center gap-2.5 sm:gap-3">
                   <span className={cn(
                     "w-2.5 h-2.5 rounded-full",
                     turnState === "receptionist_speaking" && "bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]",
                     turnState === "caller_speaking" && "bg-emerald-400 animate-ping shadow-[0_0_10px_rgba(52,211,153,0.8)]",
                     turnState === "interrupted" && "bg-amber-400 animate-pulse shadow-[0_0_10px_rgba(251,191,36,0.8)]",
-                    turnState === "listening" && "bg-slate-500",
+                    turnState === "listening" && "bg-slate-400 dark:bg-slate-500",
                     turnState === "waiting_for_turn" && "bg-indigo-400 animate-pulse"
                   )} />
-                  <span className="font-bold uppercase tracking-wider text-slate-200">
+                  <span className="font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 text-[11px] sm:text-xs">
                     VAD STATUS: {turnState.replace("_", " ")}
                   </span>
                 </div>
-                <span className="text-slate-400 italic text-[11px] hidden sm:inline">Barge-In Interrupt & Auto Voice Detection Active</span>
+                <span className="text-slate-500 dark:text-slate-400 italic text-[11px] hidden sm:inline">Barge-In Interrupt & Auto Voice Detection Active</span>
               </div>
             ) : (
               <form

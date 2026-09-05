@@ -23,6 +23,7 @@ export interface GeminiLiveOptions {
   onEndCall?: (info: { reason: string; farewell?: string }) => void;
   onError?: (err: any) => void;
   onClose?: () => void;
+  onAudioLevel?: (level: number) => void;
 }
 
 export class GeminiLiveSession {
@@ -31,7 +32,10 @@ export class GeminiLiveSession {
   private mediaStream: MediaStream | null = null;
   private audioCtx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
+  private scriptProcessorNode: ScriptProcessorNode | null = null;
   private micMuteGain: GainNode | null = null;
+  private micCapturePromise: Promise<void> | null = null;
+  private isReceptionistSpeaking: boolean = false;
   private isConnected: boolean = false;
   private hasGreeted: boolean = false;
   private turnCompleteReceived: boolean = false;
@@ -48,6 +52,7 @@ export class GeminiLiveSession {
   }
 
   private handlePlaybackStateChange(isPlaying: boolean) {
+    this.isReceptionistSpeaking = isPlaying;
     if (this.workletNode) {
       try {
         this.workletNode.port.postMessage({ isReceptionistSpeaking: isPlaying });
@@ -72,6 +77,7 @@ export class GeminiLiveSession {
     this.telemetryFlushed = false;
     this.telemetry = this.options.settings ? new CallTelemetry(this.options.settings) : null;
     this.audioQueue.init();
+    void this.prepareAudio();
 
     const accessToken = this.options.accessToken || "";
     const apiKey = this.options.apiKey || "";
@@ -354,63 +360,182 @@ export class GeminiLiveSession {
     }
   }
 
-  private async initMicrophoneCapture() {
-    try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
+  public async prepareAudio(): Promise<void> {
+    if (this.micCapturePromise) return this.micCapturePromise;
+    this.micCapturePromise = this.initMicrophoneCapture();
+    return this.micCapturePromise;
+  }
+
+  private handleMicPcmPacket(arrayBuffer: ArrayBuffer) {
+    if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const base64Data = this.arrayBufferToBase64(arrayBuffer);
+    const pcmPayload = {
+      realtimeInput: {
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1,
-          sampleRate: 16000
+          mimeType: "audio/pcm;rate=16000",
+          data: base64Data
         }
-      });
+      }
+    };
+    try {
+      this.ws.send(JSON.stringify(pcmPayload));
+    } catch (err) {
+      console.warn("Failed to stream microphone PCM chunk:", err);
+    }
+  }
+
+  private setupScriptProcessorCapture(source: MediaStreamAudioSourceNode, ctx: AudioContext) {
+    try {
+      const bufferSize = 2048;
+      const scriptNode = ctx.createScriptProcessor ? ctx.createScriptProcessor(bufferSize, 1, 1) : null;
+      if (!scriptNode) return;
+      this.scriptProcessorNode = scriptNode;
+
+      const targetSampleRate = 16000;
+      const resampleRatio = ctx.sampleRate / targetSampleRate;
+      let sourceBuffer: number[] = [];
+      let sourceOffset = 0;
+      let pendingSamples: number[] = [];
+      let lastReportTime = 0;
+
+      scriptNode.onaudioprocess = (audioProcessingEvent) => {
+        const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+        if (!inputData || inputData.length === 0) return;
+
+        let energy = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          energy += inputData[i] * inputData[i];
+        }
+        const rms = Math.sqrt(energy / inputData.length);
+
+        const now = ctx.currentTime;
+        if (now - lastReportTime > 0.08) {
+          lastReportTime = now;
+          this.options.onAudioLevel?.(rms);
+        }
+
+        let gateGain = 1.0;
+        if (this.isReceptionistSpeaking) {
+          gateGain = rms >= 0.045 ? 1.0 : 0.0;
+        }
+
+        for (let i = 0; i < inputData.length; i++) {
+          sourceBuffer.push(inputData[i]);
+        }
+
+        while (sourceBuffer.length >= 2) {
+          const index = Math.floor(sourceOffset);
+          if (index + 1 >= sourceBuffer.length) break;
+          const fraction = sourceOffset - index;
+          const sample = (sourceBuffer[index] * (1 - fraction) + sourceBuffer[index + 1] * fraction) * gateGain;
+          const clamped = Math.max(-1, Math.min(1, sample));
+          pendingSamples.push(clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff);
+          sourceOffset += resampleRatio;
+
+          const consumed = Math.floor(sourceOffset);
+          if (consumed > 0) {
+            const consumable = Math.min(consumed, sourceBuffer.length - 1);
+            sourceBuffer.splice(0, consumable);
+            sourceOffset -= consumable;
+          }
+        }
+
+        const packetSize = 320;
+        while (pendingSamples.length >= packetSize) {
+          const packet = pendingSamples.splice(0, packetSize);
+          const packetBuffer = new Int16Array(packet).buffer;
+          this.handleMicPcmPacket(packetBuffer);
+        }
+      };
+
+      source.connect(scriptNode);
+      this.micMuteGain = ctx.createGain();
+      this.micMuteGain.gain.value = 0;
+      scriptNode.connect(this.micMuteGain);
+      this.micMuteGain.connect(ctx.destination);
+    } catch (err) {
+      console.error("Error setting up ScriptProcessor fallback:", err);
+    }
+  }
+
+  private async initMicrophoneCapture() {
+    if (this.mediaStream && this.audioCtx) return;
+    try {
+      if (!this.mediaStream) {
+        const prewarmed = typeof window !== "undefined" ? (window as any).__prewarmedMicStream : null;
+        if (prewarmed && prewarmed.active && prewarmed.getAudioTracks().some((t: any) => t.readyState === "live")) {
+          this.mediaStream = prewarmed;
+          (window as any).__prewarmedMicStream = null;
+        } else {
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+        }
+      }
 
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.audioCtx = new AudioCtx({ sampleRate: 16000 });
+      if (!AudioCtx) {
+        throw new Error("Web Audio API is not supported in this browser.");
+      }
 
-      // Add audio recorder worklet
-      const workletUrl = `${import.meta.env.BASE_URL}audio-recorder-worklet.js`.replace(/\/\//g, '/');
-      await this.audioCtx.audioWorklet.addModule(workletUrl);
+      try {
+        this.audioCtx = new AudioCtx({ sampleRate: 16000 });
+      } catch (_) {
+        // Fallback for Safari/iOS WebKit where non-native sampleRate throws NotSupportedError
+        this.audioCtx = new AudioCtx();
+      }
+
+      if (this.audioCtx.state === "suspended") {
+        await this.audioCtx.resume();
+      }
 
       const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
-      this.workletNode = new AudioWorkletNode(this.audioCtx, "audio-recorder-processor");
 
-      this.workletNode.port.onmessage = (event) => {
-        if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-        
-        const arrayBuffer = event.data;
-        const base64Data = this.arrayBufferToBase64(arrayBuffer);
+      let workletLoaded = false;
+      if (this.audioCtx.audioWorklet) {
+        try {
+          const workletUrl = `${import.meta.env.BASE_URL}audio-recorder-worklet.js`.replace(/\/\//g, '/');
+          await this.audioCtx.audioWorklet.addModule(workletUrl);
 
-        const pcmPayload = {
-          realtimeInput: {
-            audio: {
-              mimeType: "audio/pcm;rate=16000",
-              data: base64Data
+          this.workletNode = new AudioWorkletNode(this.audioCtx, "audio-recorder-processor");
+
+          this.workletNode.port.onmessage = (event) => {
+            if (event.data instanceof ArrayBuffer) {
+              this.handleMicPcmPacket(event.data);
+            } else if (event.data && event.data.type === "audio-level") {
+              this.options.onAudioLevel?.(event.data.level);
             }
-          }
-      };
+          };
 
-        this.ws.send(JSON.stringify(pcmPayload));
-      };
+          source.connect(this.workletNode);
+          this.micMuteGain = this.audioCtx.createGain();
+          this.micMuteGain.gain.value = 0;
+          this.workletNode.connect(this.micMuteGain);
+          this.micMuteGain.connect(this.audioCtx.destination);
+          try {
+            this.workletNode.port.postMessage({ isReceptionistSpeaking: this.audioQueue.isPlaying() });
+          } catch (_) {}
+          workletLoaded = true;
+        } catch (workletErr) {
+          console.warn("AudioWorklet failed to load or unsupported, falling back to ScriptProcessorNode:", workletErr);
+        }
+      }
 
-      source.connect(this.workletNode);
-      // Keep the worklet alive without routing microphone audio back to the
-      // caller's speakers (which creates echo and makes turn-taking feel fake).
-      this.micMuteGain = this.audioCtx.createGain();
-      this.micMuteGain.gain.value = 0;
-      this.workletNode.connect(this.micMuteGain);
-      this.micMuteGain.connect(this.audioCtx.destination);
-      try {
-        this.workletNode.port.postMessage({ isReceptionistSpeaking: this.audioQueue.isPlaying() });
-      } catch (_) {}
+      if (!workletLoaded) {
+        this.setupScriptProcessorCapture(source, this.audioCtx);
+      }
+
       this.audioCtx.onstatechange = () => {
         if (this.audioCtx?.state === "suspended" && this.isConnected) {
           void this.audioCtx.resume();
         }
       };
     } catch (err) {
-      console.error("Error setting up microphone worklet capture:", err);
+      console.error("Error setting up microphone capture:", err);
       this.options.onError?.(err);
     }
   }
@@ -446,7 +571,7 @@ export class GeminiLiveSession {
     // 0. Setup Complete -> Answer Inbound Call Immediately
     if (msg.setupComplete) {
       this.isConnected = true;
-      await this.initMicrophoneCapture();
+      await this.prepareAudio();
       this.options.onTranscript?.({ role: "system", text: "Connected to Voice Receptionist." });
       this.triggerInitialGreeting();
       this.options.onTurnStateChange?.("listening");
@@ -581,11 +706,17 @@ export class GeminiLiveSession {
     this.isConnected = false;
     this.turnCompleteReceived = false;
     this.audioQueue.close();
+    this.micCapturePromise = null;
 
     if (this.workletNode) {
       this.workletNode.port.onmessage = null;
       this.workletNode.disconnect();
       this.workletNode = null;
+    }
+    if (this.scriptProcessorNode) {
+      this.scriptProcessorNode.onaudioprocess = null;
+      this.scriptProcessorNode.disconnect();
+      this.scriptProcessorNode = null;
     }
     if (this.micMuteGain) {
       this.micMuteGain.disconnect();
