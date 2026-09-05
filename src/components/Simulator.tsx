@@ -9,7 +9,7 @@ import { TranscriptEntry, Lead } from "../types.ts";
 import { buildHumanEscalationPlan } from "../services/humanEscalationService.ts";
 import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
 import { INDUSTRY_PRESETS, IndustryType } from "../services/industryPresets.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees, Wind } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MicOff, X, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees, Wind } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -38,6 +38,8 @@ export default function Simulator() {
   const [smsToast, setSmsToast] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<"call" | "scenarios" | "telemetry">("call");
   const [callerAudioLevel, setCallerAudioLevel] = useState<number>(0);
+  const [micPermissionModalOpen, setMicPermissionModalOpen] = useState(false);
+  const [micPermissionError, setMicPermissionError] = useState<"denied" | "unsupported" | null>(null);
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
@@ -178,7 +180,62 @@ export default function Simulator() {
 
   const [turnState, setTurnState] = useState<"listening" | "caller_speaking" | "receptionist_speaking" | "interrupted" | "waiting_for_turn">("listening");
 
-  const startVoiceCall = async () => {
+  const checkMicPermissionStatus = async (): Promise<"granted" | "prompt" | "denied" | "unknown"> => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.permissions?.query) {
+        const res = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        return res.state as "granted" | "prompt" | "denied";
+      }
+    } catch (_) {}
+    return "unknown";
+  };
+
+  const handleInitiateVoiceCall = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMicPermissionError("unsupported");
+      setMicPermissionModalOpen(true);
+      return;
+    }
+
+    const perm = await checkMicPermissionStatus();
+    if (perm === "granted") {
+      await startVoiceCall();
+      return;
+    }
+
+    if (perm === "denied") {
+      setMicPermissionError("denied");
+      setMicPermissionModalOpen(true);
+      return;
+    }
+
+    // Permission state is "prompt" or "unknown" (common on mobile Safari) -> prompt explicitly
+    setMicPermissionError(null);
+    setMicPermissionModalOpen(true);
+  };
+
+  const handleGrantMicAndStart = async () => {
+    try {
+      setIsLoading(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      (window as any).__prewarmedMicStream = stream;
+      setMicPermissionModalOpen(false);
+      setMicPermissionError(null);
+      await startVoiceCall(stream);
+    } catch (err: any) {
+      console.warn("Microphone permission prompt response:", err);
+      setIsLoading(false);
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+        setMicPermissionError("denied");
+      } else {
+        setMicPermissionError("unsupported");
+      }
+    }
+  };
+
+  const startVoiceCall = async (existingStream?: MediaStream) => {
     if (isCalling) endCall();
 
     setMobileTab("call");
@@ -191,18 +248,25 @@ export default function Simulator() {
     setTurnState("listening");
     setCallerAudioLevel(0);
 
-    // Pre-warm microphone hardware immediately within the user gesture window (critical for iOS WebKit/Safari)
-    try {
-      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        }).then(stream => {
-          (window as any).__prewarmedMicStream = stream;
-        }).catch((wErr) => {
-          console.warn("User gesture microphone warmup note:", wErr);
-        });
-      }
-    } catch (_) {}
+    if (existingStream && existingStream.active) {
+      (window as any).__prewarmedMicStream = existingStream;
+    } else {
+      // Pre-warm microphone hardware immediately within the user gesture window (critical for iOS WebKit/Safari)
+      try {
+        if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+          }).then(stream => {
+            (window as any).__prewarmedMicStream = stream;
+          }).catch((wErr) => {
+            if (wErr?.name === "NotAllowedError" || wErr?.name === "PermissionDeniedError") {
+              setMicPermissionError("denied");
+              setMicPermissionModalOpen(true);
+            }
+          });
+        }
+      } catch (_) {}
+    }
 
     try {
       let activeSettings;
@@ -329,6 +393,10 @@ export default function Simulator() {
         },
         onError: (err: any) => {
           console.error("Voice mode error:", err);
+          if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError" || /permission|denied|allowed/i.test(err?.message || "")) {
+            setMicPermissionError("denied");
+            setMicPermissionModalOpen(true);
+          }
           const detail = err?.message || (typeof err === "string" ? err : "");
           setTranscript(prev => [...prev, { role: "system", text: `Voice connection error ${detail ? `: ${detail}` : "(Check API key or microphone permissions)"}` }]);
         },
@@ -345,6 +413,10 @@ export default function Simulator() {
       setIsCalling(true);
     } catch (err: any) {
       console.error("Error starting live voice call:", err);
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError" || /permission|denied|allowed/i.test(err?.message || "")) {
+        setMicPermissionError("denied");
+        setMicPermissionModalOpen(true);
+      }
       setTranscript([{ role: "system", text: `Error: ${err?.message || "Failed to start voice call."}` }]);
       setIsVoiceMode(false);
     } finally {
@@ -569,7 +641,7 @@ export default function Simulator() {
           ) : (
             <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2.5">
               <button
-                onClick={startVoiceCall}
+                onClick={handleInitiateVoiceCall}
                 disabled={isLoading}
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm hover:from-cyan-400 hover:to-cyan-300 transition-all shadow-[0_0_25px_rgba(34,211,238,0.45)] disabled:opacity-50 relative overflow-hidden group min-h-[48px] active:scale-[0.98] cursor-pointer"
               >
@@ -1007,6 +1079,205 @@ export default function Simulator() {
                 {smsToast}
               </p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Microphone Permission Modal */}
+      <AnimatePresence>
+        {micPermissionModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 350, damping: 28 }}
+              className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl safe-area-bottom space-y-6"
+            >
+              {/* Mobile Drawer Handle */}
+              <div className="sm:hidden w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto mb-2 shrink-0" />
+
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "p-3 rounded-2xl shrink-0 border flex items-center justify-center",
+                    micPermissionError === "denied"
+                      ? "bg-rose-500/15 border-rose-500/40 text-rose-400"
+                      : micPermissionError === "unsupported"
+                      ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                      : "bg-cyan-500/15 border-cyan-500/40 text-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.25)]"
+                  )}>
+                    {micPermissionError === "denied" ? (
+                      <MicOff className="w-6 h-6" />
+                    ) : micPermissionError === "unsupported" ? (
+                      <AlertCircle className="w-6 h-6" />
+                    ) : (
+                      <Mic className="w-6 h-6 animate-pulse" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-100">
+                      {micPermissionError === "denied"
+                        ? "Microphone Access Blocked"
+                        : micPermissionError === "unsupported"
+                        ? "Microphone Unsupported"
+                        : "Microphone Access Required"}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-mono">
+                      {micPermissionError === "denied"
+                        ? "Browser permission denied"
+                        : micPermissionError === "unsupported"
+                        ? "Secure context / Web Audio required"
+                        : "Live Voice Receptionist"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMicPermissionModalOpen(false);
+                    setMicPermissionError(null);
+                  }}
+                  className="p-2 text-slate-400 hover:text-slate-200 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              {micPermissionError === "denied" ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Your browser has blocked microphone access for this site. To speak with Megan, you need to unblock microphone permissions in your browser:
+                  </p>
+
+                  {/* iOS Safari Guide */}
+                  <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider font-mono">
+                      <span>Apple iOS Safari</span>
+                    </div>
+                    <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+                      <li>Tap the <span className="font-semibold text-slate-100 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">aA</span> icon in the address bar (bottom or top).</li>
+                      <li>Tap <span className="font-semibold text-slate-100">Website Settings</span>.</li>
+                      <li>Set <span className="font-semibold text-slate-100">Microphone</span> to <span className="text-emerald-400 font-semibold">Allow</span>.</li>
+                      <li>Refresh this page and tap <span className="font-semibold text-cyan-300">Live Voice Call</span> again.</li>
+                    </ol>
+                  </div>
+
+                  {/* Android Chrome Guide */}
+                  <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider font-mono">
+                      <span>Google Android Chrome</span>
+                    </div>
+                    <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+                      <li>Tap the <span className="font-semibold text-slate-100 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">Tune / Lock</span> icon next to the address bar.</li>
+                      <li>Tap <span className="font-semibold text-slate-100">Permissions</span> → <span className="font-semibold text-slate-100">Microphone</span>.</li>
+                      <li>Toggle to <span className="text-emerald-400 font-semibold">Allowed</span>.</li>
+                      <li>Tap <span className="font-semibold text-cyan-300">Try Again</span> below.</li>
+                    </ol>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleGrantMicAndStart}
+                      disabled={isLoading}
+                      className="flex-1 py-3.5 px-5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(34,211,238,0.35)] flex items-center justify-center gap-2 min-h-[48px] cursor-pointer"
+                    >
+                      <Mic size={16} />
+                      {isLoading ? "Requesting Mic..." : "Try Requesting Mic Again"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMicPermissionModalOpen(false);
+                        setMicPermissionError(null);
+                        startCall();
+                      }}
+                      className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition-colors min-h-[48px] cursor-pointer"
+                    >
+                      Switch to Text Call
+                    </button>
+                  </div>
+                </div>
+              ) : micPermissionError === "unsupported" ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Microphone input is unavailable in this environment. Microphone capture requires a secure context (<span className="text-emerald-400 font-mono">HTTPS</span> or <span className="text-emerald-400 font-mono">localhost</span>) and a browser supporting the HTML5 MediaDevices API.
+                  </p>
+                  <div className="bg-amber-950/20 border border-amber-500/30 p-4 rounded-2xl text-xs text-amber-200/90 leading-relaxed">
+                    You can still test and interact with the AI Receptionist at any time using the <strong>Text Call</strong> simulator mode.
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMicPermissionModalOpen(false);
+                        setMicPermissionError(null);
+                        startCall();
+                      }}
+                      className="flex-1 py-3.5 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all min-h-[48px] cursor-pointer"
+                    >
+                      Use Text Call Instead
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMicPermissionModalOpen(false);
+                        setMicPermissionError(null);
+                      }}
+                      className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition-colors min-h-[48px] cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    To start your live call with <strong className="text-cyan-300">{activePersonaName}</strong>, your browser needs microphone permission so you can speak directly with the AI receptionist.
+                  </p>
+                  <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+                      <Zap size={16} />
+                    </div>
+                    <div className="text-xs text-slate-300 leading-relaxed">
+                      <strong className="text-slate-100 block mb-0.5">Barge-in Voice Engine</strong>
+                      When prompted by your browser, tap <span className="text-emerald-400 font-bold">"Allow"</span> or <span className="text-emerald-400 font-bold">"Allow While Using App"</span>.
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleGrantMicAndStart}
+                      disabled={isLoading}
+                      className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(34,211,238,0.4)] flex items-center justify-center gap-2 min-h-[48px] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                    >
+                      <Mic size={16} className={isLoading ? "animate-spin" : "animate-pulse"} />
+                      {isLoading ? "Enabling Microphone..." : "Allow Microphone & Start Call"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMicPermissionModalOpen(false);
+                        setMicPermissionError(null);
+                      }}
+                      className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider transition-colors min-h-[48px] cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
