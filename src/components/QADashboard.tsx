@@ -124,15 +124,15 @@ export default function QADashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end border-b border-slate-800 pb-5 gap-3 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end border-b border-slate-200 dark:border-slate-800 pb-5 gap-3 shrink-0">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20 shrink-0">
               <ShieldCheck size={22} />
             </div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif italic text-slate-100">QA Receptionist Performance Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-serif italic text-slate-900 dark:text-slate-100">QA Receptionist Performance Dashboard</h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">Audit AI receptionist calls, review problem flags, and measure conversion quality.</p>
         </div>

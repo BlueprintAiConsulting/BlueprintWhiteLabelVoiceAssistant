@@ -60,7 +60,7 @@ export default function QATests() {
   const selectedResult = selectedScenarioId ? results[selectedScenarioId] : null;
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-slate-950 text-slate-100 overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden relative">
       {/* Sidebar: Scenarios List */}
       <div className="w-full md:w-80 max-h-[35vh] md:max-h-none border-b md:border-b-0 md:border-r border-slate-800/80 bg-slate-900/60 backdrop-blur-xl flex flex-col shrink-0">
         <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center shrink-0">

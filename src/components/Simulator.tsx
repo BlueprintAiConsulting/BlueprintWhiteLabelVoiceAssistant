@@ -372,7 +372,7 @@ export default function Simulator() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6 overflow-y-auto lg:overflow-hidden relative text-slate-100 font-sans">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6 overflow-y-auto lg:overflow-hidden relative text-slate-900 dark:text-slate-100 font-sans">
       {/* Background radial glow spots */}
       <div className="absolute top-0 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -434,14 +434,14 @@ export default function Simulator() {
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4 shrink-0 relative z-10">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-100 tracking-tight">Call Simulator</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100 tracking-tight">Call Simulator</h1>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-glow-cyan-sm">
               <Zap size={13} className="text-cyan-400 animate-pulse" />
               GEMINI 2.0 MULTIMODAL
             </span>
 
             {/* Quick 1-Click Trade Switcher */}
-            <div className="inline-flex items-center gap-1 p-1 bg-slate-950/80 border border-slate-800 rounded-full shadow-inner">
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-full shadow-inner">
               <button
                 type="button"
                 onClick={() => handleSwitchTrade("hvac")}
@@ -450,7 +450,7 @@ export default function Simulator() {
                   "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
                   activeIndustry === "hvac"
                     ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
-                    : "text-slate-400 hover:text-slate-200"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                 )}
               >
                 <Wind size={13} /> HVAC Mode
@@ -463,14 +463,14 @@ export default function Simulator() {
                   "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
                   activeIndustry === "roofing_siding"
                     ? "bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.5)] font-black"
-                    : "text-slate-400 hover:text-slate-200"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                 )}
               >
                 <Home size={13} /> Roofing Mode
               </button>
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Active Trade: <span className="text-cyan-300 font-semibold">{INDUSTRY_PRESETS[activeIndustry]?.name}</span> ({settings?.office_name || INDUSTRY_PRESETS[activeIndustry]?.defaultOfficeName}) — simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.
           </p>
         </div>
@@ -517,7 +517,7 @@ export default function Simulator() {
       </div>
 
       {/* Mobile Segmented View Switcher (< lg screens) */}
-      <div className="lg:hidden flex items-center bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/90 shadow-lg shrink-0 gap-1.5 z-10">
+      <div className="lg:hidden flex items-center bg-white/90 dark:bg-slate-900/90 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800/90 shadow-sm dark:shadow-lg shrink-0 gap-1.5 z-10">
         <button
           type="button"
           onClick={() => setMobileTab("call")}
@@ -525,7 +525,7 @@ export default function Simulator() {
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
             mobileTab === "call"
               ? "bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.4)] font-black"
-              : "text-slate-400 hover:text-slate-200"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           )}
         >
           <Phone size={14} className={cn(isCalling && "text-slate-950 animate-bounce")} />
@@ -540,7 +540,7 @@ export default function Simulator() {
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
             mobileTab === "scenarios"
               ? "bg-slate-800 text-cyan-300 shadow-sm border border-slate-700/80 font-black"
-              : "text-slate-400 hover:text-slate-200"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           )}
         >
           <Sparkles size={14} />
@@ -554,7 +554,7 @@ export default function Simulator() {
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
             mobileTab === "telemetry"
               ? "bg-slate-800 text-cyan-300 shadow-sm border border-slate-700/80 font-black"
-              : "text-slate-400 hover:text-slate-200"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           )}
         >
           <Activity size={14} />
@@ -566,7 +566,7 @@ export default function Simulator() {
         {/* Left Column: Persona & Quick Launch Scenarios */}
         <div className={cn("flex flex-col gap-5 overflow-y-auto pr-1", mobileTab !== "scenarios" && "hidden lg:flex")}>
           {/* Receptionist Settings Display */}
-          <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3">
+          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 p-4 rounded-2xl shadow-sm dark:shadow-lg space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-1.5">
                 <UserCheck size={14} />
@@ -599,7 +599,7 @@ export default function Simulator() {
                   key={scenario.id}
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
-                  className="flex items-center gap-3 p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-md cursor-pointer active:scale-[0.99]"
+                  className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-sm dark:shadow-md cursor-pointer active:scale-[0.99]"
                 >
                   <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0 group-hover:bg-cyan-500/20 transition-all">
                     <Sparkles size={16} />
@@ -622,9 +622,9 @@ export default function Simulator() {
         </div>
 
         {/* Center: Live Call Workspace & Transcript */}
-        <div className={cn("lg:col-span-2 flex flex-col bg-slate-900 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden relative min-h-[520px] lg:min-h-0", mobileTab !== "call" && "hidden lg:flex")}>
+        <div className={cn("lg:col-span-2 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl shadow-sm dark:shadow-2xl overflow-hidden relative min-h-[520px] lg:min-h-0", mobileTab !== "call" && "hidden lg:flex")}>
           {/* Quick Scenario Chips Bar for Mobile */}
-          <div className="lg:hidden px-3.5 py-2.5 bg-slate-950/80 border-b border-slate-800/80 overflow-x-auto flex items-center gap-2 shrink-0">
+          <div className="lg:hidden px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800/80 overflow-x-auto flex items-center gap-2 shrink-0">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold shrink-0">Quick Start:</span>
             {(INDUSTRY_PRESETS[activeIndustry]?.quickScenarios || []).map((sc: any) => (
               <button
@@ -632,7 +632,7 @@ export default function Simulator() {
                 type="button"
                 onClick={() => startCall(sc.prompt)}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border border-slate-800 rounded-xl text-[11px] font-medium whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[36px] cursor-pointer"
+                className="px-3 py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-medium whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[36px] cursor-pointer"
               >
                 <Sparkles size={12} className="text-cyan-400" />
                 <span>{sc.title || sc.label}</span>
@@ -641,7 +641,7 @@ export default function Simulator() {
           </div>
 
           {/* Call Status Header */}
-          <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900 flex justify-between items-center shrink-0">
+          <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
               <div className={cn("w-3 h-3 rounded-full", isCalling ? "bg-cyan-400 animate-pulse shadow-glow-cyan-strong" : "bg-slate-600")} />
               <div>
@@ -780,7 +780,7 @@ export default function Simulator() {
                   onChange={(e) => setUserInput(e.target.value)}
                   disabled={!isCalling || isLoading}
                   placeholder={isCalling ? "Type a response to the AI receptionist..." : "Select a scenario or start a call above..."}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-100 placeholder:text-slate-500"
+                  className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
                 <button
                   type="submit"
@@ -818,7 +818,7 @@ export default function Simulator() {
           )}
 
           {/* Captured Lead Telemetry Card */}
-          <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3">
+          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 p-4 rounded-2xl shadow-sm dark:shadow-lg space-y-3">
             <h3 className="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
               <Activity size={14} />
               Captured Lead Telemetry

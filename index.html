@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -14,10 +14,10 @@
       (function() {
         try {
           var savedTheme = localStorage.getItem('theme');
-          if (savedTheme === 'light') {
-            document.documentElement.classList.remove('dark');
-          } else {
+          if (savedTheme === 'dark') {
             document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
           }
         } catch (e) {}
       })();
