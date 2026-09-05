@@ -23,8 +23,11 @@ export async function requestGeminiEphemeralToken(options: EphemeralTokenOptions
     throw new Error("UNAUTHORIZED: You must be logged in to request a voice assistant token.");
   }
 
-  // 1. If user configured a custom Gemini API key in Settings / local storage, attempt to exchange it directly
-  const localKey = typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") : null;
+  // 1. If user configured a custom Gemini API key in Settings / local storage or env, attempt to exchange it directly
+  const localKey = (typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") : null)
+    || (typeof process !== "undefined" && process.env ? process.env.GEMINI_API_KEY : "")
+    || "REDACTED_API_KEY";
+
   if (localKey && localKey.trim()) {
     try {
       const directRes = await fetch("https://generativelanguage.googleapis.com/v1beta/auth_tokens", {

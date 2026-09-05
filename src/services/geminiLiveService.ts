@@ -27,6 +27,80 @@ export interface GeminiLiveOptions {
   onAudioLevel?: (level: number) => void;
 }
 
+const INLINE_WORKLET_CODE = `
+class AudioRecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.sourceBuffer = [];
+    this.sourceOffset = 0;
+    this.pendingSamples = [];
+    this.targetSampleRate = 16000;
+    this.resampleRatio = sampleRate / this.targetSampleRate;
+    this.isReceptionistSpeaking = false;
+    this.lastReportTime = 0;
+
+    this.port.onmessage = (event) => {
+      if (event.data && typeof event.data.isReceptionistSpeaking === 'boolean') {
+        this.isReceptionistSpeaking = event.data.isReceptionistSpeaking;
+      }
+    };
+  }
+
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    if (input && input[0] && input[0].length > 0) {
+      const channelData = input[0];
+      let energy = 0;
+      for (let i = 0; i < channelData.length; i++) {
+        energy += channelData[i] * channelData[i];
+      }
+      const rms = Math.sqrt(energy / channelData.length);
+
+      const now = currentTime;
+      if (now - this.lastReportTime > 0.08) {
+        this.lastReportTime = now;
+        this.port.postMessage({ type: 'audio-level', level: rms });
+      }
+
+      let gateGain = 1.0;
+      if (this.isReceptionistSpeaking) {
+        gateGain = rms >= 0.045 ? 1.0 : 0.0;
+      }
+
+      for (let i = 0; i < channelData.length; i++) {
+        this.sourceBuffer.push(channelData[i]);
+      }
+
+      while (this.sourceBuffer.length >= 2) {
+        const index = Math.floor(this.sourceOffset);
+        if (index + 1 >= this.sourceBuffer.length) break;
+        const fraction = this.sourceOffset - index;
+        const sample = (this.sourceBuffer[index] * (1 - fraction) + this.sourceBuffer[index + 1] * fraction) * gateGain;
+        const clamped = Math.max(-1, Math.min(1, sample));
+        this.pendingSamples.push(clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF);
+        this.sourceOffset += this.resampleRatio;
+
+        const consumed = Math.floor(this.sourceOffset);
+        if (consumed > 0) {
+          const consumable = Math.min(consumed, this.sourceBuffer.length - 1);
+          this.sourceBuffer.splice(0, consumable);
+          this.sourceOffset -= consumable;
+        }
+      }
+
+      const packetSize = 320;
+      while (this.pendingSamples.length >= packetSize) {
+        const packet = this.pendingSamples.splice(0, packetSize);
+        const packetBuffer = new Int16Array(packet).buffer;
+        this.port.postMessage(packetBuffer, [packetBuffer]);
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('audio-recorder-processor', AudioRecorderProcessor);
+`;
+
 export class GeminiLiveSession {
   private ws: WebSocket | null = null;
   private audioQueue: AudioPlaybackQueue;
@@ -77,7 +151,8 @@ export class GeminiLiveSession {
     this.turnCompleteReceived = false;
     this.telemetryFlushed = false;
     this.telemetry = this.options.settings ? new CallTelemetry(this.options.settings) : null;
-    this.audioQueue.init();
+    const prewarmedCtx = typeof window !== "undefined" ? (window as any).__prewarmedAudioCtx : null;
+    this.audioQueue.init(prewarmedCtx || this.audioCtx || undefined);
     void this.prepareAudio();
 
     const accessToken = this.options.accessToken || "";
@@ -520,8 +595,13 @@ export class GeminiLiveSession {
       let workletLoaded = false;
       if (this.audioCtx.audioWorklet) {
         try {
-          const workletUrl = `${import.meta.env.BASE_URL}audio-recorder-worklet.js`.replace(/\/\//g, '/');
-          await this.audioCtx.audioWorklet.addModule(workletUrl);
+          const blob = new Blob([INLINE_WORKLET_CODE], { type: "application/javascript" });
+          const blobUrl = URL.createObjectURL(blob);
+          try {
+            await this.audioCtx.audioWorklet.addModule(blobUrl);
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+          }
 
           this.workletNode = new AudioWorkletNode(this.audioCtx, "audio-recorder-processor");
 
@@ -543,7 +623,28 @@ export class GeminiLiveSession {
           } catch (_) {}
           workletLoaded = true;
         } catch (workletErr) {
-          console.warn("AudioWorklet failed to load or unsupported, falling back to ScriptProcessorNode:", workletErr);
+          console.warn("AudioWorklet inline blob failed, attempting fallback URL:", workletErr);
+          try {
+            const baseUrl = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/';
+            const workletUrl = `${baseUrl}audio-recorder-worklet.js`;
+            await this.audioCtx.audioWorklet.addModule(workletUrl);
+            this.workletNode = new AudioWorkletNode(this.audioCtx, "audio-recorder-processor");
+            this.workletNode.port.onmessage = (event) => {
+              if (event.data instanceof ArrayBuffer) {
+                this.handleMicPcmPacket(event.data);
+              } else if (event.data && event.data.type === "audio-level") {
+                this.options.onAudioLevel?.(event.data.level);
+              }
+            };
+            source.connect(this.workletNode);
+            this.micMuteGain = this.audioCtx.createGain();
+            this.micMuteGain.gain.value = 0;
+            this.workletNode.connect(this.micMuteGain);
+            this.micMuteGain.connect(this.audioCtx.destination);
+            workletLoaded = true;
+          } catch (fetchErr) {
+            console.warn("AudioWorklet failed completely, falling back to ScriptProcessorNode:", fetchErr);
+          }
         }
       }
 

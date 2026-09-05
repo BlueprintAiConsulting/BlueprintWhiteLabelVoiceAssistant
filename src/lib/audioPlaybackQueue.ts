@@ -15,16 +15,23 @@ export class AudioPlaybackQueue {
     this.onPlaybackStateChange = cb;
   }
 
-  public init() {
-    if (!this.ctx) {
-      const AudioCtx = typeof window !== "undefined"
-        ? (window.AudioContext || (window as any).webkitAudioContext)
-        : (globalThis as any).AudioContext;
-      if (AudioCtx) {
-        try {
-          this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
-        } catch (_) {
-          this.ctx = new AudioCtx();
+  public init(existingCtx?: AudioContext) {
+    if (existingCtx && existingCtx.state !== "closed") {
+      this.ctx = existingCtx;
+    } else if (!this.ctx) {
+      const prewarmed = typeof window !== "undefined" ? (window as any).__prewarmedAudioCtx : null;
+      if (prewarmed && prewarmed.state !== "closed") {
+        this.ctx = prewarmed;
+      } else {
+        const AudioCtx = typeof window !== "undefined"
+          ? (window.AudioContext || (window as any).webkitAudioContext)
+          : (globalThis as any).AudioContext;
+        if (AudioCtx) {
+          try {
+            this.ctx = new AudioCtx({ sampleRate: this.sampleRate });
+          } catch (_) {
+            this.ctx = new AudioCtx();
+          }
         }
       }
     }
