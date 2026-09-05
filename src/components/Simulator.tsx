@@ -276,6 +276,10 @@ export default function Simulator() {
             setSmsToast(`Hi ${callerName}, your ${toolInfo.args.service_type || "service"} is confirmed for ${dateStr} with ${activeSettings?.office_name || settings?.office_name || "our office"}.`);
             setTimeout(() => setSmsToast(null), 8000);
           }
+          if (toolInfo.name === "endCall") {
+            const reason = toolInfo.args?.reason || "call_ended";
+            setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATION] Megan executed hang-up protocol: ${reason}.` }]);
+          }
         },
         onCapturedLead: (lead) => {
           setCapturedLead(prev => ({ ...prev, ...lead }));
@@ -285,6 +289,23 @@ export default function Simulator() {
              setSmsToast(`Hi ${lead.caller_name}, thanks for calling ${activeSettings?.office_name || settings?.office_name || "our office"}. We've received your request for ${(lead as any).service_type}. Our team will review and get back to you shortly.`);
              setTimeout(() => setSmsToast(null), 8000);
           }
+        },
+        onEndCall: (info) => {
+          const reasonLabels: Record<string, string> = {
+            unresponsive_caller: "Caller Unresponsive / Silent",
+            caller_refused_details: "Caller Refused Service Details",
+            spam_solicitation: "Unsolicited Sales / Spam",
+            prank_abusive: "Prank / Inappropriate Caller",
+            circular_call_dead_end: "Call Going Nowhere / Stalemate",
+            caller_concluded_call: "Call Concluded Normally",
+            emergency_life_safety: "Life-Safety 911 Transfer"
+          };
+          const label = reasonLabels[info.reason] || info.reason || "Call terminated";
+          setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] Megan hung up the call (${label}).` }]);
+          setTimeout(() => {
+            setIsCalling(false);
+            setIsVoiceMode(false);
+          }, 800);
         },
         onError: (err: any) => {
           console.error("Voice mode error:", err);
@@ -382,6 +403,22 @@ export default function Simulator() {
             const dateStr = new Date(call.args.appointment_start).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' });
             setSmsToast(`Hi ${callerName}, your ${call.args.service_type || "service"} is confirmed for ${dateStr} with ${settings?.office_name || "our office"}.`);
             setTimeout(() => setSmsToast(null), 8000);
+          }
+          if (call.name === "endCall") {
+            const reasonLabels: Record<string, string> = {
+              unresponsive_caller: "Caller Unresponsive / Silent",
+              caller_refused_details: "Caller Refused Service Details",
+              spam_solicitation: "Unsolicited Sales / Spam",
+              prank_abusive: "Prank / Inappropriate Caller",
+              circular_call_dead_end: "Call Going Nowhere / Stalemate",
+              caller_concluded_call: "Call Concluded Normally",
+              emergency_life_safety: "Life-Safety 911 Transfer"
+            };
+            const label = reasonLabels[call.args?.reason] || call.args?.reason || "Call terminated";
+            setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] Megan hung up: ${label}.` }]);
+            setTimeout(() => {
+              endCall();
+            }, 1200);
           }
         }
       }

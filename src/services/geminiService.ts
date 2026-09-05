@@ -200,12 +200,50 @@ export async function createReceptionistChat(customSettings?: Settings): Promise
       const wantsSchedule = fullText.includes("schedule") || fullText.includes("book") || fullText.includes("appointment") || fullText.includes("when are you available") || fullText.includes("openings");
       const hasSlotChosen = fullText.includes("tuesday") || fullText.includes("tomorrow") || fullText.includes("friday") || fullText.includes("10:00") || fullText.includes("2:00") || fullText.includes("morning") || fullText.includes("afternoon");
 
+      const spamKeywords = ["lower your", "merchant pros", "credit card processing", "seo", "marketing agency", "sell leads", "unsolicited sales", "exclusive leads", "search pro marketing"];
+      const isSpam = spamKeywords.some(k => fullText.includes(k));
+
+      const refuseKeywords = ["refuse to give", "not giving you my address", "not giving you my phone", "won't tell you my address", "refuse to tell you", "refuse to provide", "give me an exact price right now or send someone"];
+      const isRefusal = refuseKeywords.some(k => fullText.includes(k));
+
+      const isGoodbye = !isGreeting && (fullText.includes("that's all") || fullText.includes("thats all") || fullText.includes("i'm all set") || fullText.includes("im all set") || fullText.includes("bye megan") || fullText.includes("goodbye megan") || (fullText.includes("goodbye") && turnsHistory.length >= 2));
+
       if (isGreeting) {
         const office = isRoofing
           ? ((!settings.office_name || /lunar|heating|cooling|hvac|apex/i.test(settings.office_name)) ? "Spring Valley Roofing" : settings.office_name)
           : (settings.office_name || "our office");
         const tradeSpecialty = isRoofing ? "roofing or siding" : "heating or cooling";
         resText = `Thanks for calling ${office}! This is ${recName}. How can I help you with your ${tradeSpecialty} today?`;
+      } else if (isSpam) {
+        functionCalls.push({
+          name: "endCall",
+          args: {
+            reason: "spam_solicitation",
+            farewell_message: "Thank you, but we do not accept unsolicited sales calls. Please remove our number from your list. Have a good day. Goodbye."
+          }
+        });
+        resText = "Thank you, but we do not accept unsolicited sales calls. Please remove our number from your calling list. Have a good day. Goodbye.";
+      } else if (isRefusal) {
+        functionCalls.push({
+          name: "endCall",
+          args: {
+            reason: "caller_refused_details",
+            farewell_message: "Without a service address or callback number, we are unable to schedule an appointment or dispatch anyone to your home. Please call us back when you're ready with that information. Have a great day! Goodbye."
+          }
+        });
+        resText = "Without a service address or callback number, we are unable to schedule an appointment or dispatch anyone to your home. Please feel free to call us back when you're ready with that information. Have a great day! Goodbye.";
+      } else if (isGoodbye) {
+        const office = isRoofing
+          ? ((!settings.office_name || /lunar|heating|cooling|hvac|apex/i.test(settings.office_name)) ? "Spring Valley Roofing" : settings.office_name)
+          : (settings.office_name || "our office");
+        functionCalls.push({
+          name: "endCall",
+          args: {
+            reason: "caller_concluded_call",
+            farewell_message: `You're very welcome! Thanks for calling ${office}. Have a wonderful day! Goodbye.`
+          }
+        });
+        resText = `You're very welcome! Thanks for calling ${office}. Have a wonderful day! Goodbye.`;
       } else if (wantsSchedule && !hasSlotChosen) {
         functionCalls.push({
           name: "checkAppointmentSlots",

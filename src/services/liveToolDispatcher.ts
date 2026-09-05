@@ -290,6 +290,23 @@ export async function executeLiveToolCall(
         };
       }
 
+      case "endCall": {
+        const reason = args?.reason || "caller_concluded_call";
+        const farewell = args?.farewell_message || "Thank you for calling. Goodbye!";
+        conversationState.markToolComplete(name, true);
+        return {
+          toolName: name,
+          callId: id,
+          output: {
+            success: true,
+            call_ended: true,
+            reason,
+            farewell_message: farewell,
+            message: `Call termination executed (${reason}). ${farewell}`
+          }
+        };
+      }
+
       default: {
         return {
           toolName: name,

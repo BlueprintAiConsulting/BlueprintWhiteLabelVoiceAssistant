@@ -20,6 +20,7 @@ export interface GeminiLiveOptions {
   onCapturedLead?: (lead: Partial<Lead>) => void;
   onTurnStateChange?: (state: "listening" | "caller_speaking" | "receptionist_speaking" | "interrupted" | "waiting_for_turn") => void;
   onInterrupted?: () => void;
+  onEndCall?: (info: { reason: string; farewell?: string }) => void;
   onError?: (err: any) => void;
   onClose?: () => void;
 }
@@ -306,6 +307,33 @@ export class GeminiLiveSession {
                   },
                   required: ["callback_number", "appointment_start"]
                 }
+              },
+              {
+                name: "endCall",
+                description: "Hangs up and terminates the phone call. Use this when: 1) The call has reached a natural conclusion; 2) The caller is unresponsive or silent after multiple prompts; 3) The caller refuses to provide basic address or contact details needed to proceed; 4) The caller is a spammer, telemarketer, or solicitor; 5) The caller is abusive, yelling, or playing pranks; 6) The conversation is in a circular loop going nowhere. ALWAYS speak a brief polite sign-off before or while executing this tool.",
+                parameters: {
+                  type: "OBJECT",
+                  properties: {
+                    reason: {
+                      type: "STRING",
+                      enum: [
+                        "unresponsive_caller",
+                        "caller_refused_details",
+                        "spam_solicitation",
+                        "prank_abusive",
+                        "circular_call_dead_end",
+                        "caller_concluded_call",
+                        "emergency_life_safety"
+                      ],
+                      description: "Primary reason for disconnecting the call."
+                    },
+                    farewell_message: {
+                      type: "STRING",
+                      description: "Polite farewell statement spoken to the caller before hanging up."
+                    }
+                  },
+                  required: ["reason"]
+                }
               }
             ]
           }
@@ -512,6 +540,36 @@ export class GeminiLiveSession {
 
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify(responsePayload));
+        }
+
+        if (call.name === "endCall") {
+          const reason = call.args?.reason || "caller_concluded_call";
+          const farewell = call.args?.farewell_message;
+          this.options.onEndCall?.({ reason, farewell });
+
+          let disconnectTriggered = false;
+          const finalizeDisconnect = () => {
+            if (disconnectTriggered) return;
+            disconnectTriggered = true;
+            if (safetyTimeout) clearTimeout(safetyTimeout);
+            setTimeout(() => {
+              if (this.isConnected) {
+                this.stop();
+                this.options.onClose?.();
+              }
+            }, 500);
+          };
+
+          // Safety fallback timeout: ensure call drops within 5s even if no audio streams
+          const safetyTimeout = setTimeout(finalizeDisconnect, 5000);
+
+          const origStateCallback = (this.audioQueue as any).onPlaybackStateChange;
+          this.audioQueue.setPlaybackStateChangeCallback((isPlaying) => {
+            origStateCallback?.(isPlaying);
+            if (!isPlaying && this.turnCompleteReceived) {
+              finalizeDisconnect();
+            }
+          });
         }
       }
     }

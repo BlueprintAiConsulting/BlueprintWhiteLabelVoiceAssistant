@@ -218,4 +218,41 @@ describe("Live Tool Dispatcher Unit Tests", () => {
     expect(res.output.success).toBe(false);
     expect(res.output.error).toBe("TRANSFER_NOT_CONFIGURED");
   });
+
+  it("executes endCall tool and returns structured call termination output", async () => {
+    const res = await executeLiveToolCall(
+      {
+        id: "call_hangup_1",
+        name: "endCall",
+        args: {
+          reason: "unresponsive_caller",
+          farewell_message: "Since I can't hear anyone on the line, I'm going to disconnect now. Goodbye!"
+        }
+      },
+      mockSettings
+    );
+
+    expect(res.callId).toBe("call_hangup_1");
+    expect(res.output.success).toBe(true);
+    expect(res.output.call_ended).toBe(true);
+    expect(res.output.reason).toBe("unresponsive_caller");
+    expect(res.output.message).toContain("unresponsive_caller");
+  });
+
+  it("executes endCall for spam or dead-end with default farewell", async () => {
+    const res = await executeLiveToolCall(
+      {
+        id: "call_hangup_2",
+        name: "endCall",
+        args: {
+          reason: "spam_solicitation"
+        }
+      },
+      mockSettings
+    );
+
+    expect(res.output.success).toBe(true);
+    expect(res.output.call_ended).toBe(true);
+    expect(res.output.reason).toBe("spam_solicitation");
+  });
 });
