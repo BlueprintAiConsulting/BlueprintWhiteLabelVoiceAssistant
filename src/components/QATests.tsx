@@ -123,7 +123,7 @@ export default function QATests() {
                   }}
                   disabled={isRunning}
                   className={cn(
-                    "absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0",
+                    "absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-0 min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer",
                     isRunning && "cursor-not-allowed"
                   )}
                   title="Rerun this test"
@@ -138,17 +138,17 @@ export default function QATests() {
 
       {/* Main Content: Test Details */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-8 py-6 flex justify-between items-center z-10 shadow-lg">
+        <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-4 sm:px-8 py-3.5 sm:py-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 z-10 shadow-lg">
           <div>
-            <h2 className="text-xl font-serif italic text-slate-100">Scenario Execution</h2>
+            <h2 className="text-lg sm:text-xl font-serif italic text-slate-100">Scenario Execution</h2>
             <p className="text-[10px] uppercase tracking-widest text-cyan-400 font-mono font-bold">Automated Quality Assurance</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {selectedScenarioId && (
               <button
                 onClick={() => runSingleTest(TEST_SCENARIOS.find(s => s.id === selectedScenarioId)!)}
                 disabled={isRunning}
-                className="flex items-center gap-2 bg-slate-800 text-slate-200 px-4 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] hover:bg-slate-700 transition-all border border-slate-700 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-slate-800 text-slate-200 px-3.5 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] hover:bg-slate-700 transition-all border border-slate-700 disabled:opacity-50 min-h-[40px] cursor-pointer"
               >
                 <Play size={12} fill="currentColor" />
                 Run Current
@@ -157,7 +157,7 @@ export default function QATests() {
             <button
               onClick={runAllTests}
               disabled={isRunning}
-              className="flex items-center gap-2 bg-cyan-500 text-cyan-950 px-6 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50"
+              className="flex items-center gap-2 bg-cyan-500 text-cyan-950 px-4 sm:px-6 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] sm:text-[11px] hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50 min-h-[40px] cursor-pointer"
             >
               <Play size={14} fill="currentColor" />
               Run All Tests
@@ -174,12 +174,12 @@ export default function QATests() {
               exit={{ opacity: 0, y: -10 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="bg-slate-900/40 border-b border-slate-800 p-8">
-                <h3 className="text-3xl font-serif italic text-slate-100">{TEST_SCENARIOS.find(s => s.id === selectedScenarioId)?.name}</h3>
-                <p className="text-slate-400 mt-1">Scenario validation and AI reasoning details.</p>
+              <div className="bg-slate-900/40 border-b border-slate-800 p-4 sm:p-8">
+                <h3 className="text-xl sm:text-3xl font-serif italic text-slate-100">{TEST_SCENARIOS.find(s => s.id === selectedScenarioId)?.name}</h3>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1">Scenario validation and AI reasoning details.</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 sm:space-y-8 safe-area-bottom pb-20 sm:pb-8">
                 {/* Result Summary */}
                 {selectedResult ? (
                   <div className={cn(

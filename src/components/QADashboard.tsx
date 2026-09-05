@@ -220,12 +220,12 @@ export default function QADashboard() {
                   key={c.id}
                   onClick={() => { setSelectedCall(c); setCoachingInput(c.coaching_notes || ""); }}
                   className={cn(
-                    "p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center hover:border-cyan-500/50",
+                    "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:border-cyan-500/50",
                     flags.length > 0 ? "bg-amber-500/5 border-amber-500/30" : "bg-slate-800/40 border-slate-800"
                   )}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-sm text-slate-200">{c.captured_details.name || "Caller"}</span>
                       <span className="text-xs text-slate-400 font-mono">({c.captured_details.callback_number || "No number"})</span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 uppercase font-mono">{c.source}</span>
@@ -242,7 +242,7 @@ export default function QADashboard() {
                     )}
                   </div>
 
-                  <button type="button" className="px-3 py-1.5 bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold">
+                  <button type="button" className="w-full sm:w-auto px-4 py-2.5 bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-bold transition-all hover:bg-cyan-600/30 min-h-[40px] flex items-center justify-center cursor-pointer">
                     Review Call
                   </button>
                 </div>
@@ -259,15 +259,18 @@ export default function QADashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-6"
           >
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 space-y-6 shadow-2xl">
+            <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-3xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto p-5 sm:p-8 space-y-6 shadow-2xl safe-area-bottom pb-16 sm:pb-8">
+              {/* Mobile Drag Indicator Handle */}
+              <div className="sm:hidden w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto mb-2 shrink-0" />
+
               <div className="flex justify-between items-start border-b border-slate-800 pb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-100">QA Call Inspection</h3>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-100">QA Call Inspection</h3>
                   <p className="text-xs text-slate-400 font-mono">ID: {selectedCall.id} • Source: {selectedCall.source}</p>
                 </div>
-                <button type="button" onClick={() => setSelectedCall(null)} className="p-2 text-slate-400 hover:text-slate-200">
+                <button type="button" onClick={() => setSelectedCall(null)} className="p-2 text-slate-400 hover:text-slate-200 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer">
                   <X size={20} />
                 </button>
               </div>

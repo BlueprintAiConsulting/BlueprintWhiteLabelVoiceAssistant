@@ -3,7 +3,7 @@ import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onA
 import { Settings, IndustryType } from "../types.ts";
 import { INDUSTRY_PRESETS, getSettingsForIndustry, isRoofingMode, toggleRoofingMode } from "../services/industryPresets.ts";
 import { saveLocalSettings, getLocalSavedSettings } from "../services/geminiService.ts";
-import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer, Smartphone, Copy, Eye, EyeOff } from "lucide-react";
+import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer, Smartphone, Copy, Eye, EyeOff, DollarSign, Volume2 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
@@ -51,18 +51,39 @@ export default function SettingsPage() {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [testSmsStatus, setTestSmsStatus] = useState<'sending' | 'success' | 'error' | null>(null);
   const [isLightMode, setIsLightMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'light';
+    } catch (e) {}
     return !document.documentElement.classList.contains('dark');
   });
 
   const toggleTheme = () => {
     if (isLightMode) {
       document.documentElement.classList.add('dark');
+      try { localStorage.setItem('theme', 'dark'); } catch (e) {}
       setIsLightMode(false);
+      window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark: true } }));
     } else {
       document.documentElement.classList.remove('dark');
+      try { localStorage.setItem('theme', 'light'); } catch (e) {}
       setIsLightMode(true);
+      window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark: false } }));
     }
   };
+
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isDark: boolean }>;
+      if (customEvent?.detail?.isDark !== undefined) {
+        setIsLightMode(!customEvent.detail.isDark);
+      } else {
+        setIsLightMode(!document.documentElement.classList.contains('dark'));
+      }
+    };
+    window.addEventListener('themechange', handleThemeChange);
+    return () => window.removeEventListener('themechange', handleThemeChange);
+  }, []);
 
   useEffect(() => {
     // 1. Instantly load from local storage if present
@@ -205,15 +226,46 @@ export default function SettingsPage() {
         </motion.div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-8 max-w-6xl">
+      {/* Mobile Sticky Quick Jump Categories Bar */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 py-2.5 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 overflow-x-auto flex items-center gap-2 shrink-0 shadow-sm dark:shadow-none">
+        {[
+          { id: "section-trade", label: "Trade Mode", icon: Home },
+          { id: "section-emergency", label: "Emergency", icon: ShieldAlert },
+          { id: "section-missed-call", label: "Missed Call", icon: Phone },
+          { id: "section-identity", label: "Identity", icon: Building2 },
+          { id: "section-persona", label: "Voice Persona", icon: Sparkles },
+          { id: "section-booking", label: "Booking", icon: Calendar },
+          { id: "section-reviews", label: "Reviews", icon: Globe },
+          { id: "section-routing", label: "Routing", icon: PhoneCall },
+          { id: "section-pricing", label: "Pricing & FAQs", icon: DollarSign },
+          { id: "section-memory", label: "AI Memory", icon: Brain },
+          { id: "section-twilio", label: "Twilio PSTN", icon: Smartphone },
+          { id: "section-apikeys", label: "API Keys", icon: Key },
+        ].map((sec) => (
+          <button
+            key={sec.id}
+            type="button"
+            onClick={() => {
+              const el = document.getElementById(sec.id);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-cyan-700 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all min-h-[36px] cursor-pointer"
+          >
+            <sec.icon size={13} className="text-cyan-600 dark:text-cyan-400" />
+            <span>{sec.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-8 max-w-6xl pb-24 sm:pb-0">
         {/* ================================================================= */}
         {/* 0. SPECIALIZED TRADE MODE (ROOFING / HVAC)                       */}
         {/* ================================================================= */}
-        <section className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+        <section id="section-trade" className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
           <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
 
           {/* Quick Roofing Specialist Mode Hero Switch */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-cyan-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-slate-950/80 border border-cyan-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
             <div className="flex items-center gap-3.5">
               <div className={cn(
                 "p-3 rounded-2xl border transition-all shadow-md",
@@ -330,7 +382,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 1. EMERGENCY ROUTING & SAFETY DISPATCH (TOP VALUE TO OWNER)       */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-emergency" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[100px] rounded-full pointer-events-none" />
           <div className="flex items-center justify-between mb-2 relative z-10">
             <div className="flex items-center gap-3">
@@ -526,7 +578,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 2. MISSED-CALL TEXT BACK (VALUE #2: DIRECT LEAD SAVER)             */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-missed-call" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2 relative z-10">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-amber-500/20 rounded-2xl text-amber-400 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
@@ -563,7 +615,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 3. COMPANY IDENTITY & LOCAL SERVICE TERRITORY                    */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-identity" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
               <Building2 size={22} />
@@ -638,7 +690,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 4. RECEPTIONIST PERSONALITY & VOICE STYLE                         */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-persona" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
               <Bot size={22} />
@@ -695,7 +747,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 5. GOOGLE CALENDAR & APPOINTMENT BOOKING RULES                    */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-booking" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
               <Calendar size={22} />
@@ -751,7 +803,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 6. POST-SERVICE GOOGLE REVIEWS & SMS FOLLOW-UPS                   */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-reviews" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30">
@@ -803,7 +855,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 7. TELEPHONY & CALL ROUTING                                        */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-routing" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-fuchsia-500/20 rounded-2xl text-fuchsia-400 border border-fuchsia-500/30">
@@ -921,7 +973,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 8. COMPANY KNOWLEDGE BASE & PRICING                                */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-pricing" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-emerald-500/20 rounded-2xl text-emerald-400 border border-emerald-500/30">
@@ -1058,7 +1110,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 9. AI MEMORY & SELF-CORRECTION ENGINE                              */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-memory" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-indigo-500/20 rounded-2xl text-indigo-400 border border-indigo-500/30">
@@ -1136,7 +1188,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 10. TWILIO TELEPHONY & SMS INTEGRATION (API & WEBHOOK SETUP)      */}
         {/* ================================================================= */}
-        <section className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-twilio" className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full pointer-events-none" />
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 relative z-10">
             <div className="flex items-center gap-3">
@@ -1293,7 +1345,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 11. SYSTEM INTEGRATIONS & GEMINI API KEY (AT VERY BOTTOM)          */}
         {/* ================================================================= */}
-        <section className="bg-slate-50 dark:bg-slate-950/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
+        <section id="section-apikeys" className="bg-slate-50 dark:bg-slate-950/40 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/60 space-y-6 relative overflow-hidden">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 bg-cyan-500/20 rounded-2xl text-cyan-400 border border-cyan-500/30 shadow-[0_0_12px_rgba(34,211,238,0.3)]">
               <Key size={22} />
@@ -1324,6 +1376,23 @@ export default function SettingsPage() {
           </div>
         </section>
       </form>
+
+      {/* Mobile Floating Sticky Save Bar */}
+      <div className="sm:hidden fixed bottom-18 left-4 right-4 z-30 pointer-events-auto">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 py-3.5 px-6 rounded-2xl font-black uppercase tracking-wider text-xs shadow-[0_0_25px_rgba(34,211,238,0.5)] active:scale-[0.98] transition-all min-h-[48px] cursor-pointer disabled:opacity-50"
+        >
+          {isSaving ? (
+            <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+          ) : (
+            <Save size={16} />
+          )}
+          <span>{isSaving ? "Saving Settings..." : "Save All Settings"}</span>
+        </button>
+      </div>
     </div>
   );
 }

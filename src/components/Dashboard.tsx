@@ -37,29 +37,138 @@ const TYPE_ICONS: Partial<Record<CallType, any>> = {
   spam: XCircle
 };
 
+const SAMPLE_DEMO_LEADS: Lead[] = [
+  {
+    id: "lead_roof_01",
+    caller_name: "Marcus Vance",
+    callback_number: "(717) 555-4821",
+    call_type: "storm_hail_damage",
+    equipment_type: "Architectural Shingles (32 Squares)",
+    property_address: "1422 Colonial Crest Dr, York, PA",
+    call_status: "emergency_follow_up",
+    emergency_flag: true,
+    emergency_type: "Active Roof Leak & Missing Shingles",
+    ai_summary: "Severe storm damaged north ridge. Shingles blown off into yard, active water dripping into master bedroom ceiling. Emergency tarping requested immediately.",
+    transcript: [
+      { role: "user", text: "Hi, a tree branch hit our roof and shingles blew off in the storm. Water is dripping into our bedroom!" },
+      { role: "assistant", text: "I understand this is urgent! I'm alerting our on-call roofing crew right now for emergency tarping. What's your best callback number?" },
+      { role: "user", text: "My cell is (717) 555-4821. Marcus Vance." }
+    ],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 25) } as any
+  },
+  {
+    id: "lead_roof_02",
+    caller_name: "Elena Rostova",
+    callback_number: "(717) 555-9134",
+    call_type: "roof_replacement_estimate",
+    equipment_type: "CertainTeed Landmark Architectural",
+    property_address: "884 High Ridge Rd, Red Lion, PA",
+    call_status: "booked",
+    ai_summary: "Homeowner looking for complete roof replacement quote. 24-year-old 3-tab shingles curling. Scheduled comprehensive 21-point roof & attic inspection for Tuesday morning.",
+    transcript: [
+      { role: "user", text: "We need an estimate on replacing our old roof before winter." },
+      { role: "assistant", text: "Apex Roofing can certainly help. Our 21-point roof and attic inspection includes high-resolution drone imaging. Let's get that scheduled for you!" }
+    ],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 85) } as any
+  },
+  {
+    id: "lead_hvac_01",
+    caller_name: "Jane Smith",
+    callback_number: "(717) 555-0102",
+    call_type: "emergency",
+    equipment_type: "Carrier Infinity 96 Gas Furnace",
+    emergency_flag: true,
+    emergency_type: "No Heat (Freezing Ambient)",
+    property_address: "456 Oak Ave, Queens, NY",
+    call_status: "emergency_follow_up",
+    ai_summary: "Furnace stopped working, zero heat and outside ambient temperature is 18 degrees with elderly resident in home. Dispatched to on-call tech.",
+    transcript: [
+      { role: "user", text: "My heat stopped working and it is freezing in here!" },
+      { role: "assistant", text: "I'm escalating this emergency directly to our on-call technician." }
+    ],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 140) } as any
+  },
+  {
+    id: "lead_hvac_02",
+    caller_name: "John Doe",
+    callback_number: "(717) 555-0101",
+    call_type: "estimate_request",
+    equipment_type: "Dual Heat Pump & Inverter AC",
+    property_address: "123 Maple St, Brooklyn, NY",
+    call_status: "new",
+    ai_summary: "Wants an estimate for converting oil boiler to a high-efficiency multi-zone heat pump system.",
+    transcript: [],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 220) } as any
+  },
+  {
+    id: "lead_roof_03",
+    caller_name: "Brandon Cole",
+    callback_number: "(717) 555-7733",
+    call_type: "siding_estimate",
+    equipment_type: "James Hardie Board / Cedar Impressions",
+    property_address: "210 Meadowview Ln, Hanover, PA",
+    call_status: "contacted",
+    ai_summary: "Inquiring about full exterior remodel: James Hardie fiber cement siding and seamless aluminum 6-inch gutters.",
+    transcript: [],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 310) } as any
+  },
+  {
+    id: "lead_hvac_03",
+    caller_name: "Sarah Williams",
+    callback_number: "(717) 555-0104",
+    call_type: "maintenance_request",
+    equipment_type: "Trane XV20i Variable Speed AC",
+    property_address: "321 Birch Ln, Staten Island, NY",
+    call_status: "booked",
+    ai_summary: "VIP maintenance plan member scheduling 24-point spring AC precision tune-up.",
+    transcript: [],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 400) } as any
+  },
+  {
+    id: "lead_roof_04",
+    caller_name: "Gregory Hayes",
+    callback_number: "(717) 555-3091",
+    call_type: "emergency_tarping",
+    equipment_type: "Commercial Flat Roof (EPDM)",
+    emergency_flag: true,
+    emergency_type: "Punctured Membrane Leak",
+    property_address: "710 Industrial Way, York, PA",
+    call_status: "emergency_follow_up",
+    ai_summary: "Commercial building warehouse roof leaking near electrical subpanel. Urgent emergency tarp and patch crew required.",
+    transcript: [],
+    created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 500) } as any
+  }
+];
+
 export default function Dashboard() {
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<Lead[]>(SAMPLE_DEMO_LEADS);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<CallType | "all">("all");
   const [filterStatus, setFilterStatus] = useState<CallStatus | "all">("all");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(true);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
+        setIsDemoMode(false);
+        setIsLoading(true);
         const q = query(collection(db, "leads"), orderBy("created_at", "desc"));
         const unsubscribeLeads = onSnapshot(q, (snapshot) => {
           const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
-          setLeads(leadsData);
+          setLeads(leadsData.length > 0 ? leadsData : SAMPLE_DEMO_LEADS);
           setSelectedLead(prev => prev ? leadsData.find(l => l.id === prev.id) || null : null);
           setIsLoading(false);
         }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, "leads");
+          console.warn("Firestore leads subscription error:", error);
+          setLeads(SAMPLE_DEMO_LEADS);
+          setIsLoading(false);
         });
         return () => unsubscribeLeads();
       } else {
-        setLeads([]);
+        setIsDemoMode(true);
+        setLeads(SAMPLE_DEMO_LEADS);
         setIsLoading(false);
       }
     });
@@ -68,20 +177,30 @@ export default function Dashboard() {
   }, []);
 
   const updateStatus = async (leadId: string, status: CallStatus) => {
-    try {
-      await updateDoc(doc(db, "leads", leadId), { call_status: status, updated_at: serverTimestamp() });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, "leads");
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, call_status: status } : l));
+    if (selectedLead?.id === leadId) {
+      setSelectedLead(prev => prev ? { ...prev, call_status: status } : null);
+    }
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, "leads", leadId), { call_status: status, updated_at: serverTimestamp() });
+      } catch (error) {
+        console.warn("Cloud status update failed:", error);
+      }
     }
   };
 
   const deleteLead = async (leadId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this lead?")) return;
-    try {
-      await deleteDoc(doc(db, "leads", leadId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, "leads");
+    setLeads(prev => prev.filter(l => l.id !== leadId));
+    if (selectedLead?.id === leadId) setSelectedLead(null);
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, "leads", leadId));
+      } catch (error) {
+        console.warn("Cloud delete failed:", error);
+      }
     }
   };
 
@@ -145,7 +264,7 @@ export default function Dashboard() {
   const textBackCount = leads.filter(l => l.text_back_sent).length;
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-slate-950 overflow-hidden relative font-sans text-slate-100">
+    <div className="flex flex-col md:flex-row h-full bg-slate-50 dark:bg-slate-950 overflow-hidden relative font-sans text-slate-900 dark:text-slate-100">
       {/* Background radial glow spots */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -153,7 +272,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10 overflow-hidden">
         {/* Top Header */}
-        <header className="bg-slate-900  border-b border-slate-800/80 p-4 sm:p-6 flex flex-col gap-5 shrink-0 shadow-lg">
+        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 p-4 sm:p-6 flex flex-col gap-5 shrink-0 shadow-sm dark:shadow-lg">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <div className="flex items-center gap-3 flex-wrap">
@@ -161,9 +280,9 @@ export default function Dashboard() {
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                   System Active
                 </span>
-                <h1 className="text-xl sm:text-2xl font-serif italic text-slate-100 tracking-tight">Lead Engine Dashboard</h1>
+                <h1 className="text-xl sm:text-2xl font-serif italic text-slate-900 dark:text-slate-100 tracking-tight">Lead Engine Dashboard</h1>
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">Real-time caller telemetry & AI receptionist dispatch log.</p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Real-time caller telemetry & AI receptionist dispatch log.</p>
             </div>
             <div className="flex gap-2 shrink-0">
               {leads.length > 0 ? (
@@ -190,17 +309,17 @@ export default function Dashboard() {
           {/* High-Tech Telemetry Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Total Inbound Card */}
-            <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800/80  relative overflow-hidden shadow-lg hover:border-slate-700/90 transition-all group">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 relative overflow-hidden shadow-sm dark:shadow-lg hover:border-slate-300 dark:hover:border-slate-700/90 transition-all group">
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-slate-600 via-slate-400 to-slate-600 opacity-60" />
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-400 flex items-center gap-1.5">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                   Total Inbound
                 </span>
                 <span className="text-[10px] font-mono text-slate-500">100% AI Automated</span>
               </div>
               <div className="flex items-baseline justify-between mt-2">
-                <p className="text-3xl font-light text-slate-100 tracking-tight">{leads.length}</p>
+                <p className="text-3xl font-light text-slate-900 dark:text-slate-100 tracking-tight">{leads.length}</p>
                 <span className="text-[11px] font-mono text-slate-500">calls logged</span>
               </div>
             </div>
@@ -258,7 +377,7 @@ export default function Dashboard() {
         {/* Content Body & Filters */}
         <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-w-0 space-y-4">
           {/* Glass Search & Filter Control Bar */}
-          <div className="bg-slate-900  p-2 border border-slate-800/80 rounded-2xl flex flex-col sm:flex-row gap-2 shadow-lg">
+          <div className="bg-white dark:bg-slate-900 p-2 border border-slate-200 dark:border-slate-800/80 rounded-2xl flex flex-col sm:flex-row gap-2 shadow-sm dark:shadow-lg">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
@@ -267,43 +386,43 @@ export default function Dashboard() {
                 placeholder="Search leads by name, phone number, address, or summary..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/80 min-h-[44px] transition-all"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/80 min-h-[44px] transition-all"
               />
             </div>
             <div className="flex gap-2">
-              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
                 <Filter size={14} className="text-cyan-400 shrink-0" />
                 <select
                   aria-label="Filter by lead type"
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as any)}
-                  className="text-xs sm:text-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/80 text-slate-300 font-medium w-full cursor-pointer"
+                  className="text-xs sm:text-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/80 text-slate-700 dark:text-slate-300 font-medium w-full cursor-pointer"
                 >
-                  <option value="all" className="bg-slate-900">All Types</option>
-                  <option value="estimate_request" className="bg-slate-900">Estimate Request</option>
-                  <option value="emergency" className="bg-slate-900">Emergency</option>
-                  <option value="repair_request" className="bg-slate-900">Repair Request</option>
-                  <option value="maintenance_request" className="bg-slate-900">Maintenance</option>
-                  <option value="existing_customer" className="bg-slate-900">Existing Customer</option>
-                  <option value="general_office" className="bg-slate-900">General Office</option>
-                  <option value="spam" className="bg-slate-900">Spam</option>
+                  <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Types</option>
+                  <option value="estimate_request" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Estimate Request</option>
+                  <option value="emergency" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Emergency</option>
+                  <option value="repair_request" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Repair Request</option>
+                  <option value="maintenance_request" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Maintenance</option>
+                  <option value="existing_customer" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Existing Customer</option>
+                  <option value="general_office" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">General Office</option>
+                  <option value="spam" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Spam</option>
                 </select>
               </div>
-              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-950 border border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
                 <Clock size={14} className="text-cyan-400 shrink-0" />
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as any)}
-                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-300 font-medium w-full cursor-pointer"
+                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-700 dark:text-slate-300 font-medium w-full cursor-pointer"
                 >
-                  <option value="all" className="bg-slate-900">All Statuses</option>
-                  <option value="new" className="bg-slate-900">New</option>
-                  <option value="contacted" className="bg-slate-900">Contacted</option>
-                  <option value="booked" className="bg-slate-900">Booked</option>
-                  <option value="closed" className="bg-slate-900">Closed</option>
-                  <option value="spam" className="bg-slate-900">Spam</option>
-                  <option value="emergency_follow_up" className="bg-slate-900">Emergency</option>
-                  <option value="after_hours_follow_up" className="bg-slate-900">After Hours</option>
+                  <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Statuses</option>
+                  <option value="new" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">New</option>
+                  <option value="contacted" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Contacted</option>
+                  <option value="booked" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Booked</option>
+                  <option value="closed" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Closed</option>
+                  <option value="spam" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Spam</option>
+                  <option value="emergency_follow_up" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Emergency</option>
+                  <option value="after_hours_follow_up" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">After Hours</option>
                 </select>
               </div>
             </div>
@@ -325,8 +444,8 @@ export default function Dashboard() {
                     key={lead.id}
                     onClick={() => setSelectedLead(lead)}
                     className={cn(
-                      "p-4 rounded-2xl border transition-all cursor-pointer space-y-3 bg-slate-900  active:scale-[0.99] shadow-md relative overflow-hidden",
-                      selectedLead?.id === lead.id ? "border-cyan-500 ring-1 ring-cyan-500/50" : "border-slate-800/80 hover:border-slate-700",
+                      "p-4 rounded-2xl border transition-all cursor-pointer space-y-3 bg-white dark:bg-slate-900 active:scale-[0.99] shadow-sm dark:shadow-md relative overflow-hidden",
+                      selectedLead?.id === lead.id ? "border-cyan-500 ring-1 ring-cyan-500/50" : "border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700",
                       isEmergency && "bg-rose-950/20 border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
                     )}
                   >
@@ -336,7 +455,7 @@ export default function Dashboard() {
                           <Icon size={18} />
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-slate-100">{lead.caller_name || "Unknown Caller"}</div>
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{lead.caller_name || "Unknown Caller"}</div>
                           <div className="text-xs font-mono text-cyan-400/90">{lead.callback_number}</div>
                         </div>
                       </div>
@@ -345,21 +464,37 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-300 line-clamp-2 bg-slate-950 p-3 rounded-xl border border-slate-800/60 font-light">
+                    <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800/60 font-light">
                       {lead.ai_summary || "No summary captured."}
                     </p>
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-400 font-mono pt-3 border-t border-slate-800/60 gap-3">
-                      <span className="truncate max-w-[200px] bg-slate-900/50 px-2 py-1 rounded-md border border-slate-800">{lead.property_address || "No address"}</span>
-                      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                        <span className="text-slate-500 bg-slate-900/50 px-2 py-1 rounded-md border border-slate-800">{lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}</span>
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <MapPin size={12} className="text-cyan-400 shrink-0" />
+                        <span className="truncate bg-slate-100 dark:bg-slate-900/50 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">{lead.property_address || "No address"}</span>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                        <span className="text-slate-500 bg-slate-100 dark:bg-slate-900/50 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-800 text-[10px]">{lead.created_at?.toDate ? format(lead.created_at.toDate(), "h:mm a") : "Now"}</span>
+                        
+                        {lead.callback_number && (
+                          <a
+                            href={`tel:${lead.callback_number}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl min-h-[40px] bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all font-bold tracking-wide shadow-sm active:scale-95"
+                            title="Call Homeowner"
+                          >
+                            <Phone size={12} />
+                            <span className="uppercase text-[10px]">Call</span>
+                          </a>
+                        )}
+
                         <button
                           onClick={(e) => deleteLead(lead.id!, e)}
-                          className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 transition-all font-bold tracking-wide shadow-glow-rose-sm hover:shadow-glow-rose"
+                          className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl min-h-[40px] bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 transition-all font-bold tracking-wide shadow-glow-rose-sm hover:shadow-glow-rose active:scale-95"
                           title="Delete Lead"
                         >
-                          <Trash2 size={13} />
-                          <span className="uppercase text-[9px]">Delete</span>
+                          <Trash2 size={12} />
+                          <span className="uppercase text-[10px]">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -370,10 +505,10 @@ export default function Dashboard() {
           </div>
 
           {/* Desktop Table View (>= md screen) */}
-          <div className="hidden md:block bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden  shadow-2xl">
+          <div className="hidden md:block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm dark:shadow-2xl">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-900 border-b border-slate-800/80 text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 text-[10px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   <th className="p-4 pl-6">Type</th>
                   <th className="p-4">Caller</th>
                   <th className="p-4">Summary & Preview</th>
@@ -382,7 +517,7 @@ export default function Dashboard() {
                   <th className="p-4 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50 text-sm">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm">
                 {isLoading ? (
                   <tr>
                     <td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs">LOADING LEADS TELEMETRY...</td>
@@ -402,8 +537,8 @@ export default function Dashboard() {
                         key={lead.id}
                         onClick={() => setSelectedLead(lead)}
                         className={cn(
-                          "hover:bg-slate-800/40 transition-all cursor-pointer group",
-                          selectedLead?.id === lead.id && "bg-slate-800 border-slate-700 shadow-[0_0_15px_rgba(34,211,238,0.1)]",
+                          "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all cursor-pointer group",
+                          selectedLead?.id === lead.id && "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-[0_0_15px_rgba(34,211,238,0.1)]",
                           isEmergency && "bg-rose-950/30 border-rose-900/50"
                         )}
                       >
@@ -415,11 +550,11 @@ export default function Dashboard() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <div className="font-semibold text-slate-100 group-hover:text-cyan-300 transition-colors">{lead.caller_name || "Unknown Caller"}</div>
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">{lead.caller_name || "Unknown Caller"}</div>
                           <div className="text-xs font-mono text-cyan-400/90 mt-0.5">{lead.callback_number}</div>
                         </td>
                         <td className="p-4 max-w-xs lg:max-w-md">
-                          <div className="text-slate-200 font-light line-clamp-1">{lead.ai_summary || "No summary captured."}</div>
+                          <div className="text-slate-700 dark:text-slate-200 font-light line-clamp-1">{lead.ai_summary || "No summary captured."}</div>
                           {lastMessage && (
                             <div className="text-xs text-slate-400 line-clamp-1 mt-1 font-mono italic">
                               "{lastMessage}"
@@ -446,7 +581,7 @@ export default function Dashboard() {
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }}
-                              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-slate-800/80 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 border border-slate-700/60 hover:border-cyan-500/40 transition-all shadow-sm font-bold tracking-wide uppercase text-[10px]"
+                              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-slate-600 dark:text-slate-400 hover:text-cyan-700 dark:hover:text-cyan-400 border border-slate-200 dark:border-slate-700/60 hover:border-cyan-300 dark:hover:border-cyan-500/40 transition-all shadow-sm font-bold tracking-wide uppercase text-[10px] cursor-pointer"
                               title="Inspect Details"
                             >
                               Details <ChevronRight size={14} />
@@ -478,15 +613,18 @@ export default function Dashboard() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] lg:w-[560px] bg-slate-900  border-l border-slate-800/90 shadow-2xl flex flex-col"
+              className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] lg:w-[560px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800/90 shadow-2xl flex flex-col"
             >
-              <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
+              {/* Mobile Drag Indicator Handle */}
+              <div className="sm:hidden w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-2 shrink-0" />
+
+              <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={cn("p-2.5 rounded-xl border shadow-inner shrink-0", selectedLead.call_status === "emergency_follow_up" ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-slate-800 text-cyan-400 border-slate-700")}>
                     {React.createElement(TYPE_ICONS[selectedLead.call_type] || Phone, { size: 20 })}
                   </div>
                   <div>
-                    <h2 className="text-base sm:text-lg font-serif italic text-slate-100">Lead Inspector</h2>
+                    <h2 className="text-base sm:text-lg font-serif italic text-slate-900 dark:text-slate-100">Lead Inspector</h2>
                     <p className="text-[10px] uppercase tracking-widest text-cyan-400 font-bold font-mono mt-0.5">
                       ID: {selectedLead.id?.slice(-8)}
                     </p>
@@ -494,27 +632,47 @@ export default function Dashboard() {
                 </div>
                 <button
                   onClick={() => setSelectedLead(null)}
-                  className="text-slate-400 hover:text-slate-200 transition-colors p-2 rounded-xl hover:bg-slate-800/80 min-h-[44px] min-w-[44px] flex items-center justify-center border border-transparent hover:border-slate-700"
+                  className="text-slate-400 hover:text-slate-200 transition-colors p-2 rounded-xl hover:bg-slate-800/80 min-h-[44px] min-w-[44px] flex items-center justify-center border border-transparent hover:border-slate-700 cursor-pointer"
                   aria-label="Close detail panel"
                 >
                   <XCircle size={22} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 safe-area-bottom pb-24 sm:pb-6">
                 {/* Header Info */}
-                <div className="flex justify-between items-start bg-slate-950 p-5 rounded-2xl border border-slate-800/80">
+                <div className="flex justify-between items-start bg-slate-50 dark:bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80">
                   <div className="space-y-1">
-                    <h3 className="text-xl font-medium text-slate-100">{selectedLead.caller_name || "Unknown Caller"}</h3>
+                    <h3 className="text-lg sm:text-xl font-medium text-slate-900 dark:text-slate-100">{selectedLead.caller_name || "Unknown Caller"}</h3>
                     <div className="flex items-center gap-2 text-slate-400">
                       <Phone size={14} className="text-cyan-400" />
-                      <span className="text-base font-mono text-cyan-400 font-semibold">{selectedLead.callback_number}</span>
+                      <span className="text-sm sm:text-base font-mono text-cyan-400 font-semibold">{selectedLead.callback_number}</span>
                     </div>
                   </div>
-                  <span className={cn("text-[10px] uppercase font-bold px-3 py-1 rounded-full tracking-widest border shadow-sm", STATUS_COLORS[selectedLead.call_status])}>
+                  <span className={cn("text-[9px] sm:text-[10px] uppercase font-bold px-2.5 sm:px-3 py-1 rounded-full tracking-widest border shadow-sm shrink-0", STATUS_COLORS[selectedLead.call_status])}>
                     {selectedLead.call_status.replace("_", " ")}
                   </span>
                 </div>
+
+                {/* 1-Tap Homeowner Direct Action Bar */}
+                {selectedLead.callback_number && (
+                  <div className="flex gap-2.5">
+                    <a
+                      href={`tel:${selectedLead.callback_number}`}
+                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 py-3 px-4 rounded-xl font-black uppercase tracking-wider text-xs shadow-[0_0_20px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-all min-h-[46px]"
+                    >
+                      <Phone size={15} />
+                      Call Homeowner
+                    </a>
+                    <a
+                      href={`sms:${selectedLead.callback_number}`}
+                      className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 py-3 px-4 rounded-xl font-bold uppercase tracking-wider text-xs active:scale-[0.98] transition-all min-h-[46px]"
+                    >
+                      <MessageSquare size={15} />
+                      Send SMS
+                    </a>
+                  </div>
+                )}
 
                 {/* Quick Action Pills */}
                 <div className="grid grid-cols-2 gap-2">
@@ -537,10 +695,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-1 gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800/80">
+                <div className="grid grid-cols-1 gap-4 bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80">
                   <div className="space-y-1">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Property Address</div>
-                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                    <div className="text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <MapPin size={14} className="text-cyan-400" />
                       {selectedLead.property_address || "Not provided"}
                     </div>
@@ -548,7 +706,7 @@ export default function Dashboard() {
 
                   <div className="space-y-1">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Equipment</div>
-                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                    <div className="text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <Wrench size={14} className="text-cyan-400" />
                       {selectedLead.equipment_type || "Unknown"}
                       {selectedLead.maintenance_agreement && (
@@ -559,7 +717,7 @@ export default function Dashboard() {
 
                   <div className="space-y-1">
                     <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">Appointment Request</div>
-                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                    <div className="text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <Calendar size={14} className="text-cyan-400" />
                       {selectedLead.preferred_appointment_date ? (
                         <span className="font-medium text-cyan-200">

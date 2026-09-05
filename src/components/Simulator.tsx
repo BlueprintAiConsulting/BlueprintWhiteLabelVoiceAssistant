@@ -36,6 +36,7 @@ export default function Simulator() {
   const [activeIndustry, setActiveIndustry] = useState<IndustryType>("hvac");
   const [settings, setSettings] = useState<any>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<"call" | "scenarios" | "telemetry">("call");
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
@@ -130,6 +131,7 @@ export default function Simulator() {
   const startCall = async (initialPrompt?: string) => {
     if (isCalling) endCall();
     
+    setMobileTab("call");
     setIsLoading(true);
     try {
       const activeConf = getSettingsForIndustry(activeIndustry, settings || await getSettings());
@@ -160,6 +162,7 @@ export default function Simulator() {
   const startVoiceCall = async () => {
     if (isCalling) endCall();
 
+    setMobileTab("call");
     setIsLoading(true);
     setIsVoiceMode(true);
     setTranscript([]);
@@ -471,49 +474,97 @@ export default function Simulator() {
             Active Trade: <span className="text-cyan-300 font-semibold">{INDUSTRY_PRESETS[activeIndustry]?.name}</span> ({settings?.office_name || INDUSTRY_PRESETS[activeIndustry]?.defaultOfficeName}) — simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2.5 shrink-0">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 w-full lg:w-auto">
           {isCalling ? (
             <button
               onClick={endCall}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-500/20 text-rose-300 border border-rose-500/50 px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-xs hover:bg-rose-500/30 transition-all shadow-[0_0_20px_rgba(244,63,94,0.3)] min-h-[44px]"
+              className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-rose-500/25 text-rose-200 border border-rose-500/60 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm hover:bg-rose-500/35 transition-all shadow-[0_0_25px_rgba(244,63,94,0.4)] min-h-[48px] active:scale-[0.98] cursor-pointer"
             >
-              <PhoneOff size={16} />
-              Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})
+              <PhoneOff size={18} />
+              <span>Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})</span>
             </button>
           ) : (
-            <>
-              <button
-                onClick={simulateMissedCall}
-                disabled={isLoading}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-amber-500/20 transition-all shadow-sm disabled:opacity-50 min-h-[44px]"
-              >
-                <MessageSquare size={16} />
-                Missed Text
-              </button>
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2.5">
               <button
                 onClick={startVoiceCall}
                 disabled={isLoading}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-cyan-500/30 transition-all shadow-[0_0_15px_rgba(34,211,238,0.25)] disabled:opacity-50 relative overflow-hidden group min-h-[44px]"
+                className="w-full sm:w-auto flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm hover:from-cyan-400 hover:to-cyan-300 transition-all shadow-[0_0_25px_rgba(34,211,238,0.45)] disabled:opacity-50 relative overflow-hidden group min-h-[48px] active:scale-[0.98] cursor-pointer"
               >
-                <Mic size={16} className="text-cyan-400" />
-                Live Voice Call (Mic)
+                <Mic size={18} className="text-slate-950 animate-pulse" />
+                <span>Live Voice Call (Mic)</span>
               </button>
-              <button
-                onClick={() => startCall()}
-                disabled={isLoading}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-4 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs hover:bg-emerald-500/20 transition-all shadow-sm disabled:opacity-50 min-h-[44px]"
-              >
-                <Phone size={16} />
-                Text Call
-              </button>
-            </>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => startCall()}
+                  disabled={isLoading}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-900/80 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                >
+                  <Phone size={15} />
+                  Text Call
+                </button>
+                <button
+                  onClick={simulateMissedCall}
+                  disabled={isLoading}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-900/80 hover:bg-slate-800 text-amber-400 border border-amber-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                >
+                  <MessageSquare size={15} />
+                  Missed Text
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
+      {/* Mobile Segmented View Switcher (< lg screens) */}
+      <div className="lg:hidden flex items-center bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/90 shadow-lg shrink-0 gap-1.5 z-10">
+        <button
+          type="button"
+          onClick={() => setMobileTab("call")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
+            mobileTab === "call"
+              ? "bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.4)] font-black"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <Phone size={14} className={cn(isCalling && "text-slate-950 animate-bounce")} />
+          <span>Call {isCalling ? "(Active)" : ""}</span>
+          {isCalling && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileTab("scenarios")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
+            mobileTab === "scenarios"
+              ? "bg-slate-800 text-cyan-300 shadow-sm border border-slate-700/80 font-black"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <Sparkles size={14} />
+          <span>Scenarios</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileTab("telemetry")}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
+            mobileTab === "telemetry"
+              ? "bg-slate-800 text-cyan-300 shadow-sm border border-slate-700/80 font-black"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <Activity size={14} />
+          <span>Telemetry {capturedLead ? "(1)" : ""}</span>
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 overflow-hidden relative z-10">
         {/* Left Column: Persona & Quick Launch Scenarios */}
-          <div className="flex flex-col gap-5 overflow-y-auto pr-1">
+        <div className={cn("flex flex-col gap-5 overflow-y-auto pr-1", mobileTab !== "scenarios" && "hidden lg:flex")}>
           {/* Receptionist Settings Display */}
           <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3">
             <div className="flex items-center justify-between">
@@ -548,7 +599,7 @@ export default function Simulator() {
                   key={scenario.id}
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
-                  className="flex items-center gap-3 p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-md"
+                  className="flex items-center gap-3 p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-md cursor-pointer active:scale-[0.99]"
                 >
                   <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0 group-hover:bg-cyan-500/20 transition-all">
                     <Sparkles size={16} />
@@ -571,7 +622,24 @@ export default function Simulator() {
         </div>
 
         {/* Center: Live Call Workspace & Transcript */}
-        <div className="lg:col-span-2 flex flex-col bg-slate-900 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden relative ">
+        <div className={cn("lg:col-span-2 flex flex-col bg-slate-900 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden relative min-h-[520px] lg:min-h-0", mobileTab !== "call" && "hidden lg:flex")}>
+          {/* Quick Scenario Chips Bar for Mobile */}
+          <div className="lg:hidden px-3.5 py-2.5 bg-slate-950/80 border-b border-slate-800/80 overflow-x-auto flex items-center gap-2 shrink-0">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold shrink-0">Quick Start:</span>
+            {(INDUSTRY_PRESETS[activeIndustry]?.quickScenarios || []).map((sc: any) => (
+              <button
+                key={sc.id}
+                type="button"
+                onClick={() => startCall(sc.prompt)}
+                disabled={isLoading}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border border-slate-800 rounded-xl text-[11px] font-medium whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[36px] cursor-pointer"
+              >
+                <Sparkles size={12} className="text-cyan-400" />
+                <span>{sc.title || sc.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Call Status Header */}
           <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
@@ -696,7 +764,7 @@ export default function Simulator() {
                     VAD STATUS: {turnState.replace("_", " ")}
                   </span>
                 </div>
-                <span className="text-slate-400 italic text-[11px]">Barge-In Interrupt & Auto Voice Detection Active</span>
+                <span className="text-slate-400 italic text-[11px] hidden sm:inline">Barge-In Interrupt & Auto Voice Detection Active</span>
               </div>
             ) : (
               <form
@@ -727,7 +795,7 @@ export default function Simulator() {
         </div>
 
         {/* Right Column: Live Function Call Debugger & Captured Lead Card */}
-        <div className="flex flex-col gap-5 overflow-y-auto pl-1">
+        <div className={cn("flex flex-col gap-5 overflow-y-auto pl-1", mobileTab !== "telemetry" && "hidden lg:flex")}>
           {/* Acoustic Sound Diagnostic Visualizer */}
           {capturedLead?.sound_diagnosis && (
             <section className="bg-amber-950/20 border border-amber-500/40 p-4 rounded-2xl  shadow-lg space-y-2.5">
