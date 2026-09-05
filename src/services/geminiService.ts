@@ -69,18 +69,26 @@ export async function getSettings(): Promise<Settings> {
     if (settingsDoc.exists()) {
       const cloudSettings = settingsDoc.data() as Settings;
       // If local storage has an active trade explicitly selected by the user, keep it in sync
+      let merged = cloudSettings;
       if (local && local.industry && local.industry !== cloudSettings.industry) {
-        return { ...cloudSettings, ...local };
+        merged = { ...cloudSettings, ...local };
       }
-      saveLocalSettings(cloudSettings);
-      return cloudSettings;
+      if (merged.industry === "roofing_siding" && (!merged.office_name || /lunar|heating|cooling|hvac|apex/i.test(merged.office_name))) {
+        merged.office_name = "Spring Valley Roofing";
+      }
+      saveLocalSettings(merged);
+      return merged;
     }
   } catch (error) {
     console.warn("Could not fetch Firestore settings, falling back to local storage:", error);
   }
 
   if (local) {
-    return { ...DEFAULT_SETTINGS, ...local };
+    const res = { ...DEFAULT_SETTINGS, ...local };
+    if (res.industry === "roofing_siding" && (!res.office_name || /lunar|heating|cooling|hvac|apex/i.test(res.office_name))) {
+      res.office_name = "Spring Valley Roofing";
+    }
+    return res;
   }
 
   return DEFAULT_SETTINGS;
@@ -186,9 +194,12 @@ export async function createReceptionistChat(customSettings?: Settings): Promise
       const recName = settings.receptionist_name || "Megan";
 
       if (isGreeting) {
+        const office = isRoofing
+          ? ((!settings.office_name || /lunar|heating|cooling|hvac|apex/i.test(settings.office_name)) ? "Spring Valley Roofing" : settings.office_name)
+          : (settings.office_name || "our office");
         const tradeSpecialty = isRoofing ? "roofing or siding" : "heating or cooling";
-        resText = `Thanks for calling ${settings.office_name || "our office"}! This is ${recName}. How can I help you with your ${tradeSpecialty} today?`;
-      } else if (fullText.includes("transfer") || fullText.includes("talk to") || fullText.includes("speak with") || fullText.includes("connect me to") || fullText.includes("josh")) {
+        resText = `Thanks for calling ${office}! This is ${recName}. How can I help you with your ${tradeSpecialty} today?`;
+      } else if (fullText.includes("transfer") || fullText.includes("talk to") || fullText.includes("speak with") || fullText.includes("connect me to") || fullText.includes("josh") || fullText.includes("chris")) {
         isTransfer = true;
         const plan = buildHumanEscalationPlan({ reason: messageText, caller_name: extractedName, callback_number: leadData.callback_number }, settings);
         
@@ -214,7 +225,8 @@ export async function createReceptionistChat(customSettings?: Settings): Promise
         } else if (callType === "siding_estimate") {
           resText = `We can definitely help with siding replacement and exterior trim. What is your address and what type of siding are you looking for?`;
         } else {
-          resText = `Thank you for calling ${settings.office_name || "Apex Roofing & Siding"}. I have noted all your details, and our estimator will follow up with you promptly.`;
+          const roofingOffice = (!settings.office_name || /lunar|heating|cooling|hvac|apex/i.test(settings.office_name)) ? "Spring Valley Roofing" : settings.office_name;
+          resText = `Thank you for calling ${roofingOffice}. I have noted all your details, and our estimator will follow up with you promptly.`;
         }
       } else {
         if (callType === "estimate_request") {

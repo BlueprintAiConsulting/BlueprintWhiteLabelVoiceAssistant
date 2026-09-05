@@ -43,9 +43,19 @@ export default function Simulator() {
   const timerRef = useRef<any>(null);
 
   useEffect(() => {
+    const sanitizeRoofing = (cfg: any) => {
+      if (cfg && cfg.industry === "roofing_siding") {
+        if (!cfg.office_name || /lunar|heating|cooling|hvac|apex/i.test(cfg.office_name)) {
+          cfg.office_name = "Spring Valley Roofing";
+        }
+      }
+      return cfg;
+    };
+
     // 1. Instantly read local settings for zero-flicker render
     const local = getLocalSavedSettings();
     if (local) {
+      sanitizeRoofing(local);
       setSettings(local);
       if (local.industry) setActiveIndustry(local.industry);
       if (local.receptionist_voice) setActiveVoiceName(local.receptionist_voice);
@@ -53,6 +63,7 @@ export default function Simulator() {
     }
 
     getSettings().then((s) => {
+      sanitizeRoofing(s);
       setSettings(s);
       if (s.industry) setActiveIndustry(s.industry);
       if (s.receptionist_voice) setActiveVoiceName(s.receptionist_voice);
@@ -62,6 +73,7 @@ export default function Simulator() {
     const handleSettingsUpdated = (e: any) => {
       const updated = e.detail;
       if (updated) {
+        sanitizeRoofing(updated);
         setSettings(updated);
         if (updated.industry) setActiveIndustry(updated.industry);
         if (updated.receptionist_voice) setActiveVoiceName(updated.receptionist_voice);
@@ -76,6 +88,9 @@ export default function Simulator() {
     setActiveIndustry(trade);
     const current = settings || await getSettings();
     const updated = getSettingsForIndustry(trade, current);
+    if (trade === "roofing_siding" && (!updated.office_name || /lunar|heating|cooling|hvac|apex/i.test(updated.office_name))) {
+      updated.office_name = "Spring Valley Roofing";
+    }
     setSettings(updated);
     saveLocalSettings(updated);
     if (updated.receptionist_voice) setActiveVoiceName(updated.receptionist_voice);
@@ -135,6 +150,9 @@ export default function Simulator() {
     setIsLoading(true);
     try {
       const activeConf = getSettingsForIndustry(activeIndustry, settings || await getSettings());
+      if (activeIndustry === "roofing_siding" && (!activeConf.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeConf.office_name))) {
+        activeConf.office_name = "Spring Valley Roofing";
+      }
       const newChat = await createReceptionistChat(activeConf);
       setChat(newChat);
       setIsCalling(true);
@@ -175,6 +193,9 @@ export default function Simulator() {
       try {
         const fetched = await getSettings();
         activeSettings = getSettingsForIndustry(activeIndustry, fetched);
+        if (activeIndustry === "roofing_siding" && (!activeSettings.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeSettings.office_name))) {
+          activeSettings.office_name = "Spring Valley Roofing";
+        }
         const loadedVoice = activeSettings.receptionist_voice || "Aoede";
         const loadedName = activeSettings.receptionist_name || "Megan";
         setActiveVoiceName(loadedVoice);
@@ -183,6 +204,9 @@ export default function Simulator() {
         setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS CONTEXT] Trade: ${tradeTitle} | Business: "${activeSettings.office_name}" | Receptionist: ${loadedName} (${loadedVoice})` }]);
       } catch (sErr) {
         activeSettings = getSettingsForIndustry(activeIndustry);
+        if (activeIndustry === "roofing_siding" && (!activeSettings.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeSettings.office_name))) {
+          activeSettings.office_name = "Spring Valley Roofing";
+        }
         setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS WARNING] Operating on local trade preset: "${activeSettings.office_name}".` }]);
       }
 

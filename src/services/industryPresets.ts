@@ -128,10 +128,10 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     shortName: 'Roofing & Siding',
     tagline: 'Premier Roof Replacement, Storm Damage & Siding Contractors',
     iconName: 'Home',
-    defaultOfficeName: 'Apex Roofing & Siding',
+    defaultOfficeName: 'Spring Valley Roofing',
     defaultReceptionistName: 'Megan',
-    defaultOwnerName: 'Josh',
-    defaultOwnerTitle: 'Lead Estimator & Owner',
+    defaultOwnerName: 'Chris',
+    defaultOwnerTitle: 'Master Roofing Specialist & Owner',
     defaultOwnerPhone: '+17175770668',
     emergencyKeywords: ['active leak', 'water pouring', 'roof collapse', 'tree on roof', 'downed line', 'emergency tarp', 'ceiling sagging'],
     equipmentTypes: ['Architectural Shingle', 'Metal Roof', 'Flat EPDM Rubber', 'Tile', 'Slate', 'Vinyl Siding', 'Fiber Cement / Hardie', 'Seamless Gutters'],
@@ -156,7 +156,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     pricingDefaults: {
       serviceCall: '$99 Roof Leak Diagnostic & Inspection',
       afterHours: '$249 Emergency Roof Tarping Dispatch',
-      maintenancePlanName: 'RoofGuard Annual Maintenance & Inspection',
+      maintenancePlanName: 'Spring Valley RoofGuard Protection Plan',
       maintenancePlanPrice: '$299/year',
       maintenancePlanBenefits: 'Annual 21-point roof inspection, gutter cleaning, resealing pipe boots/flashing, emergency priority tarping, and 10% discount on future repairs.'
     },
@@ -524,6 +524,7 @@ const DEFAULT_TRADE_NAMES = [
   "Blueprint AI Business",
   "Lunar Heating and Cooling",
   "Lunar Heating & Air",
+  "Spring Valley Roofing",
   "Apex Roofing & Siding",
   "Blue Wave Plumbing & Drains",
   "VoltCraft Electrical Solutions",
@@ -545,6 +546,13 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
   } else if (existingSettings?.office_name && isChangingTrade) {
     const wasDefault = DEFAULT_TRADE_NAMES.includes(existingSettings.office_name.trim());
     resolvedOfficeName = wasDefault ? preset.defaultOfficeName : `${existingSettings.office_name} (${preset.shortName})`;
+  }
+
+  // Roofing guardrail: If roofing mode is active, purge any HVAC / old Apex branding remnants
+  if (industry === "roofing_siding") {
+    if (!resolvedOfficeName || /lunar|heating|cooling|hvac|apex/i.test(resolvedOfficeName)) {
+      resolvedOfficeName = "Spring Valley Roofing";
+    }
   }
 
   const base: Settings = existingSettings || {

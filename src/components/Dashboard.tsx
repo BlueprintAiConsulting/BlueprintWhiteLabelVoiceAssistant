@@ -67,7 +67,7 @@ const SAMPLE_DEMO_LEADS: Lead[] = [
     ai_summary: "Homeowner looking for complete roof replacement quote. 24-year-old 3-tab shingles curling. Scheduled comprehensive 21-point roof & attic inspection for Tuesday morning.",
     transcript: [
       { role: "user", text: "We need an estimate on replacing our old roof before winter." },
-      { role: "assistant", text: "Apex Roofing can certainly help. Our 21-point roof and attic inspection includes high-resolution drone imaging. Let's get that scheduled for you!" }
+      { role: "assistant", text: "Spring Valley Roofing can certainly help. Our 21-point roof and attic inspection includes high-resolution drone imaging. Let's get that scheduled for you!" }
     ],
     created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 85) } as any
   },

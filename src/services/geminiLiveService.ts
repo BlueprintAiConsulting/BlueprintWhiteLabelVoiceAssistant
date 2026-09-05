@@ -121,8 +121,17 @@ export class GeminiLiveSession {
     const selectedVoice = this.options.voiceName || baseSettings.receptionist_voice || "Aoede";
     const selectedName = this.options.personaName || baseSettings.receptionist_name || "Sarah";
 
+    let resolvedOffice = this.options.officeName || baseSettings.office_name;
+    const isRoofingTrade = baseSettings.industry === "roofing_siding" || /roof|siding/i.test(resolvedOffice);
+    if (isRoofingTrade) {
+      if (!resolvedOffice || /lunar|heating|cooling|hvac|apex/i.test(resolvedOffice)) {
+        resolvedOffice = "Spring Valley Roofing";
+      }
+    }
+
     const effectiveSettings: Settings = {
       ...baseSettings,
+      office_name: resolvedOffice,
       receptionist_name: selectedName,
       receptionist_voice: selectedVoice
     };
@@ -358,9 +367,21 @@ export class GeminiLiveSession {
 
     this.hasGreeted = true;
     this.options.onTurnStateChange?.("receptionist_speaking");
+
+    let officeName = this.options.settings?.office_name || this.options.officeName || "our office";
+    const isRoofing = this.options.settings?.industry === "roofing_siding" || /roof|siding/i.test(officeName);
+    if (isRoofing) {
+      if (!officeName || /lunar|heating|cooling|hvac|apex/i.test(officeName)) {
+        officeName = "Spring Valley Roofing";
+      }
+    }
+    const receptionistName = this.options.personaName || this.options.settings?.receptionist_name || "Megan";
+
+    const greetingPrompt = `[INBOUND CALL CONNECTED] Answer the phone now with your official greeting: "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?"`;
+
     const initialGreetingPayload = {
       realtimeInput: {
-        text: "[INBOUND CALL CONNECTED] Answer the phone now with your natural greeting."
+        text: greetingPrompt
       }
     };
 

@@ -86,9 +86,19 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const sanitizeRoofing = (cfg: any) => {
+      if (cfg && cfg.industry === "roofing_siding") {
+        if (!cfg.office_name || /lunar|heating|cooling|hvac|apex/i.test(cfg.office_name)) {
+          cfg.office_name = "Spring Valley Roofing";
+        }
+      }
+      return cfg;
+    };
+
     // 1. Instantly load from local storage if present
     const local = getLocalSavedSettings();
     if (local) {
+      sanitizeRoofing(local);
       setSettings(prev => ({ ...prev, ...local }));
       setIsLoading(false);
     }
@@ -98,8 +108,11 @@ export default function SettingsPage() {
         const settingsDoc = await getDoc(doc(db, "settings", "config"));
         if (settingsDoc.exists()) {
           const cloudData = { ...DEFAULT_SETTINGS, ...settingsDoc.data() } as Settings;
+          sanitizeRoofing(cloudData);
           if (local && local.industry && local.industry !== cloudData.industry) {
-            setSettings({ ...cloudData, ...local });
+            const merged = { ...cloudData, ...local };
+            sanitizeRoofing(merged);
+            setSettings(merged);
           } else {
             setSettings(cloudData);
             saveLocalSettings(cloudData);
@@ -127,6 +140,9 @@ export default function SettingsPage() {
 
   const handleSwitchIndustry = async (targetInd: IndustryType) => {
     const updated = getSettingsForIndustry(targetInd, settings);
+    if (targetInd === "roofing_siding" && (!updated.office_name || /lunar|heating|cooling|hvac|apex/i.test(updated.office_name))) {
+      updated.office_name = "Spring Valley Roofing";
+    }
     setSettings(updated);
     saveLocalSettings(updated);
 
@@ -289,7 +305,7 @@ export default function SettingsPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {settings.industry === "roofing_siding"
-                    ? "Voice AI receptionist is actively specialized in Apex Roofing & Siding (tarping, roof inspections, storm hail damage)."
+                    ? "Voice AI receptionist is actively specialized in Spring Valley Roofing (tarping, roof inspections, storm hail damage)."
                     : "Toggle ON to instantly switch receptionist to Roofing & Siding protocols and storm damage triage."}
                 </p>
               </div>
