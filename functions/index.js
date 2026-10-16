@@ -238,7 +238,14 @@ exports.twilioSendSms = onRequest(
   }
 );
 
+let cachedGoogleCloudToken = null;
+let cachedGoogleCloudTokenExpiry = 0;
+
 async function getGoogleCloudAccessToken() {
+  const now = Date.now();
+  if (cachedGoogleCloudToken && cachedGoogleCloudTokenExpiry > now + 60000) {
+    return cachedGoogleCloudToken;
+  }
   try {
     const metaRes = await fetch(
       "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
@@ -246,14 +253,22 @@ async function getGoogleCloudAccessToken() {
     );
     if (metaRes.ok) {
       const metaData = await metaRes.json();
-      if (metaData.access_token) return metaData.access_token;
+      if (metaData.access_token) {
+        cachedGoogleCloudToken = metaData.access_token;
+        cachedGoogleCloudTokenExpiry = now + ((metaData.expires_in || 3600) * 1000);
+        return cachedGoogleCloudToken;
+      }
     }
   } catch (_) {}
   try {
     const cred = admin.app().options.credential;
     if (cred && typeof cred.getAccessToken === "function") {
       const tokenObj = await cred.getAccessToken();
-      if (tokenObj && tokenObj.access_token) return tokenObj.access_token;
+      if (tokenObj && tokenObj.access_token) {
+        cachedGoogleCloudToken = tokenObj.access_token;
+        cachedGoogleCloudTokenExpiry = now + 1800000;
+        return cachedGoogleCloudToken;
+      }
     }
   } catch (_) {}
   return null;
@@ -409,41 +424,35 @@ exports.voiceReceptionistTurn = onRequest(
         });
       }
 
-      let callerTranscript = (body.userText || "").trim();
+      const callerTranscript = (body.userText || "").trim();
 
-      if (body.audioPcmBase64 && !callerTranscript) {
-        const wavBase64 = wrapPcm16kToWavBase64(body.audioPcmBase64);
-        // Step 1: Fast transcribe + respond or transcribe caller audio
-        const transcribeData = await callVertexGemini({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  inlineData: {
-                    mimeType: "audio/wav",
-                    data: wavBase64
-                  }
-                },
-                {
-                  text: "Transcribe the caller's exact spoken words in English. If there is only background noise, silence, or unintelligible sound, return an empty string. Return JSON ONLY: {\"transcript\": \"...\"}"
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.0
-          }
+      if (callerTranscript) {
+        contents.push({
+          role: "user",
+          parts: [{ text: callerTranscript }]
         });
-        const rawTr = transcribeData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-        try {
-          const parsedTr = JSON.parse(rawTr);
-          callerTranscript = String(parsedTr.transcript || "").trim();
-        } catch (_) {}
-      }
-
-      if (!callerTranscript && !body.toolResponseText) {
+      } else if (body.audioPcmBase64) {
+        const wavBase64 = wrapPcm16kToWavBase64(body.audioPcmBase64);
+        contents.push({
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: "audio/wav",
+                data: wavBase64
+              }
+            },
+            {
+              text: "Listen to the caller's spoken audio above and respond as the office receptionist in 1-2 natural spoken sentences."
+            }
+          ]
+        });
+      } else if (body.toolResponseText) {
+        contents.push({
+          role: "user",
+          parts: [{ text: `[SYSTEM TOOL EXECUTION RESULT]: ${body.toolResponseText}\nNow speak a concise, natural 1-2 sentence response to the caller.` }]
+        });
+      } else {
         res.status(200).json({
           callerTranscript: "",
           text: "",
@@ -451,18 +460,6 @@ exports.voiceReceptionistTurn = onRequest(
           toolCalls: []
         });
         return;
-      }
-
-      if (callerTranscript) {
-        contents.push({
-          role: "user",
-          parts: [{ text: callerTranscript }]
-        });
-      } else if (body.toolResponseText) {
-        contents.push({
-          role: "user",
-          parts: [{ text: `[SYSTEM TOOL EXECUTION RESULT]: ${body.toolResponseText}\nNow speak a concise, natural 1-2 sentence response to the caller.` }]
-        });
       }
 
       const geminiReq = {
@@ -475,7 +472,11 @@ exports.voiceReceptionistTurn = onRequest(
         },
         contents,
         generationConfig: {
-          temperature: 0.35
+          temperature: 0.3,
+          maxOutputTokens: 100,
+          thinkingConfig: {
+            thinkingBudget: 0
+          }
         }
       };
 

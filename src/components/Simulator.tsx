@@ -9,7 +9,7 @@ import { TranscriptEntry, Lead } from "../types.ts";
 import { buildHumanEscalationPlan } from "../services/humanEscalationService.ts";
 import { callTransferAudioFX } from "../lib/callTransferAudioFX.ts";
 import { INDUSTRY_PRESETS, IndustryType } from "../services/industryPresets.ts";
-import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, ShieldAlert, Mic, MicOff, X, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees, Wind } from "lucide-react";
+import { Phone, PhoneOff, Send, AlertCircle, Clock, User, Home, HelpCircle, Shield, ShieldAlert, Mic, MicOff, X, MessageSquare, Sparkles, Activity, Zap, Cpu, Volume2, UserCheck, PhoneCall, Radio, CloudRain, Layers, Droplets, Trees, Wind } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -40,10 +40,17 @@ export default function Simulator() {
   const [callerAudioLevel, setCallerAudioLevel] = useState<number>(0);
   const [micPermissionModalOpen, setMicPermissionModalOpen] = useState(false);
   const [micPermissionError, setMicPermissionError] = useState<"denied" | "unsupported" | null>(null);
+  const [bargeInMode, setBargeInMode] = useState<"shield" | "off">("shield");
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const liveSessionRef = useRef<GeminiLiveSession | null>(null);
   const timerRef = useRef<any>(null);
+
+  const toggleBargeIn = () => {
+    const next = bargeInMode === "shield" ? "off" : "shield";
+    setBargeInMode(next);
+    liveSessionRef.current?.setBargeInEnabled(next === "shield");
+  };
 
   useEffect(() => {
     const sanitizeRoofing = (cfg: any) => {
@@ -470,6 +477,7 @@ export default function Simulator() {
       });
 
       liveSessionRef.current = session;
+      session.setBargeInEnabled(bargeInMode === "shield");
       await session.start();
       setIsCalling(true);
     } catch (err: any) {
@@ -909,33 +917,54 @@ export default function Simulator() {
                 </div>
               </div>
 
-              {/* Real-time Caller Microphone VU Meter */}
-              <div className="flex items-center justify-between sm:justify-end gap-2.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 shadow-inner">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
-                  <Mic size={13} className={callerAudioLevel > 0.012 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
-                  <span>Your Mic:</span>
+              {/* Controls: Barge-In Toggle & Real-time Microphone VU Meter */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={toggleBargeIn}
+                  title={
+                    bargeInMode === "shield"
+                      ? "Anti-Echo Guard Active (0.080 RMS sustained speech filter). Click to disable barge-in."
+                      : "Barge-in muted (Megan speaks to completion without interruption). Click to enable Anti-Echo Guard."
+                  }
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shadow-inner",
+                    bargeInMode === "shield"
+                      ? "bg-cyan-500/15 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/25 shadow-[0_0_10px_rgba(34,211,238,0.2)]"
+                      : "bg-amber-500/15 border-amber-500/50 text-amber-300 hover:bg-amber-500/25 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                  )}
+                >
+                  <Shield size={12} className={bargeInMode === "shield" ? "text-cyan-400" : "text-amber-400"} />
+                  <span>{bargeInMode === "shield" ? "Anti-Echo Guard" : "Barge-In: Off"}</span>
+                </button>
+
+                <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 shadow-inner">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                    <Mic size={13} className={callerAudioLevel > 0.012 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
+                    <span>Your Mic:</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[0.005, 0.015, 0.03, 0.05, 0.08, 0.12].map((thresh, idx) => {
+                      const active = callerAudioLevel >= thresh;
+                      return (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "w-1.5 h-3.5 rounded-sm transition-all duration-75",
+                            active
+                              ? idx < 4
+                                ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]"
+                                : "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]"
+                              : "bg-slate-700/60"
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span className="text-[9px] font-mono font-semibold text-slate-300 min-w-[55px] text-right">
+                    {callerAudioLevel > 0.012 ? "Speaking" : "Listening"}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  {[0.005, 0.015, 0.03, 0.05, 0.08, 0.12].map((thresh, idx) => {
-                    const active = callerAudioLevel >= thresh;
-                    return (
-                      <div
-                        key={idx}
-                        className={cn(
-                          "w-1.5 h-3.5 rounded-sm transition-all duration-75",
-                          active
-                            ? idx < 4
-                              ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]"
-                              : "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]"
-                            : "bg-slate-700/60"
-                        )}
-                      />
-                    );
-                  })}
-                </div>
-                <span className="text-[9px] font-mono font-semibold text-slate-300 min-w-[55px] text-right">
-                  {callerAudioLevel > 0.012 ? "Speaking" : "Listening"}
-                </span>
               </div>
             </div>
           )}

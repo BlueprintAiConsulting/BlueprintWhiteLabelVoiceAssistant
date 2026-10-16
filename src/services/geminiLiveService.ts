@@ -25,6 +25,7 @@ export interface GeminiLiveOptions {
   onError?: (err: any) => void;
   onClose?: () => void;
   onAudioLevel?: (level: number) => void;
+  bargeInEnabled?: boolean;
 }
 
 const INLINE_WORKLET_CODE = `
@@ -64,7 +65,7 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
 
       let gateGain = 1.0;
       if (this.isReceptionistSpeaking) {
-        gateGain = rms >= 0.025 ? 1.0 : 0.0;
+        gateGain = rms >= 0.080 ? 1.0 : 0.0;
       }
 
       for (let i = 0; i < channelData.length; i++) {
@@ -132,12 +133,22 @@ export class GeminiLiveSession {
   private configuredVoiceName = "Aoede";
   private speechRecognizer: any = null;
   private speechRecognitionActive = false;
+  private bargeInEnabled: boolean = true;
+  private consecutiveBargeInFrames: number = 0;
+  private lastReceptionistSpeechEndMs: number = 0;
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
+    if (typeof options.bargeInEnabled === "boolean") {
+      this.bargeInEnabled = options.bargeInEnabled;
+    }
     this.audioQueue = new AudioPlaybackQueue(24000, (isPlaying) => {
       this.handlePlaybackStateChange(isPlaying);
     });
+  }
+
+  public setBargeInEnabled(enabled: boolean) {
+    this.bargeInEnabled = enabled;
   }
 
   private initNativeSpeechRecognition() {
@@ -158,6 +169,8 @@ export class GeminiLiveSession {
 
       recognizer.onresult = (event: any) => {
         if (!this.isConnected || this.isReceptionistSpeaking) return;
+        // Anti-echo guard: ignore any speech recognition events within 600ms of receptionist speaking
+        if (Date.now() - this.lastReceptionistSpeechEndMs < 600) return;
 
         let interim = "";
         let final = "";
@@ -235,6 +248,10 @@ export class GeminiLiveSession {
 
   private handlePlaybackStateChange(isPlaying: boolean) {
     this.isReceptionistSpeaking = isPlaying;
+    if (!isPlaying) {
+      this.lastReceptionistSpeechEndMs = Date.now();
+      this.consecutiveBargeInFrames = 0;
+    }
     if (this.workletNode) {
       try {
         this.workletNode.port.postMessage({ isReceptionistSpeaking: isPlaying });
@@ -794,14 +811,27 @@ export class GeminiLiveSession {
       const rms = Math.sqrt(sumSq / int16.length);
 
       if (this.isReceptionistSpeaking) {
-        if (rms >= 0.030) {
-          this.audioQueue.clear();
-          this.telemetry?.recordInterruption();
-          this.options.onInterrupted?.();
-          this.options.onTurnStateChange?.("interrupted");
-        } else {
+        if (!this.bargeInEnabled) {
+          this.consecutiveBargeInFrames = 0;
           return;
         }
+        // Speaker Echo Shield: require deliberate, sustained loud speech (rms >= 0.080 for 4 consecutive frames / 80ms)
+        // to prevent laptop speaker bleed from interrupting Megan mid-sentence.
+        if (rms >= 0.080) {
+          this.consecutiveBargeInFrames++;
+          if (this.consecutiveBargeInFrames >= 4) {
+            this.consecutiveBargeInFrames = 0;
+            this.audioQueue.clear();
+            this.telemetry?.recordInterruption();
+            this.options.onInterrupted?.();
+            this.options.onTurnStateChange?.("interrupted");
+          }
+        } else {
+          this.consecutiveBargeInFrames = 0;
+        }
+        return;
+      } else {
+        this.consecutiveBargeInFrames = 0;
       }
 
       const now = Date.now();
@@ -817,7 +847,7 @@ export class GeminiLiveSession {
         this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
         if (this.vertexSilenceStartMs === 0) {
           this.vertexSilenceStartMs = now;
-        } else if (now - this.vertexSilenceStartMs >= 900 && !this.vertexProcessingTurn) {
+        } else if (now - this.vertexSilenceStartMs >= 750 && !this.vertexProcessingTurn) {
           const speechDuration = now - this.vertexSpeechStartMs;
           const chunks = this.vertexPcmChunks;
           this.vertexPcmChunks = [];
@@ -897,7 +927,7 @@ export class GeminiLiveSession {
 
         let gateGain = 1.0;
         if (this.isReceptionistSpeaking) {
-          gateGain = rms >= 0.025 ? 1.0 : 0.0;
+          gateGain = (this.bargeInEnabled && rms >= 0.080) ? 1.0 : 0.0;
         }
 
         for (let i = 0; i < inputData.length; i++) {
