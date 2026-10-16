@@ -31,8 +31,8 @@ export default function Simulator() {
   const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
   const [callDuration, setCallDuration] = useState(0);
   const [transferDetails, setTransferDetails] = useState<{ target: string; reason: string; status: string } | null>(null);
-  const [activeVoiceName, setActiveVoiceName] = useState("Aoede");
-  const [activePersonaName, setActivePersonaName] = useState("Sarah");
+  const [activeVoiceName, setActiveVoiceName] = useState("Puck");
+  const [activePersonaName, setActivePersonaName] = useState("Mike");
   const [activeIndustry, setActiveIndustry] = useState<IndustryType>("hvac");
   const [settings, setSettings] = useState<any>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
@@ -333,8 +333,8 @@ export default function Simulator() {
         if (activeIndustry === "roofing_siding" && (!activeSettings.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeSettings.office_name))) {
           activeSettings.office_name = "Spring Valley Roofing";
         }
-        const loadedVoice = activeSettings.receptionist_voice || "Aoede";
-        const loadedName = activeSettings.receptionist_name || "Megan";
+        const loadedVoice = activeSettings.receptionist_voice || "Puck";
+        const loadedName = activeSettings.receptionist_name || "Mike";
         setActiveVoiceName(loadedVoice);
         setActivePersonaName(loadedName);
         const tradeTitle = INDUSTRY_PRESETS[activeIndustry]?.name || activeIndustry;
@@ -367,8 +367,8 @@ export default function Simulator() {
         }
       }
 
-      const loadedVoice = activeSettings?.receptionist_voice || "Aoede";
-      const loadedName = activeSettings?.receptionist_name || "Megan";
+      const loadedVoice = activeSettings?.receptionist_voice || "Puck";
+      const loadedName = activeSettings?.receptionist_name || "Mike";
       
       const session = new GeminiLiveSession({
         accessToken: tokenRes?.access_token,
@@ -429,7 +429,7 @@ export default function Simulator() {
           }
           if (toolInfo.name === "endCall") {
             const reason = toolInfo.args?.reason || "call_ended";
-            setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATION] Megan executed hang-up protocol: ${reason}.` }]);
+            setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATION] ${activePersonaName} executed hang-up protocol: ${reason}.` }]);
           }
         },
         onCapturedLead: (lead) => {
@@ -452,7 +452,7 @@ export default function Simulator() {
             emergency_life_safety: "Life-Safety 911 Transfer"
           };
           const label = reasonLabels[info.reason] || info.reason || "Call terminated";
-          setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] Megan hung up the call (${label}).` }]);
+          setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] ${activePersonaName} hung up the call (${label}).` }]);
           setCallerAudioLevel(0);
           setTimeout(() => {
             setIsCalling(false);
@@ -579,7 +579,7 @@ export default function Simulator() {
               emergency_life_safety: "Life-Safety 911 Transfer"
             };
             const label = reasonLabels[call.args?.reason] || call.args?.reason || "Call terminated";
-            setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] Megan hung up: ${label}.` }]);
+            setTranscript(prev => [...prev, { role: "system", text: `[CALL TERMINATED] ${activePersonaName} hung up: ${label}.` }]);
             setTimeout(() => {
               endCall();
             }, 1200);
@@ -925,7 +925,7 @@ export default function Simulator() {
                   title={
                     bargeInMode === "shield"
                       ? "Anti-Echo Guard Active (0.080 RMS sustained speech filter). Click to disable barge-in."
-                      : "Barge-in muted (Megan speaks to completion without interruption). Click to enable Anti-Echo Guard."
+                      : `Barge-in muted (${activePersonaName} speaks to completion without interruption). Click to enable Anti-Echo Guard.`
                   }
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shadow-inner",
@@ -940,7 +940,7 @@ export default function Simulator() {
 
                 <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 shadow-inner">
                   <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
-                    <Mic size={13} className={callerAudioLevel > 0.012 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
+                    <Mic size={13} className={callerAudioLevel > 0.020 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
                     <span>Your Mic:</span>
                   </div>
                   <div className="flex items-center gap-1">
@@ -962,7 +962,7 @@ export default function Simulator() {
                     })}
                   </div>
                   <span className="text-[9px] font-mono font-semibold text-slate-300 min-w-[55px] text-right">
-                    {callerAudioLevel > 0.012 ? "Speaking" : "Listening"}
+                    {callerAudioLevel > 0.020 ? "Speaking" : "Listening"}
                   </span>
                 </div>
               </div>
@@ -1072,7 +1072,7 @@ export default function Simulator() {
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 disabled={!isCalling || isLoading}
-                placeholder={isCalling ? (isVoiceMode ? "Speak into your microphone or type to hear Megan reply..." : "Type a response to the AI receptionist...") : "Select a scenario or start a call above..."}
+                placeholder={isCalling ? (isVoiceMode ? `Speak into your microphone or type to hear ${activePersonaName} reply...` : "Type a response to the AI receptionist...") : "Select a scenario or start a call above..."}
                 className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
               <button
@@ -1261,7 +1261,7 @@ export default function Simulator() {
               {micPermissionError === "denied" ? (
                 <div className="space-y-4">
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    Your browser has blocked microphone access for this site. To speak with Megan, you need to unblock microphone permissions in your browser:
+                    Your browser has blocked microphone access for this site. To speak with {activePersonaName}, you need to unblock microphone permissions in your browser:
                   </p>
 
                   {/* iOS Safari Guide */}

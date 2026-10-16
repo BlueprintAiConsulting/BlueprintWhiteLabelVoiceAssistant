@@ -33,7 +33,7 @@ export function saveLocalSettings(settings: Settings): void {
 const DEFAULT_SETTINGS: Settings = {
   industry: "hvac",
   office_name: "Lunar Heating and Cooling",
-  receptionist_name: "Megan",
+  receptionist_name: "Mike",
   business_hours: {
     start: "09:00",
     end: "17:00",
@@ -53,8 +53,8 @@ const DEFAULT_SETTINGS: Settings = {
   escalation_timeout_minutes: 15,
   after_hours_message: "Thank you for calling. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
-  receptionist_voice: "Aoede",
-  receptionist_voice_style: "warm, concise, natural female office receptionist",
+  receptionist_voice: "Puck",
+  receptionist_voice_style: "warm, conversational, natural male office dispatcher & front-desk specialist",
   prompt_overrides: "",
   calendar_id: "primary",
   appointment_duration_minutes: 60,
@@ -195,7 +195,7 @@ export async function createReceptionistChat(customSettings?: Settings): Promise
       let resText = "";
       
       const isGreeting = turnsHistory.length <= 1 || messageText.toLowerCase().includes("calling");
-      const recName = settings.receptionist_name || "Megan";
+      const recName = settings.receptionist_name || "Mike";
 
       const wantsSchedule = fullText.includes("schedule") || fullText.includes("book") || fullText.includes("appointment") || fullText.includes("when are you available") || fullText.includes("openings");
       const hasSlotChosen = fullText.includes("tuesday") || fullText.includes("tomorrow") || fullText.includes("friday") || fullText.includes("10:00") || fullText.includes("2:00") || fullText.includes("morning") || fullText.includes("afternoon");

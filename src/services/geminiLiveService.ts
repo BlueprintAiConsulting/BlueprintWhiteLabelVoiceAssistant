@@ -129,12 +129,14 @@ export class GeminiLiveSession {
   private configuredSystemPrompt = "";
   private configuredTools: any[] = [];
   private configuredOfficeName = "Spring Valley Roofing";
-  private configuredPersonaName = "Megan";
-  private configuredVoiceName = "Aoede";
+  private configuredPersonaName = "Mike";
+  private configuredVoiceName = "Puck";
   private speechRecognizer: any = null;
   private speechRecognitionActive = false;
   private bargeInEnabled: boolean = true;
   private consecutiveBargeInFrames: number = 0;
+  private consecutiveSpeechFrames: number = 0;
+  private preRollChunks: Uint8Array[] = [];
   private lastReceptionistSpeechEndMs: number = 0;
 
   constructor(options: GeminiLiveOptions) {
@@ -186,15 +188,17 @@ export class GeminiLiveSession {
         }
 
         const trimmedInterim = interim.trim();
-        if (trimmedInterim) {
+        if (trimmedInterim && trimmedInterim.replace(/[^a-zA-Z0-9]/g, "").length >= 2) {
           this.options.onTurnStateChange?.("caller_speaking");
         }
 
         const trimmedFinal = final.trim();
-        if (trimmedFinal && !this.vertexProcessingTurn) {
+        // Ignore single-character noise artifacts, sighs, or punctuation-only hallucinations
+        if (trimmedFinal && trimmedFinal.replace(/[^a-zA-Z0-9]/g, "").length >= 2 && !this.vertexProcessingTurn) {
           this.vertexSpeechDetected = false;
           this.vertexPcmChunks = [];
           this.vertexSilenceStartMs = 0;
+          this.consecutiveSpeechFrames = 0;
           if (this.useVertexVoiceEngine) {
             void this.processVertexVoiceTurn({ userText: trimmedFinal });
           } else {
@@ -282,6 +286,8 @@ export class GeminiLiveSession {
     this.vertexSpeechDetected = false;
     this.vertexSilenceStartMs = 0;
     this.vertexProcessingTurn = false;
+    this.consecutiveSpeechFrames = 0;
+    this.preRollChunks = [];
     this.telemetry = this.options.settings ? new CallTelemetry(this.options.settings) : null;
     const prewarmedCtx = typeof window !== "undefined" ? (window as any).__prewarmedAudioCtx : null;
     this.audioQueue.init(prewarmedCtx || this.audioCtx || undefined);
@@ -345,7 +351,7 @@ export class GeminiLiveSession {
 
     const baseSettings: Settings = this.options.settings || {
       office_name: this.options.officeName || "our office",
-      receptionist_name: "Megan",
+      receptionist_name: "Mike",
       business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
       timezone: "America/New_York",
       service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
@@ -357,13 +363,13 @@ export class GeminiLiveSession {
       on_call_technician_phone: "+17175770668",
       after_hours_message: "Thank you for calling. Our office is closed.",
       emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
-      receptionist_voice: "Aoede",
-      receptionist_voice_style: "warm, concise, natural office receptionist",
+      receptionist_voice: "Puck",
+      receptionist_voice_style: "warm, conversational, natural male office dispatcher",
       prompt_overrides: ""
     };
 
-    const selectedVoice = this.options.voiceName || baseSettings.receptionist_voice || "Aoede";
-    const selectedName = this.options.personaName || baseSettings.receptionist_name || "Sarah";
+    const selectedVoice = this.options.voiceName || baseSettings.receptionist_voice || "Puck";
+    const selectedName = this.options.personaName || baseSettings.receptionist_name || "Mike";
 
     let resolvedOffice = this.options.officeName || baseSettings.office_name;
     const isRoofingTrade = baseSettings.industry === "roofing_siding" || /roof|siding/i.test(resolvedOffice);
@@ -408,7 +414,7 @@ export class GeminiLiveSession {
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
             // Require sustained medium-level speech before a barge-in is
-            // committed; low room noise should not cut off Megan mid-sentence.
+            // committed; low room noise should not cut off Mike mid-sentence.
             prefixPaddingMs: 1000,
             // Allow 1.6 seconds of natural pause/noise so addresses, ZIP codes,
             // and second-turn answers finish before Gemini closes the turn.
@@ -589,7 +595,7 @@ export class GeminiLiveSession {
     if (!this.configuredSystemPrompt) {
       const baseSettings: Settings = this.options.settings || {
         office_name: this.options.officeName || "Spring Valley Roofing",
-        receptionist_name: this.options.personaName || "Megan",
+        receptionist_name: this.options.personaName || "Mike",
         business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
         timezone: "America/New_York",
         service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
@@ -601,13 +607,13 @@ export class GeminiLiveSession {
         on_call_technician_phone: "+17175770668",
         after_hours_message: "Thank you for calling. Our office is closed.",
         emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
-        receptionist_voice: this.options.voiceName || "Aoede",
-        receptionist_voice_style: "warm, concise, natural office receptionist",
+        receptionist_voice: this.options.voiceName || "Puck",
+        receptionist_voice_style: "warm, conversational, natural male office dispatcher",
         prompt_overrides: ""
       };
       this.configuredOfficeName = baseSettings.office_name;
-      this.configuredPersonaName = baseSettings.receptionist_name || "Megan";
-      this.configuredVoiceName = baseSettings.receptionist_voice || "Aoede";
+      this.configuredPersonaName = baseSettings.receptionist_name || "Mike";
+      this.configuredVoiceName = baseSettings.receptionist_voice || "Puck";
       this.configuredSystemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: baseSettings });
     }
 
@@ -816,7 +822,7 @@ export class GeminiLiveSession {
           return;
         }
         // Speaker Echo Shield: require deliberate, sustained loud speech (rms >= 0.080 for 4 consecutive frames / 80ms)
-        // to prevent laptop speaker bleed from interrupting Megan mid-sentence.
+        // to prevent laptop speaker bleed from interrupting Mike mid-sentence.
         if (rms >= 0.080) {
           this.consecutiveBargeInFrames++;
           if (this.consecutiveBargeInFrames >= 4) {
@@ -834,38 +840,63 @@ export class GeminiLiveSession {
         this.consecutiveBargeInFrames = 0;
       }
 
-      const now = Date.now();
-      if (rms >= 0.005) {
-        if (!this.vertexSpeechDetected) {
-          this.vertexSpeechDetected = true;
-          this.vertexSpeechStartMs = now;
-          this.options.onTurnStateChange?.("caller_speaking");
-        }
-        this.vertexSilenceStartMs = 0;
-        this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
-      } else if (this.vertexSpeechDetected) {
-        this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
-        if (this.vertexSilenceStartMs === 0) {
-          this.vertexSilenceStartMs = now;
-        } else if (now - this.vertexSilenceStartMs >= 750 && !this.vertexProcessingTurn) {
-          const speechDuration = now - this.vertexSpeechStartMs;
-          const chunks = this.vertexPcmChunks;
-          this.vertexPcmChunks = [];
-          this.vertexSpeechDetected = false;
-          this.vertexSilenceStartMs = 0;
+      // Senior Voice Engineer VAD Engine:
+      // Maintain rolling pre-roll buffer (last 4 frames ~80ms) so starting consonants aren't clipped
+      this.preRollChunks.push(new Uint8Array(arrayBuffer.slice(0)));
+      if (this.preRollChunks.length > 4) {
+        this.preRollChunks.shift();
+      }
 
-          if (speechDuration >= 250 && chunks.length > 0) {
-            const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
-            const combined = new Uint8Array(totalLen);
-            let offset = 0;
-            for (const c of chunks) {
-              combined.set(c, offset);
-              offset += c.byteLength;
+      const now = Date.now();
+      // Ambient noise floor is typically 0.003 - 0.012 RMS.
+      // Speech onset requires deliberate vocal energy (>= 0.020 RMS) sustained across 3 consecutive frames.
+      const SPEECH_ONSET_RMS = 0.020;
+      const SPEECH_CONTINUE_RMS = 0.012;
+
+      if (!this.vertexSpeechDetected) {
+        if (rms >= SPEECH_ONSET_RMS) {
+          this.consecutiveSpeechFrames++;
+          if (this.consecutiveSpeechFrames >= 3) {
+            // Sustained caller speech verified! Start accumulating with pre-roll
+            this.vertexSpeechDetected = true;
+            this.vertexSpeechStartMs = now - (this.consecutiveSpeechFrames * 20);
+            this.vertexSilenceStartMs = 0;
+            this.vertexPcmChunks = [...this.preRollChunks];
+            this.options.onTurnStateChange?.("caller_speaking");
+          }
+        } else {
+          this.consecutiveSpeechFrames = 0;
+        }
+      } else {
+        // Speech in progress: accumulate frames
+        this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
+        if (rms >= SPEECH_CONTINUE_RMS) {
+          this.vertexSilenceStartMs = 0;
+        } else {
+          if (this.vertexSilenceStartMs === 0) {
+            this.vertexSilenceStartMs = now;
+          } else if (now - this.vertexSilenceStartMs >= 800 && !this.vertexProcessingTurn) {
+            const speechDuration = now - this.vertexSpeechStartMs;
+            const chunks = this.vertexPcmChunks;
+            this.vertexPcmChunks = [];
+            this.vertexSpeechDetected = false;
+            this.vertexSilenceStartMs = 0;
+            this.consecutiveSpeechFrames = 0;
+
+            // Only submit if caller actually spoke (>= 450ms). Discard clicks/coughs/rustles.
+            if (speechDuration >= 450 && chunks.length > 0) {
+              const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
+              const combined = new Uint8Array(totalLen);
+              let offset = 0;
+              for (const c of chunks) {
+                combined.set(c, offset);
+                offset += c.byteLength;
+              }
+              const audioPcmBase64 = this.arrayBufferToBase64(combined.buffer);
+              void this.processVertexVoiceTurn({ audioPcmBase64 });
+            } else {
+              this.options.onTurnStateChange?.("listening");
             }
-            const audioPcmBase64 = this.arrayBufferToBase64(combined.buffer);
-            void this.processVertexVoiceTurn({ audioPcmBase64 });
-          } else {
-            this.options.onTurnStateChange?.("listening");
           }
         }
       }
@@ -1112,7 +1143,7 @@ export class GeminiLiveSession {
         officeName = "Spring Valley Roofing";
       }
     }
-    const receptionistName = this.options.personaName || this.options.settings?.receptionist_name || "Megan";
+    const receptionistName = this.options.personaName || this.options.settings?.receptionist_name || "Mike";
 
     const greetingPrompt = `[INBOUND CALL CONNECTED] Answer the phone immediately and cleanly with your official greeting: "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?" Speak with crisp, confident clarity. Never use vocal fillers like "uh", "um", "ugh", or hesitation.`;
 

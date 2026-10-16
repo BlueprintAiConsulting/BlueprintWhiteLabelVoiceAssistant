@@ -46,7 +46,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Heating, Air Conditioning & Indoor Air Quality Specialists',
     iconName: 'Wind',
     defaultOfficeName: 'Lunar Heating and Cooling',
-    defaultReceptionistName: 'Megan',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Master HVAC Technician & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -103,7 +103,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
         icon: 'PhoneForwarded',
         title: 'Transfer to Owner (Josh)',
         badge: 'Direct Transfer',
-        prompt: "Hey Megan, this is Dave from York Supply. Is Josh around? I have his order confirmation.",
+        prompt: "Hey Mike, this is Dave from York Supply. Is Josh around? I have his order confirmation.",
         description: 'Tests direct warm call transfer to Josh without intake interrogation.'
       }
     ],
@@ -129,7 +129,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Premier Roof Replacement, Storm Damage & Siding Contractors',
     iconName: 'Home',
     defaultOfficeName: 'Spring Valley Roofing',
-    defaultReceptionistName: 'Megan',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Chris',
     defaultOwnerTitle: 'Master Roofing Specialist & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -179,7 +179,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
         icon: 'Home',
         title: 'Full Roof Replacement Quote',
         badge: 'High Value ($15k+)',
-        prompt: "Hi Megan, our architectural shingle roof is 22 years old and showing granule loss. We want a quote for a full tear-off and replacement.",
+        prompt: "Hi Mike, our architectural shingle roof is 22 years old and showing granule loss. We want a quote for a full tear-off and replacement.",
         description: 'Tests roof material intake, number of stories, and free estimate booking on calendar.'
       },
       {
@@ -213,7 +213,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: '24/7 Emergency Plumbing, Drain Clearing & Tankless Water Heaters',
     iconName: 'Droplets',
     defaultOfficeName: 'FlowMaster Plumbing & Drains',
-    defaultReceptionistName: 'Megan',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Master Plumber & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -287,7 +287,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Licensed Electrical Contractors, Panel Upgrades & EV Chargers',
     iconName: 'Zap',
     defaultOfficeName: 'Current Tech Electrical',
-    defaultReceptionistName: 'Megan',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Master Electrician & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -336,7 +336,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
         icon: 'Cpu',
         title: '200A Panel Upgrade Quote',
         badge: 'Upgrade Lead',
-        prompt: "Hi Megan, we are installing a hot tub and an EV charger and need to upgrade our old 100-amp electrical panel to 200 amps.",
+        prompt: "Hi Mike, we are installing a hot tub and an EV charger and need to upgrade our old 100-amp electrical panel to 200 amps.",
         description: 'Tests panel details intake, free estimate scheduling, and calendar slot booking.'
       }
     ],
@@ -362,7 +362,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Hazardous Tree Removal, Storm Emergency Arborists & Hardscaping',
     iconName: 'Trees',
     defaultOfficeName: 'TimberCare Tree & Landscape',
-    defaultReceptionistName: 'Megan',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Certified Arborist & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -410,7 +410,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
         icon: 'Axe',
         title: 'Large Pine Tree Removal Quote',
         badge: 'Tree Lead',
-        prompt: "Hi Megan, I have a dead 60-foot pine tree in my backyard near the power lines that needs to come down before winter.",
+        prompt: "Hi Mike, I have a dead 60-foot pine tree in my backyard near the power lines that needs to come down before winter.",
         description: 'Tests tree location/size intake, arborist visit scheduling, and calendar slot booking.'
       }
     ],
@@ -436,7 +436,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Design-Build Custom Remodeling, Additions & Renovations',
     iconName: 'Hammer',
     defaultOfficeName: 'Blueprint Design & Build',
-    defaultReceptionistName: 'Megan',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'General Contractor & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -477,7 +477,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
         icon: 'Utensils',
         title: 'Custom Kitchen Remodel Quote',
         badge: 'High Value ($40k+)',
-        prompt: "Hi Megan, we want to remodel our 1990s kitchen, open up the wall to the dining room, and install custom quartz countertops.",
+        prompt: "Hi Mike, we want to remodel our 1990s kitchen, open up the wall to the dining room, and install custom quartz countertops.",
         description: 'Tests remodeling vision intake, project timeline, and free consultation booking.'
       },
       {

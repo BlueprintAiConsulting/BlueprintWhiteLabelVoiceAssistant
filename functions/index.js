@@ -349,7 +349,7 @@ function mapGeminiVoiceToTtsVoice(voiceName) {
     Charon: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
     Fenrir: { name: "en-US-Neural2-J", ssmlGender: "MALE" }
   };
-  return map[voiceName] || { name: "en-US-Journey-F", ssmlGender: "FEMALE" };
+  return map[voiceName] || { name: "en-US-Journey-D", ssmlGender: "MALE" };
 }
 
 async function synthesizeSpeechPcm24k(text, voiceName) {
@@ -427,12 +427,12 @@ exports.voiceReceptionistTurn = onRequest(
       const body = req.body || {};
       const action = body.action || "turn";
       const officeName = body.officeName || "Spring Valley Roofing";
-      const receptionistName = body.receptionistName || "Megan";
-      const voiceName = body.voiceName || "Aoede";
-      const systemInstruction = body.systemInstruction || `You are ${receptionistName}, the warm, concise phone receptionist for ${officeName}.`;
+      const receptionistName = body.receptionistName || "Mike";
+      const voiceName = body.voiceName || "Puck";
+      const systemInstruction = body.systemInstruction || `You are ${receptionistName}, the warm, natural phone dispatcher and front-desk specialist for ${officeName}.`;
 
       if (action === "greet") {
-        const greetingText = `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?`;
+        const greetingText = `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you out today?`;
         const audioPcmBase64 = await synthesizeSpeechPcm24k(greetingText, voiceName);
         res.status(200).json({
           text: greetingText,
@@ -495,7 +495,17 @@ exports.voiceReceptionistTurn = onRequest(
         systemInstruction: {
           parts: [
             {
-              text: `${systemInstruction}\n\nIMPORTANT PHONE VOICE RULES:\n- Keep spoken responses concise (1 to 2 natural sentences).\n- Never use markdown, bullet points, asterisks, or emojis.\n- Always sound like a real, helpful human office receptionist on the phone.`
+              text: `${systemInstruction}
+
+CRITICAL CONVERSATIONAL PHONE VOICE RULES (ACT AS AN EXPERIENCED HUMAN MALE DISPATCHER):
+- You are a real human guy working the front-desk dispatch line. You are NOT an AI bot, computer program, or virtual assistant. Never say you are an AI.
+- Speak in a natural, friendly, down-to-earth, and conversational human tone. Sound like a knowledgeable, helpful professional on the telephone.
+- Keep each reply to 1 or 2 natural, spoken sentences (maximum 25 to 35 words). Real people on the phone speak concisely and wait for the caller to respond.
+- Always use natural contractions ("I'll", "we've", "let's", "that's", "don't"). Avoid robotic, stiff, or formal script-reading vocabulary.
+- Use natural conversational confirmations when appropriate ("Gotcha", "Sure thing", "I hear you", "No problem at all", "Let me grab a couple quick details").
+- Ask only ONE clear question at a time so the caller never feels overwhelmed.
+- If the caller reports a home emergency (leak, no heat, electrical sparks), lead with immediate human empathy ("Oh man, that's stressful", "Sorry to hear that, let's get that taken care of right away") before taking details.
+- STRICTLY FORBIDDEN: NEVER use markdown, asterisks, bullet points, numbered lists, or emojis. Output plain, spoken conversational English only.`
             }
           ]
         },
@@ -561,7 +571,7 @@ exports.twilioVoiceWebhook = onRequest(
     try {
       let settings = {
         office_name: "Spring Valley Roofing",
-        receptionist_name: "Megan",
+        receptionist_name: "Mike",
         transfer_enabled: true,
         transfer_phone_number: "+17175770668",
         on_call_technician_phone: "+17175770668",
@@ -581,7 +591,7 @@ exports.twilioVoiceWebhook = onRequest(
       }
 
       const officeName = req.query.office || settings.office_name || "our office";
-      const receptionistName = req.query.receptionist || settings.receptionist_name || "Megan";
+      const receptionistName = req.query.receptionist || settings.receptionist_name || "Mike";
       const transferPhone = req.query.transfer || settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668";
 
       const body = req.body || {};
@@ -604,9 +614,9 @@ exports.twilioVoiceWebhook = onRequest(
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
-    <Say voice="Polly.Joanna-Neural">${escapeXml(greeting)}</Say>
+    <Say voice="Polly.Matthew-Neural">${escapeXml(greeting)}</Say>
   </Gather>
-  <Say voice="Polly.Joanna-Neural">We did not catch your response. Please call back if you still need assistance. Goodbye!</Say>
+  <Say voice="Polly.Matthew-Neural">We did not catch your response. Please call back if you still need assistance. Goodbye!</Say>
 </Response>`;
         res.set("Content-Type", "text/xml");
         res.status(200).send(twiml);
@@ -625,14 +635,21 @@ exports.twilioVoiceWebhook = onRequest(
       let callType = isKeywordEmergency ? "emergency" : "repair_request";
 
       try {
-        const prompt = `You are ${receptionistName}, the warm, concise phone receptionist for ${officeName}.
+        const prompt = `You are ${receptionistName}, an experienced, confident, and warm male office dispatcher & front-desk specialist for ${officeName}.
 Caller Phone: ${callerFrom}
 Turn Number: ${turn}
 Caller just said: "${speechResult}"
 
+CRITICAL VOICE & PERSONA INSTRUCTIONS:
+- You are a real human dispatcher on a live phone call, NOT an AI or automated system.
+- Speak in a natural, friendly, conversational human cadence.
+- Keep spoken replies punchy and brief (1 to 2 short sentences max).
+- Never sound robotic, never read canned scripts, and never use bullet points or lists.
+- Ask only ONE clear question at a time to keep the conversation flowing smoothly.
+
 Respond with valid JSON ONLY matching this schema:
 {
-  "spoken_reply": "1 to 2 short, natural sentences to speak back to the caller over the phone. Never use markdown or bullet points.",
+  "spoken_reply": "1 to 2 short, natural conversational sentences to speak back to the caller over the phone. Natural male dispatcher tone. Never use markdown, lists, or robotic phrasing.",
   "should_transfer": boolean (true ONLY if this is an active emergency or the caller asked to speak with ${settings.owner_name || "the owner"}/a human/dispatcher),
   "is_complete": boolean (true ONLY if the caller is saying goodbye or all info name/address/issue is confirmed and call is wrapping up),
   "call_type": "emergency" | "estimate_request" | "repair_request" | "maintenance_request" | "general_office",
@@ -685,7 +702,7 @@ Respond with valid JSON ONLY matching this schema:
           : `${aiReply} Please hold while I connect your call.`;
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural">${escapeXml(transferAnnouncement)}</Say>
+  <Say voice="Polly.Matthew-Neural">${escapeXml(transferAnnouncement)}</Say>
   <Dial>${escapeXml(transferPhone)}</Dial>
 </Response>`;
         res.set("Content-Type", "text/xml");
@@ -696,7 +713,7 @@ Respond with valid JSON ONLY matching this schema:
       if (isCallDone) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural">${escapeXml(aiReply)}</Say>
+  <Say voice="Polly.Matthew-Neural">${escapeXml(aiReply)}</Say>
   <Hangup/>
 </Response>`;
         res.set("Content-Type", "text/xml");
@@ -707,9 +724,9 @@ Respond with valid JSON ONLY matching this schema:
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
-    <Say voice="Polly.Joanna-Neural">${escapeXml(aiReply)}</Say>
+    <Say voice="Polly.Matthew-Neural">${escapeXml(aiReply)}</Say>
   </Gather>
-  <Say voice="Polly.Joanna-Neural">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
+  <Say voice="Polly.Matthew-Neural">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
 </Response>`;
       res.set("Content-Type", "text/xml");
       res.status(200).send(twiml);
@@ -717,7 +734,7 @@ Respond with valid JSON ONLY matching this schema:
       console.error("Error in twilioVoiceWebhook:", err);
       const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural">Thank you for calling. Please hold while we connect your call.</Say>
+  <Say voice="Polly.Matthew-Neural">Thank you for calling. Please hold while we connect your call.</Say>
   <Dial>+17175770668</Dial>
 </Response>`;
       res.set("Content-Type", "text/xml");
