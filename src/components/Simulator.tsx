@@ -924,7 +924,7 @@ export default function Simulator() {
                   onClick={toggleBargeIn}
                   title={
                     bargeInMode === "shield"
-                      ? "Anti-Echo Guard Active (0.080 RMS sustained speech filter). Click to disable barge-in."
+                      ? "Persistent Barge-In Guard Active (0.100 RMS sustained deliberate speech over 440ms). Click to disable."
                       : `Barge-in muted (${activePersonaName} speaks to completion without interruption). Click to enable Anti-Echo Guard.`
                   }
                   className={cn(
@@ -935,16 +935,16 @@ export default function Simulator() {
                   )}
                 >
                   <Shield size={12} className={bargeInMode === "shield" ? "text-cyan-400" : "text-amber-400"} />
-                  <span>{bargeInMode === "shield" ? "Anti-Echo Guard" : "Barge-In: Off"}</span>
+                  <span>{bargeInMode === "shield" ? "Persistent Barge-In" : "Barge-In: Off"}</span>
                 </button>
 
                 <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 shadow-inner">
                   <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
-                    <Mic size={13} className={callerAudioLevel > 0.020 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
+                    <Mic size={13} className={callerAudioLevel > 0.038 ? "text-emerald-400 animate-pulse" : "text-slate-400"} />
                     <span>Your Mic:</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    {[0.005, 0.015, 0.03, 0.05, 0.08, 0.12].map((thresh, idx) => {
+                    {[0.015, 0.038, 0.070, 0.100, 0.150, 0.220].map((thresh, idx) => {
                       const active = callerAudioLevel >= thresh;
                       return (
                         <div
@@ -952,8 +952,10 @@ export default function Simulator() {
                           className={cn(
                             "w-1.5 h-3.5 rounded-sm transition-all duration-75",
                             active
-                              ? idx < 4
+                              ? idx < 3
                                 ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]"
+                                : idx < 5
+                                ? "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.9)]"
                                 : "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]"
                               : "bg-slate-700/60"
                           )}
@@ -962,7 +964,7 @@ export default function Simulator() {
                     })}
                   </div>
                   <span className="text-[9px] font-mono font-semibold text-slate-300 min-w-[55px] text-right">
-                    {callerAudioLevel > 0.020 ? "Speaking" : "Listening"}
+                    {callerAudioLevel > 0.038 ? "Speaking" : "Listening"}
                   </span>
                 </div>
               </div>

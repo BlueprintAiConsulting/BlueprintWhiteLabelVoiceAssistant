@@ -39,6 +39,7 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
     this.resampleRatio = sampleRate / this.targetSampleRate;
     this.isReceptionistSpeaking = false;
     this.lastReportTime = 0;
+    this.speechHoldUntil = 0;
 
     this.port.onmessage = (event) => {
       if (event.data && typeof event.data.isReceptionistSpeaking === 'boolean') {
@@ -65,7 +66,14 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
 
       let gateGain = 1.0;
       if (this.isReceptionistSpeaking) {
-        gateGain = rms >= 0.080 ? 1.0 : 0.0;
+        // Persistent Barge-In: silence mic completely unless vocal energy is loud (>= 0.100 RMS)
+        gateGain = rms >= 0.100 ? 1.0 : 0.0;
+      } else {
+        // Quiet Noise Immunity: silence ambient noise (< 0.038 RMS) with 350ms hangover hold
+        if (rms >= 0.038) {
+          this.speechHoldUntil = now + 0.35;
+        }
+        gateGain = (now < this.speechHoldUntil) ? 1.0 : 0.0;
       }
 
       for (let i = 0; i < channelData.length; i++) {
@@ -138,6 +146,7 @@ export class GeminiLiveSession {
   private consecutiveSpeechFrames: number = 0;
   private preRollChunks: Uint8Array[] = [];
   private lastReceptionistSpeechEndMs: number = 0;
+  private ambientNoiseFloor: number = 0.008;
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
@@ -193,8 +202,13 @@ export class GeminiLiveSession {
         }
 
         const trimmedFinal = final.trim();
-        // Ignore single-character noise artifacts, sighs, or punctuation-only hallucinations
-        if (trimmedFinal && trimmedFinal.replace(/[^a-zA-Z0-9]/g, "").length >= 2 && !this.vertexProcessingTurn) {
+        const clean = trimmedFinal.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+        // Ignore single-syllable filler utterances, breathing, or sighs
+        const isJunkFiller = /^(um|uh|ah|er|mm|hmm|huh|ha|mhm|oh|\.)$/i.test(clean);
+        if (isJunkFiller) return;
+
+        // Ignore short noise artifacts or punctuation hallucinations
+        if (clean.length >= 3 && !this.vertexProcessingTurn) {
           this.vertexSpeechDetected = false;
           this.vertexPcmChunks = [];
           this.vertexSilenceStartMs = 0;
@@ -413,12 +427,10 @@ export class GeminiLiveSession {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
             endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            // Require sustained medium-level speech before a barge-in is
-            // committed; low room noise should not cut off Mike mid-sentence.
-            prefixPaddingMs: 1000,
-            // Allow 1.6 seconds of natural pause/noise so addresses, ZIP codes,
-            // and second-turn answers finish before Gemini closes the turn.
-            silenceDurationMs: 1600
+            // Require 1.5 seconds of sustained vocal energy before committing speech
+            prefixPaddingMs: 1500,
+            // Allow 1.8 seconds of natural silence before committing turn completion
+            silenceDurationMs: 1800
           }
         },
         tools: [
@@ -806,58 +818,75 @@ export class GeminiLiveSession {
   private handleMicPcmPacket(arrayBuffer: ArrayBuffer) {
     if (!this.isConnected) return;
 
-    if (this.useVertexVoiceEngine) {
-      const int16 = new Int16Array(arrayBuffer);
-      if (int16.length === 0) return;
-      let sumSq = 0;
-      for (let i = 0; i < int16.length; i++) {
-        const norm = int16[i] / 32768;
-        sumSq += norm * norm;
-      }
-      const rms = Math.sqrt(sumSq / int16.length);
+    const int16 = new Int16Array(arrayBuffer);
+    if (int16.length === 0) return;
+    let sumSq = 0;
+    for (let i = 0; i < int16.length; i++) {
+      const norm = int16[i] / 32768;
+      sumSq += norm * norm;
+    }
+    const rms = Math.sqrt(sumSq / int16.length);
 
-      if (this.isReceptionistSpeaking) {
-        if (!this.bargeInEnabled) {
-          this.consecutiveBargeInFrames = 0;
-          return;
-        }
-        // Speaker Echo Shield: require deliberate, sustained loud speech (rms >= 0.080 for 4 consecutive frames / 80ms)
-        // to prevent laptop speaker bleed from interrupting Mike mid-sentence.
-        if (rms >= 0.080) {
-          this.consecutiveBargeInFrames++;
-          if (this.consecutiveBargeInFrames >= 4) {
-            this.consecutiveBargeInFrames = 0;
-            this.audioQueue.clear();
-            this.telemetry?.recordInterruption();
-            this.options.onInterrupted?.();
-            this.options.onTurnStateChange?.("interrupted");
-          }
-        } else {
-          this.consecutiveBargeInFrames = 0;
-        }
+    // 1. PERSISTENT BARGE-IN GUARD (CRITICAL)
+    // While receptionist is speaking, ZERO mic audio is sent to Vertex or Gemini Live.
+    // Barge-in requires deliberate, loud vocal energy (RMS >= 0.100) sustained across
+    // 22 consecutive frames (~440ms). Quick coughs, laughs, single words, or room noise
+    // will NEVER interrupt.
+    if (this.isReceptionistSpeaking) {
+      if (!this.bargeInEnabled) {
+        this.consecutiveBargeInFrames = 0;
         return;
-      } else {
+      }
+      const BARGE_IN_RMS_THRESHOLD = 0.100;
+      const BARGE_IN_REQUIRED_FRAMES = 22; // 22 frames * 20ms = 440ms of continuous persistent loud speech
+
+      if (rms >= BARGE_IN_RMS_THRESHOLD) {
+        this.consecutiveBargeInFrames++;
+        if (this.consecutiveBargeInFrames >= BARGE_IN_REQUIRED_FRAMES) {
+          this.consecutiveBargeInFrames = 0;
+          this.isReceptionistSpeaking = false;
+          this.audioQueue.clear();
+          this.telemetry?.recordInterruption();
+          this.options.onInterrupted?.();
+          this.options.onTurnStateChange?.("interrupted");
+          setTimeout(() => {
+            if (this.isConnected) {
+              this.options.onTurnStateChange?.("caller_speaking");
+            }
+          }, 300);
+        }
+      } else if (rms < 0.065) {
         this.consecutiveBargeInFrames = 0;
       }
+      // CRITICAL: Return immediately so NO audio is sent to Vertex OR WebSocket while receptionist speaks!
+      return;
+    } else {
+      this.consecutiveBargeInFrames = 0;
+    }
 
-      // Senior Voice Engineer VAD Engine:
-      // Maintain rolling pre-roll buffer (last 4 frames ~80ms) so starting consonants aren't clipped
+    // 2. ADAPTIVE NOISE FLOOR ESTIMATOR & SPEECH ONSET
+    if (!this.vertexSpeechDetected) {
+      this.ambientNoiseFloor = this.ambientNoiseFloor * 0.98 + rms * 0.02;
+    }
+
+    // Base onset is 0.038 RMS (quiet room), but dynamically raises if background noise is elevated.
+    const SPEECH_ONSET_RMS = Math.max(0.038, this.ambientNoiseFloor * 2.8);
+    const SPEECH_CONTINUE_RMS = Math.max(0.022, this.ambientNoiseFloor * 1.5);
+
+    if (this.useVertexVoiceEngine) {
+      // Maintain rolling pre-roll buffer (last 6 frames ~120ms) so starting consonants aren't clipped
       this.preRollChunks.push(new Uint8Array(arrayBuffer.slice(0)));
-      if (this.preRollChunks.length > 4) {
+      if (this.preRollChunks.length > 6) {
         this.preRollChunks.shift();
       }
 
       const now = Date.now();
-      // Ambient noise floor is typically 0.003 - 0.012 RMS.
-      // Speech onset requires deliberate vocal energy (>= 0.020 RMS) sustained across 3 consecutive frames.
-      const SPEECH_ONSET_RMS = 0.020;
-      const SPEECH_CONTINUE_RMS = 0.012;
 
       if (!this.vertexSpeechDetected) {
         if (rms >= SPEECH_ONSET_RMS) {
           this.consecutiveSpeechFrames++;
-          if (this.consecutiveSpeechFrames >= 3) {
-            // Sustained caller speech verified! Start accumulating with pre-roll
+          if (this.consecutiveSpeechFrames >= 6) {
+            // Sustained caller speech verified (>= 120ms above 0.038 RMS)
             this.vertexSpeechDetected = true;
             this.vertexSpeechStartMs = now - (this.consecutiveSpeechFrames * 20);
             this.vertexSilenceStartMs = 0;
@@ -875,7 +904,7 @@ export class GeminiLiveSession {
         } else {
           if (this.vertexSilenceStartMs === 0) {
             this.vertexSilenceStartMs = now;
-          } else if (now - this.vertexSilenceStartMs >= 800 && !this.vertexProcessingTurn) {
+          } else if (now - this.vertexSilenceStartMs >= 1000 && !this.vertexProcessingTurn) {
             const speechDuration = now - this.vertexSpeechStartMs;
             const chunks = this.vertexPcmChunks;
             this.vertexPcmChunks = [];
@@ -883,8 +912,8 @@ export class GeminiLiveSession {
             this.vertexSilenceStartMs = 0;
             this.consecutiveSpeechFrames = 0;
 
-            // Only submit if caller actually spoke (>= 450ms). Discard clicks/coughs/rustles.
-            if (speechDuration >= 450 && chunks.length > 0) {
+            // Only submit if caller actually spoke (>= 500ms and >= 15 frames). Discard clicks/coughs/rustles.
+            if (speechDuration >= 500 && chunks.length >= 15) {
               const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
               const combined = new Uint8Array(totalLen);
               let offset = 0;
@@ -939,6 +968,7 @@ export class GeminiLiveSession {
       let sourceOffset = 0;
       let pendingSamples: number[] = [];
       let lastReportTime = 0;
+      let speechHoldUntil = 0;
 
       scriptNode.onaudioprocess = (audioProcessingEvent) => {
         const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
@@ -958,7 +988,14 @@ export class GeminiLiveSession {
 
         let gateGain = 1.0;
         if (this.isReceptionistSpeaking) {
-          gateGain = (this.bargeInEnabled && rms >= 0.080) ? 1.0 : 0.0;
+          // Persistent Barge-In: silence mic completely unless vocal energy is loud (>= 0.100 RMS)
+          gateGain = (this.bargeInEnabled && rms >= 0.100) ? 1.0 : 0.0;
+        } else {
+          // Quiet Noise Immunity: silence ambient noise (< 0.038 RMS) with 350ms hangover hold
+          if (rms >= 0.038) {
+            speechHoldUntil = now + 0.35;
+          }
+          gateGain = (now < speechHoldUntil) ? 1.0 : 0.0;
         }
 
         for (let i = 0; i < inputData.length; i++) {
