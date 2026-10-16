@@ -430,8 +430,8 @@ export class GeminiLiveSession {
             // Faster turn-taking than the 1.8s noise-immunity setting, while keeping
             // some start padding so room noise doesn't trigger a turn.
             endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
-            prefixPaddingMs: 800,
-            silenceDurationMs: 900
+            prefixPaddingMs: 300,
+            silenceDurationMs: 450
           }
         },
         tools: [
@@ -905,7 +905,7 @@ export class GeminiLiveSession {
         } else {
           if (this.vertexSilenceStartMs === 0) {
             this.vertexSilenceStartMs = now;
-          } else if (now - this.vertexSilenceStartMs >= 1000 && !this.vertexProcessingTurn) {
+          } else if (now - this.vertexSilenceStartMs >= 400 && !this.vertexProcessingTurn) {
             const speechDuration = now - this.vertexSpeechStartMs;
             const chunks = this.vertexPcmChunks;
             this.vertexPcmChunks = [];
@@ -913,8 +913,8 @@ export class GeminiLiveSession {
             this.vertexSilenceStartMs = 0;
             this.consecutiveSpeechFrames = 0;
 
-            // Only submit if caller actually spoke (>= 500ms and >= 15 frames). Discard clicks/coughs/rustles.
-            if (speechDuration >= 500 && chunks.length >= 15) {
+            // Only submit if caller actually spoke (>= 280ms and >= 8 frames). Discard clicks/coughs/rustles.
+            if (speechDuration >= 280 && chunks.length >= 8) {
               const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
               const combined = new Uint8Array(totalLen);
               let offset = 0;

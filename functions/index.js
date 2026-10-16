@@ -280,27 +280,7 @@ async function callVertexGemini(requestBody) {
   const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "blueprint-operations";
   const token = await getGoogleCloudAccessToken();
   if (token) {
-    // 1. Primary: Gemini 3.8 Flash on Vertex AI Global location
-    try {
-      const global38Url = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/gemini-3.8-flash:generateContent`;
-      const global38Res = await fetch(global38Url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
-      });
-      if (global38Res.ok) {
-        return await global38Res.json();
-      }
-      const err38 = await global38Res.text();
-      console.warn("Vertex AI gemini-3.8-flash global warning:", global38Res.status, err38);
-    } catch (e38) {
-      console.warn("Vertex AI gemini-3.8-flash global error:", e38);
-    }
-
-    // 2. High-availability fallback: Gemini 2.5 Flash on Vertex us-central1
+    // 1. Primary: Gemini 2.5 Flash on Vertex us-central1 (co-located with Cloud Function for ultra-low latency ~700ms)
     try {
       const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent`;
       const vertexRes = await fetch(vertexUrl, {
@@ -319,11 +299,31 @@ async function callVertexGemini(requestBody) {
     } catch (e25) {
       console.warn("Vertex AI gemini-2.5-flash error:", e25);
     }
+
+    // 2. High-availability fallback: Gemini 3.8 Flash on Vertex AI Global location
+    try {
+      const global38Url = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/gemini-3.8-flash:generateContent`;
+      const global38Res = await fetch(global38Url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+      });
+      if (global38Res.ok) {
+        return await global38Res.json();
+      }
+      const err38 = await global38Res.text();
+      console.warn("Vertex AI gemini-3.8-flash global warning:", global38Res.status, err38);
+    } catch (e38) {
+      console.warn("Vertex AI gemini-3.8-flash global error:", e38);
+    }
   }
 
   const apiKey = process.env.GEMINI_LIVE_API_KEY || process.env.GEMINI_API_KEY;
   if (apiKey) {
-    for (const studioModel of ["gemini-3.8-flash", "gemini-2.5-flash"]) {
+    for (const studioModel of ["gemini-2.5-flash", "gemini-3.8-flash"]) {
       try {
         const studioRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${studioModel}:generateContent?key=${apiKey}`,
@@ -344,14 +344,14 @@ async function callVertexGemini(requestBody) {
 
 function mapGeminiVoiceToTtsVoice(voiceName) {
   const map = {
-    Aoede: { name: "en-US-Journey-F", ssmlGender: "FEMALE" },
+    Aoede: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
     Kore: { name: "en-US-Neural2-C", ssmlGender: "FEMALE" },
     Leda: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
-    Puck: { name: "en-US-Journey-D", ssmlGender: "MALE" },
+    Puck: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
     Charon: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
     Fenrir: { name: "en-US-Neural2-J", ssmlGender: "MALE" }
   };
-  return map[voiceName] || { name: "en-US-Journey-D", ssmlGender: "MALE" };
+  return map[voiceName] || { name: "en-US-Neural2-D", ssmlGender: "MALE" };
 }
 
 async function synthesizeSpeechPcm24k(text, voiceName) {
@@ -359,12 +359,14 @@ async function synthesizeSpeechPcm24k(text, voiceName) {
   try {
     const token = await getGoogleCloudAccessToken();
     if (!token) return "";
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "blueprint-operations";
     const voiceSpec = mapGeminiVoiceToTtsVoice(voiceName);
     const ttsRes = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-goog-user-project": projectId
       },
       body: JSON.stringify({
         input: { text: String(text).trim() },

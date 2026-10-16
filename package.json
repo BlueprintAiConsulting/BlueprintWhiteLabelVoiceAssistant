@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && cp dist/index.html dist/404.html",
+    "build:sv": "VITE_TENANT=springvalley vite build --outDir dist-sv && cp dist-sv/index.html dist-sv/404.html",
+    "build:all": "npm run build && npm run build:sv",
     "build:gh-pages": "VITE_BASE=/BlueprintHVACAIVoiceAssistant/ vite build && cp dist/index.html dist/404.html",
-    "deploy:firebase": "npm run build && firebase deploy --only hosting --project lunar",
+    "deploy:firebase": "npm run build:all && firebase deploy --only hosting --project lunar",
     "deploy:gh-pages": "npm run build:gh-pages && npx gh-pages -d dist",
     "preview": "vite preview",
     "clean": "rm -rf dist",
