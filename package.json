@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && cp dist/index.html dist/404.html",
+    "build:gh-pages": "VITE_BASE=/BlueprintHVACAIVoiceAssistant/ vite build && cp dist/index.html dist/404.html",
+    "deploy:firebase": "npm run build && firebase deploy --only hosting --project lunar",
+    "deploy:gh-pages": "npm run build:gh-pages && npx gh-pages -d dist",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
