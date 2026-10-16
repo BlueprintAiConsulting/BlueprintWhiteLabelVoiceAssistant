@@ -1,25 +1,50 @@
 import { getSettings } from "./geminiService.ts";
+import { Settings } from "../types.ts";
 
 export interface SendSmsOptions {
   to: string;
   body: string;
+  settingsOverride?: Partial<Settings>;
+  requireLiveTwilio?: boolean;
 }
 
 /**
- * Sends a real SMS text message via Twilio API or configured Webhook URL.
+ * Sends a real SMS text message via Twilio Cloud Function proxy, direct Twilio API, or configured Webhook URL.
  */
-export async function sendRealSms({ to, body }: SendSmsOptions): Promise<boolean> {
+export async function sendRealSms({ to, body, settingsOverride, requireLiveTwilio }: SendSmsOptions): Promise<boolean> {
   try {
-    const settings = await getSettings();
+    const savedSettings = await getSettings();
+    const settings: Settings = { ...savedSettings, ...(settingsOverride || {}) };
 
-    // 1. If native Twilio credentials are configured in Settings or Env:
-    const sid = process.env.TWILIO_ACCOUNT_SID || settings.twilio_account_sid;
-    const token = process.env.TWILIO_AUTH_TOKEN || settings.twilio_auth_token;
-    const fromPhone = process.env.TWILIO_PHONE_NUMBER || settings.twilio_phone_number;
+    const sid = (process.env.TWILIO_ACCOUNT_SID || settings.twilio_account_sid || "").trim();
+    const token = (process.env.TWILIO_AUTH_TOKEN || settings.twilio_auth_token || "").trim();
+    const fromPhone = (process.env.TWILIO_PHONE_NUMBER || settings.twilio_phone_number || "").trim();
 
     if (settings.twilio_enabled && sid && token && fromPhone) {
+      // 1a. Try server-side Cloud Function proxy first (avoids browser CORS issues)
+      try {
+        const proxyRes = await fetch("https://us-central1-blueprint-operations.cloudfunctions.net/twilioSendSms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to,
+            body,
+            accountSid: sid,
+            authToken: token,
+            fromPhone
+          })
+        });
+        if (proxyRes.ok) {
+          console.log(`[SMS DISPATCHED VIA CLOUD FUNCTION] To ${to}: "${body}"`);
+          return true;
+        }
+      } catch (proxyErr) {
+        console.warn("Cloud Function SMS proxy unreachable, trying direct Twilio API:", proxyErr);
+      }
+
+      // 1b. Direct Twilio REST API fallback
       const auth = btoa(`${sid}:${token}`);
-      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -37,13 +62,17 @@ export async function sendRealSms({ to, body }: SendSmsOptions): Promise<boolean
         console.error(`Twilio SMS API Error: ${res.status} - ${errorText}`);
         throw new Error(`Twilio API request failed: ${res.statusText}`);
       }
-      
+
       console.log(`[SMS DISPATCHED VIA TWILIO] To ${to}: "${body}"`);
       return true;
     }
 
+    if (requireLiveTwilio) {
+      return false;
+    }
+
     // 2. Fallback: If an SMS Webhook (Zapier / Make / generic webhook) is configured:
-    if (settings.emergency_dispatch_webhook) {
+    if (settings.emergency_dispatch_webhook && !settings.emergency_dispatch_webhook.includes("api.blueprint.ai")) {
       await fetch(settings.emergency_dispatch_webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

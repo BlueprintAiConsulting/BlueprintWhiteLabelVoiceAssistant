@@ -299,8 +299,7 @@ export default function Simulator() {
         setTranscript(prev => [...prev, { role: "system", text: "[SECURITY] Server-issued Gemini Live WebSocket token received." }]);
       } catch (tErr: any) {
         const fallbackKey = (typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") : null)
-          || (typeof process !== "undefined" && process.env ? process.env.GEMINI_API_KEY : "")
-          || "REDACTED_API_KEY";
+          || (typeof process !== "undefined" && process.env ? process.env.GEMINI_API_KEY : "");
 
         if (fallbackKey && fallbackKey.trim()) {
           directApiKey = fallbackKey.trim();

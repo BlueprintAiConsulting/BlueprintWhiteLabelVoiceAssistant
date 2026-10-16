@@ -161,8 +161,10 @@ export class GeminiLiveSession {
       throw new Error("UNAUTHORIZED: Missing Gemini Live access token or API key.");
     }
 
-    const authQuery = accessToken ? `access_token=${accessToken}` : `key=${apiKey}`;
-    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?${authQuery}`;
+    const wsEndpoint = accessToken
+      ? `BidiGenerateContentConstrained?access_token=${encodeURIComponent(accessToken)}`
+      : `BidiGenerateContent?key=${encodeURIComponent(apiKey)}`;
+    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.${wsEndpoint}`;
 
     this.ws = new WebSocket(wsUrl);
 

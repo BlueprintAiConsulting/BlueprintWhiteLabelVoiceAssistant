@@ -3,6 +3,7 @@ import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onA
 import { Settings, IndustryType } from "../types.ts";
 import { INDUSTRY_PRESETS, getSettingsForIndustry, isRoofingMode, toggleRoofingMode } from "../services/industryPresets.ts";
 import { saveLocalSettings, getLocalSavedSettings } from "../services/geminiService.ts";
+import { sendRealSms } from "../services/twilioService.ts";
 import { Save, Clock, Sun, Moon, Phone, Building2, Bot, CheckCircle, AlertCircle, Globe, ShieldAlert, X, Calendar, Key, Sparkles, PhoneCall, Plus, Trash2, BookOpen, Brain, Layers, Home, Wind, Droplets, Zap, Trees, Hammer, Smartphone, Copy, Eye, EyeOff, DollarSign, Volume2 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
@@ -1285,13 +1286,14 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     readOnly
-                    value={`${window.location.protocol}//${window.location.host}/api/twilio/voice`}
+                    value={`https://us-central1-blueprint-operations.cloudfunctions.net/twilioVoiceWebhook?office=${encodeURIComponent(settings.office_name || "Spring Valley Roofing")}&receptionist=${encodeURIComponent(settings.receptionist_name || "Megan")}&transfer=${encodeURIComponent(settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668")}`}
                     className="flex-1 bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.protocol}//${window.location.host}/api/twilio/voice`);
+                      const webhookUrl = `https://us-central1-blueprint-operations.cloudfunctions.net/twilioVoiceWebhook?office=${encodeURIComponent(settings.office_name || "Spring Valley Roofing")}&receptionist=${encodeURIComponent(settings.receptionist_name || "Megan")}&transfer=${encodeURIComponent(settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668")}`;
+                      navigator.clipboard.writeText(webhookUrl);
                       setCopiedItem('voice');
                       setTimeout(() => setCopiedItem(null), 2000);
                     }}
@@ -1323,21 +1325,26 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!settings.twilio_enabled || !settings.twilio_account_sid || !settings.twilio_phone_number) {
+                    if (!settings.twilio_enabled || !settings.twilio_account_sid || !settings.twilio_auth_token || !settings.twilio_phone_number) {
                       setTestSmsStatus('error');
                       setTimeout(() => setTestSmsStatus(null), 3000);
                       return;
                     }
                     setTestSmsStatus('sending');
                     try {
-                      // Call backend or mock it - for now just set success if fields exist
-                      setTimeout(() => {
-                        setTestSmsStatus('success');
-                        setTimeout(() => setTestSmsStatus(null), 3000);
-                      }, 1000);
+                      saveLocalSettings(settings);
+                      const targetNumber = settings.on_call_technician_phone || settings.transfer_phone_number || settings.owner_phone_number || "+17175770668";
+                      const ok = await sendRealSms({
+                        to: targetNumber,
+                        body: `[${settings.office_name || "Blueprint Dispatch"}] Test SMS: Your Twilio Voice & SMS dispatch integration is active.`,
+                        settingsOverride: settings,
+                        requireLiveTwilio: true
+                      });
+                      setTestSmsStatus(ok ? 'success' : 'error');
+                      setTimeout(() => setTestSmsStatus(null), 3500);
                     } catch (e) {
                       setTestSmsStatus('error');
-                      setTimeout(() => setTestSmsStatus(null), 3000);
+                      setTimeout(() => setTestSmsStatus(null), 3500);
                     }
                   }}
                   disabled={!settings.twilio_enabled || testSmsStatus === 'sending'}
@@ -1348,7 +1355,7 @@ export default function SettingsPage() {
                   ) : testSmsStatus === 'success' ? (
                     <><CheckCircle size={14} className="text-emerald-500" /> SMS Sent Successfully</>
                   ) : testSmsStatus === 'error' ? (
-                    <><AlertCircle size={14} className="text-rose-500" /> Missing Configuration</>
+                    <><AlertCircle size={14} className="text-rose-500" /> Check Twilio SID, Auth Token & Phone</>
                   ) : (
                     <><Smartphone size={14} /> Send Test SMS to Configured Numbers</>
                   )}

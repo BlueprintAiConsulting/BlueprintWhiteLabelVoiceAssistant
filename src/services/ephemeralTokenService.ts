@@ -25,8 +25,7 @@ export async function requestGeminiEphemeralToken(options: EphemeralTokenOptions
 
   // 1. If user configured a custom Gemini API key in Settings / local storage or env, attempt to exchange it directly
   const localKey = (typeof window !== "undefined" ? localStorage.getItem("gemini_api_key") : null)
-    || (typeof process !== "undefined" && process.env ? process.env.GEMINI_API_KEY : "")
-    || "REDACTED_API_KEY";
+    || (typeof process !== "undefined" && process.env ? process.env.GEMINI_API_KEY : "");
 
   if (localKey && localKey.trim()) {
     try {
@@ -70,35 +69,48 @@ export async function requestGeminiEphemeralToken(options: EphemeralTokenOptions
     headers["Authorization"] = `Bearer ${idToken}`;
   }
 
-  const response = await fetch("/api/gemini-ephemeral-token", {
-    method: "POST",
-    headers
-  });
+  const endpoints = [
+    "https://us-central1-blueprint-operations.cloudfunctions.net/issueGeminiEphemeralToken",
+    "/api/gemini-ephemeral-token"
+  ];
 
-  if (response.status === 401) {
+  let lastResponse: Response | null = null;
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers
+      });
+      lastResponse = res;
+      if (res.ok) {
+        const data: EphemeralTokenResponse = await res.json();
+        if (data.access_token) {
+          return data;
+        }
+      }
+    } catch (fetchErr) {
+      console.warn(`Token endpoint ${endpoint} unreachable:`, fetchErr);
+    }
+  }
+
+  if (!lastResponse) {
+    throw new Error("NETWORK_ERROR: Could not reach the Gemini Live token service.");
+  }
+
+  if (lastResponse.status === 401) {
     throw new Error("UNAUTHORIZED: Voice token request was not authorized. Please log in with an admin account or provide an API key in Settings.");
   }
 
-  if (response.status === 429) {
+  if (lastResponse.status === 429) {
     throw new Error("RATE_LIMITED: Token request threshold exceeded. Please wait a few minutes before starting a new call.");
   }
 
-  if (response.status === 404) {
+  if (lastResponse.status === 404) {
     throw new Error("CLOUD_FUNCTION_NOT_DEPLOYED: The Cloud Function endpoint (/api/gemini-ephemeral-token) is missing. Deploy the issueGeminiEphemeralToken function to Firebase.");
   }
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Backend Token Error (${response.status})`);
-  }
-
-  const data: EphemeralTokenResponse = await response.json();
-
-  if (!data.access_token) {
-    throw new Error("INVALID_SERVER_RESPONSE: Backend did not return a valid Gemini access token.");
-  }
-
-  return data;
+  const errorData = await lastResponse.json().catch(() => ({}));
+  throw new Error(errorData.message || `Backend Token Error (${lastResponse.status})`);
 }
 
 /**

@@ -22,17 +22,38 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173"
 ];
 
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  const isDynamicAllowed = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    origin.endsWith(".github.io") ||
+    origin.endsWith(".web.app") ||
+    origin.endsWith(".firebaseapp.com") ||
+    origin.startsWith("http://localhost:") ||
+    origin.startsWith("http://127.0.0.1:")
+  );
+  if (isDynamicAllowed) {
+    res.set("Access-Control-Allow-Origin", origin);
+  } else {
+    res.set("Access-Control-Allow-Origin", "*");
+  }
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+}
+
+function escapeXml(unsafe) {
+  return String(unsafe || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 exports.issueGeminiEphemeralToken = onRequest(
-  { secrets: [geminiApiKey], cors: false },
+  { cors: false },
   async (req, res) => {
-    // Dynamic CORS validation
-    const origin = req.headers.origin;
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
-      res.set("Access-Control-Allow-Origin", origin);
-    } else {
-      res.set("Access-Control-Allow-Origin", "https://lunar-hvac.web.app");
-    }
-    res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    setCorsHeaders(req, res);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -54,23 +75,11 @@ exports.issueGeminiEphemeralToken = onRequest(
           return;
         }
       } else {
-        const origin = req.headers.origin;
-        const referer = req.headers.referer || "";
-        const forwardedHost = req.headers["x-forwarded-host"] || "";
-        const isAllowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ||
-          ALLOWED_ORIGINS.some(allowed => referer.startsWith(allowed)) ||
-          forwardedHost.includes("lunar-hvac");
-
-        if (!isAllowedOrigin && process.env.NODE_ENV === "production") {
-          res.status(401).json({ error: "UNAUTHORIZED", message: "Missing or invalid Bearer Authorization token." });
-          return;
-        }
-
         const clientIp = (req.headers["x-forwarded-for"] || req.ip || "unknown").split(",")[0].trim();
         clientIdentifier = `demo_${clientIp}`;
       }
 
-      // 2. Rate limiting check (Max 30 for authenticated, 15 for demo per 5 min)
+      // 2. Rate limiting check (Max 45 for authenticated, 30 for demo per 5 min)
       const now = Date.now();
       const record = userRateLimits.get(clientIdentifier) || { count: 0, resetAt: now + 300000 };
 
@@ -79,7 +88,7 @@ exports.issueGeminiEphemeralToken = onRequest(
         record.resetAt = now + 300000;
       }
 
-      const limit = clientIdentifier.startsWith("auth_") ? 30 : 15;
+      const limit = clientIdentifier.startsWith("auth_") ? 45 : 30;
       if (record.count >= limit) {
         res.status(429).json({ error: "RATE_LIMITED", message: "Too many voice session requests. Please wait a few minutes." });
         return;
@@ -89,9 +98,9 @@ exports.issueGeminiEphemeralToken = onRequest(
       userRateLimits.set(clientIdentifier, record);
 
       // 3. Request real Gemini Ephemeral Token from Google API
-      const apiKey = geminiApiKey.value() || process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_LIVE_API_KEY || process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        res.status(500).json({ error: "SERVER_CONFIG_ERROR", message: "GEMINI_API_KEY secret is not set on server." });
+        res.status(500).json({ error: "SERVER_CONFIG_ERROR", message: "GEMINI_LIVE_API_KEY is not set on server." });
         return;
       }
 
@@ -142,3 +151,276 @@ exports.issueGeminiEphemeralToken = onRequest(
     }
   }
 );
+
+exports.twilioSendSms = onRequest(
+  { cors: false },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "METHOD_NOT_ALLOWED", message: "Use POST to dispatch SMS." });
+      return;
+    }
+
+    try {
+      const bodyData = req.body || {};
+      let storedSettings = {};
+      try {
+        const snap = await admin.firestore().doc("settings/config").get();
+        if (snap.exists) {
+          storedSettings = snap.data() || {};
+        }
+      } catch (e) {
+        console.warn("Could not read settings/config in twilioSendSms:", e);
+      }
+
+      const sid = (bodyData.accountSid || storedSettings.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || "").trim();
+      const token = (bodyData.authToken || storedSettings.twilio_auth_token || process.env.TWILIO_AUTH_TOKEN || "").trim();
+      const fromPhone = (bodyData.fromPhone || storedSettings.twilio_phone_number || process.env.TWILIO_PHONE_NUMBER || "").trim();
+      const toPhone = (bodyData.to || storedSettings.on_call_technician_phone || storedSettings.transfer_phone_number || "").trim();
+      const messageBody = (bodyData.body || "").trim();
+
+      if (!toPhone || !messageBody) {
+        res.status(400).json({ error: "MISSING_PARAMS", message: "Missing recipient phone number ('to') or message 'body'." });
+        return;
+      }
+
+      if (!sid || !token || !fromPhone) {
+        res.status(400).json({
+          error: "MISSING_TWILIO_CREDENTIALS",
+          message: "Twilio Account SID, Auth Token, and From Phone Number are required to send live SMS."
+        });
+        return;
+      }
+
+      const basicAuth = Buffer.from(`${sid}:${token}`).toString("base64");
+      const params = new URLSearchParams({
+        To: toPhone,
+        From: fromPhone,
+        Body: messageBody
+      });
+
+      const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": `Basic ${basicAuth}`
+        },
+        body: params.toString()
+      });
+
+      const twilioJson = await twilioRes.json().catch(() => ({}));
+      if (!twilioRes.ok) {
+        res.status(twilioRes.status).json({
+          error: "TWILIO_API_ERROR",
+          message: twilioJson.message || `Twilio API failed with status ${twilioRes.status}`,
+          code: twilioJson.code
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        sid: twilioJson.sid,
+        status: twilioJson.status,
+        to: toPhone,
+        from: fromPhone
+      });
+    } catch (err) {
+      console.error("Error in twilioSendSms:", err);
+      res.status(500).json({ error: "INTERNAL_ERROR", message: err.message || "Unexpected SMS dispatch error." });
+    }
+  }
+);
+
+exports.twilioVoiceWebhook = onRequest(
+  { cors: false },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    try {
+      let settings = {
+        office_name: "Spring Valley Roofing",
+        receptionist_name: "Megan",
+        transfer_enabled: true,
+        transfer_phone_number: "+17175770668",
+        on_call_technician_phone: "+17175770668",
+        owner_name: "Josh",
+        owner_phone_number: "+17175770668",
+        sms_alerts_enabled: true,
+        emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "active leak", "water pouring", "roof collapse", "tree on roof", "emergency"]
+      };
+
+      try {
+        const snap = await admin.firestore().doc("settings/config").get();
+        if (snap.exists) {
+          settings = { ...settings, ...snap.data() };
+        }
+      } catch (e) {
+        console.warn("Could not read settings/config in twilioVoiceWebhook:", e);
+      }
+
+      const officeName = req.query.office || settings.office_name || "our office";
+      const receptionistName = req.query.receptionist || settings.receptionist_name || "Megan";
+      const transferPhone = req.query.transfer || settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668";
+
+      const body = req.body || {};
+      const speechResult = (body.SpeechResult || req.query.SpeechResult || "").trim();
+      const callerFrom = (body.From || req.query.From || "Unknown Caller").trim();
+      const callSid = (body.CallSid || req.query.CallSid || `call_${Date.now()}`).trim();
+      const turn = parseInt(req.query.turn || "0", 10);
+
+      const protocol = req.headers["x-forwarded-proto"] || "https";
+      const host = req.headers["x-forwarded-host"] || req.headers.host || "us-central1-blueprint-operations.cloudfunctions.net";
+      let basePath = req.originalUrl ? req.originalUrl.split("?")[0] : "/twilioVoiceWebhook";
+      if (host.includes("cloudfunctions.net") && !basePath.includes("twilioVoiceWebhook")) {
+        basePath = "/twilioVoiceWebhook";
+      }
+      const nextWebhookUrl = `${protocol}://${host}${basePath}?turn=${turn + 1}`;
+
+      // Initial Inbound Call Greeting
+      if (!speechResult) {
+        const greeting = `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?`;
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
+    <Say voice="Polly.Joanna-Neural">${escapeXml(greeting)}</Say>
+  </Gather>
+  <Say voice="Polly.Joanna-Neural">We did not catch your response. Please call back if you still need assistance. Goodbye!</Say>
+</Response>`;
+        res.set("Content-Type", "text/xml");
+        res.status(200).send(twiml);
+        return;
+      }
+
+      // Caller spoke: evaluate emergency / transfer / AI response
+      const lowerSpeech = speechResult.toLowerCase();
+      const emergencyKeywords = settings.emergency_keywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "active leak", "water pouring", "collapse", "emergency"];
+      const isKeywordEmergency = emergencyKeywords.some(kw => lowerSpeech.includes(String(kw).toLowerCase()));
+      const asksForHumanOrOwner = /\b(josh|owner|manager|human|person|someone|transfer|dispatcher|technician)\b/i.test(lowerSpeech);
+
+      let aiReply = `I have noted that down for ${officeName}. Could you please share your name and the property street address and ZIP code so we can get a technician scheduled for you?`;
+      let shouldTransfer = isKeywordEmergency || asksForHumanOrOwner;
+      let isCallDone = /\b(thank you|thanks that's all|goodbye|bye|that is all)\b/i.test(lowerSpeech) && turn >= 2;
+      let callType = isKeywordEmergency ? "emergency" : "repair_request";
+
+      const apiKey = process.env.GEMINI_LIVE_API_KEY || process.env.GEMINI_API_KEY;
+      if (apiKey) {
+        try {
+          const prompt = `You are ${receptionistName}, the warm, concise phone receptionist for ${officeName}.
+Caller Phone: ${callerFrom}
+Turn Number: ${turn}
+Caller just said: "${speechResult}"
+
+Respond with valid JSON ONLY matching this schema:
+{
+  "spoken_reply": "1 to 2 short, natural sentences to speak back to the caller over the phone. Never use markdown or bullet points.",
+  "should_transfer": boolean (true ONLY if this is an active emergency or the caller asked to speak with ${settings.owner_name || "the owner"}/a human/dispatcher),
+  "is_complete": boolean (true ONLY if the caller is saying goodbye or all info name/address/issue is confirmed and call is wrapping up),
+  "call_type": "emergency" | "estimate_request" | "repair_request" | "maintenance_request" | "general_office",
+  "caller_name": "extracted caller name if mentioned or empty string",
+  "property_address": "extracted address/ZIP if mentioned or empty string",
+  "issue_summary": "concise summary of the caller's request"
+}`;
+
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json", temperature: 0.3 }
+            })
+          });
+
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            const parsed = JSON.parse(rawText);
+            if (parsed.spoken_reply) aiReply = parsed.spoken_reply;
+            if (typeof parsed.should_transfer === "boolean") shouldTransfer = shouldTransfer || parsed.should_transfer;
+            if (typeof parsed.is_complete === "boolean") isCallDone = parsed.is_complete;
+            if (parsed.call_type) callType = parsed.call_type;
+
+            // Log or update lead in Firestore
+            try {
+              const leadRef = admin.firestore().collection("leads").doc(`twilio_${callSid}`);
+              const leadUpdate = {
+                callback_number: callerFrom,
+                call_type: callType,
+                emergency_flag: Boolean(isKeywordEmergency || callType === "emergency"),
+                issue_description: parsed.issue_summary || speechResult,
+                reason_for_call: parsed.issue_summary || speechResult,
+                status: shouldTransfer ? "dispatched" : "new",
+                source: "twilio_phone",
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+              };
+              if (parsed.caller_name) leadUpdate.caller_name = parsed.caller_name;
+              if (parsed.property_address) leadUpdate.property_address = parsed.property_address;
+              if (turn <= 1) leadUpdate.created_at = admin.firestore.FieldValue.serverTimestamp();
+              await leadRef.set(leadUpdate, { merge: true });
+            } catch (dbErr) {
+              console.warn("Failed to log Twilio call lead to Firestore:", dbErr);
+            }
+          }
+        } catch (aiErr) {
+          console.warn("Gemini generation in twilioVoiceWebhook failed, using fallback reply:", aiErr);
+        }
+      }
+
+      if (shouldTransfer && settings.transfer_enabled !== false && transferPhone) {
+        const transferAnnouncement = isKeywordEmergency
+          ? `${aiReply} Please stay on the line while I connect you directly to our emergency dispatch line.`
+          : `${aiReply} Please hold while I connect your call.`;
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna-Neural">${escapeXml(transferAnnouncement)}</Say>
+  <Dial>${escapeXml(transferPhone)}</Dial>
+</Response>`;
+        res.set("Content-Type", "text/xml");
+        res.status(200).send(twiml);
+        return;
+      }
+
+      if (isCallDone) {
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna-Neural">${escapeXml(aiReply)}</Say>
+  <Hangup/>
+</Response>`;
+        res.set("Content-Type", "text/xml");
+        res.status(200).send(twiml);
+        return;
+      }
+
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
+    <Say voice="Polly.Joanna-Neural">${escapeXml(aiReply)}</Say>
+  </Gather>
+  <Say voice="Polly.Joanna-Neural">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
+</Response>`;
+      res.set("Content-Type", "text/xml");
+      res.status(200).send(twiml);
+    } catch (err) {
+      console.error("Error in twilioVoiceWebhook:", err);
+      const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna-Neural">Thank you for calling. Please hold while we connect your call.</Say>
+  <Dial>+17175770668</Dial>
+</Response>`;
+      res.set("Content-Type", "text/xml");
+      res.status(200).send(fallbackTwiml);
+    }
+  }
+);
+

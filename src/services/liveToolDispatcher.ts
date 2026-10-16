@@ -5,6 +5,7 @@ import { ConversationState } from "./conversationState.ts";
 import { triageHvacIssue, analyzeHvacSound } from "./hvacIntelligence.ts";
 import { buildHumanEscalationPlan } from "./humanEscalationService.ts";
 import { executeWarmTransfer } from "./twilioBridgeService.ts";
+import { sendRealSms } from "./twilioService.ts";
 
 export interface ToolCallPayload {
   id: string;
@@ -106,6 +107,18 @@ export async function executeLiveToolCall(
           console.warn("Firestore saveLead notice:", dbErr);
         }
 
+        if (process.env.NODE_ENV !== "test" && settings.sms_alerts_enabled !== false) {
+          const alertTarget = settings.on_call_technician_phone || settings.transfer_phone_number;
+          if (alertTarget) {
+            const prefix = normalizedLead.emergency_flag ? "URGENT EMERGENCY LEAD" : "NEW LEAD";
+            void sendRealSms({
+              to: alertTarget,
+              body: `[${settings.office_name || "Dispatch"}] ${prefix}: ${normalizedLead.caller_name || "Caller"} (${normalizedLead.callback_number}) at ${normalizedLead.property_address || "Address pending"} - ${normalizedLead.issue_description || normalizedLead.reason_for_call || normalizedLead.call_type}`,
+              settingsOverride: settings
+            });
+          }
+        }
+
         conversationState.markToolComplete(name, true);
         return {
           toolName: name,
@@ -182,6 +195,24 @@ export async function executeLiveToolCall(
             booking_status: "booked",
             call_status: "booked"
           });
+
+          if (process.env.NODE_ENV !== "test") {
+            if (settings.sms_booking_confirmation_enabled !== false && args.callback_number) {
+              void sendRealSms({
+                to: args.callback_number,
+                body: `[${settings.office_name || "Service Confirmation"}] Hi ${args.caller_name || "there"}, your ${args.service_type || "service"} appointment is confirmed for ${args.appointment_start} at ${args.property_address || "your property"}.`,
+                settingsOverride: settings
+              });
+            }
+            const techPhone = settings.on_call_technician_phone || settings.transfer_phone_number;
+            if (settings.sms_alerts_enabled !== false && techPhone) {
+              void sendRealSms({
+                to: techPhone,
+                body: `[${settings.office_name || "Dispatch"}] NEW BOOKING: ${args.caller_name || "Caller"} (${args.callback_number}) booked ${args.service_type || "service"} for ${args.appointment_start} at ${args.property_address || "TBD"}.`,
+                settingsOverride: settings
+              });
+            }
+          }
         }
 
         conversationState.markToolComplete(name, bookingResult.success);
