@@ -28,7 +28,7 @@ export const LUNAR_CONFIG = {
 export function getActiveFirebaseConfig() {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
-    if (host.includes("lunar-hvac") || host.includes("beach-house-tanning-lounge")) {
+    if (host.includes("lunar-hvac") || host.includes("beach-house-tanning-lounge") || host.includes("sv-receptionist")) {
       return LUNAR_CONFIG;
     }
   }

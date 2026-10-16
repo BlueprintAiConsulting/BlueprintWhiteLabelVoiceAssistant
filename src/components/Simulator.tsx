@@ -1,3 +1,4 @@
+import { SV_MODE } from "../tenant.ts";
 import React, { useState, useEffect, useRef } from "react";
 import { createReceptionistChat, processLead, triggerMissedCallTextBack, getSettings, saveLocalSettings, getLocalSavedSettings } from "../services/geminiService.ts";
 import { db, doc, setDoc } from "../firebase.ts";
@@ -31,9 +32,9 @@ export default function Simulator() {
   const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
   const [callDuration, setCallDuration] = useState(0);
   const [transferDetails, setTransferDetails] = useState<{ target: string; reason: string; status: string } | null>(null);
-  const [activeVoiceName, setActiveVoiceName] = useState("Puck");
-  const [activePersonaName, setActivePersonaName] = useState("Mike");
-  const [activeIndustry, setActiveIndustry] = useState<IndustryType>("hvac");
+  const [activeVoiceName, setActiveVoiceName] = useState(SV_MODE ? "Aoede" : "Puck");
+  const [activePersonaName, setActivePersonaName] = useState(SV_MODE ? "Sarah" : "Mike");
+  const [activeIndustry, setActiveIndustry] = useState<IndustryType>(SV_MODE ? "roofing_siding" : "hvac");
   const [settings, setSettings] = useState<any>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<"call" | "scenarios" | "telemetry">("call");
@@ -54,6 +55,7 @@ export default function Simulator() {
 
   useEffect(() => {
     const sanitizeRoofing = (cfg: any) => {
+      if (SV_MODE && cfg) cfg.industry = "roofing_siding";
       if (cfg && cfg.industry === "roofing_siding") {
         if (!cfg.office_name || /lunar|heating|cooling|hvac|apex/i.test(cfg.office_name)) {
           cfg.office_name = "Spring Valley Roofing";
@@ -665,7 +667,8 @@ export default function Simulator() {
               GEMINI 2.0 MULTIMODAL
             </span>
 
-            {/* Quick 1-Click Trade Switcher */}
+            {/* Quick 1-Click Trade Switcher (hidden in Spring Valley build) */}
+            {!SV_MODE && (
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-full shadow-inner">
               <button
                 type="button"
@@ -694,6 +697,7 @@ export default function Simulator() {
                 <Home size={13} /> Roofing Mode
               </button>
             </div>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Active Trade: <span className="text-cyan-300 font-semibold">{INDUSTRY_PRESETS[activeIndustry]?.name}</span> ({settings?.office_name || INDUSTRY_PRESETS[activeIndustry]?.defaultOfficeName}) — simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.
@@ -1158,7 +1162,7 @@ export default function Simulator() {
                 ))
               ) : (
                 <div className="p-4 text-center text-slate-500 font-mono text-[11px] bg-slate-950/40 rounded-xl border border-slate-800/60">
-                  Awaiting function calls (e.g. diagnoseHvacSound, transferCall, saveLead)...
+                  Awaiting function calls (e.g. transferCall, saveLead, bookEstimate)...
                 </div>
               )}
             </div>

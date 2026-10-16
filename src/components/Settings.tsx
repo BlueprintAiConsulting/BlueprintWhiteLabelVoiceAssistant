@@ -1,3 +1,4 @@
+import { SV_MODE } from "../tenant.ts";
 import React, { useState, useEffect } from "react";
 import { db, doc, getDoc, setDoc, handleFirestoreError, OperationType, auth, onAuthStateChanged } from "../firebase.ts";
 import { Settings, IndustryType } from "../types.ts";
@@ -9,8 +10,8 @@ import { motion } from "motion/react";
 import { cn } from "../lib/utils.ts";
 
 const DEFAULT_SETTINGS: Settings = {
-  industry: "hvac",
-  office_name: "Blueprint AI Business",
+  industry: SV_MODE ? "roofing_siding" : "hvac",
+  office_name: SV_MODE ? "Spring Valley Roofing" : "Blueprint AI Business",
   business_hours: {
     start: "00:00",
     end: "23:59",
@@ -25,7 +26,7 @@ const DEFAULT_SETTINGS: Settings = {
   transfer_phone_number: "+17175770668",
   on_call_technician_phone: "+17175770668",
   auto_transfer_emergencies: true,
-  emergency_dispatch_webhook: "https://api.blueprint.ai/webhooks/hvac-emergency",
+  emergency_dispatch_webhook: "",
   sms_alerts_enabled: true,
   escalation_timeout_minutes: 15,
   after_hours_message: "Thank you for calling. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.",
@@ -88,6 +89,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const sanitizeRoofing = (cfg: any) => {
+      if (SV_MODE && cfg) cfg.industry = "roofing_siding";
       if (cfg && cfg.industry === "roofing_siding") {
         if (!cfg.office_name || /lunar|heating|cooling|hvac|apex/i.test(cfg.office_name)) {
           cfg.office_name = "Spring Valley Roofing";
@@ -202,7 +204,7 @@ export default function SettingsPage() {
     <div className="flex flex-col h-full bg-transparent p-4 sm:p-6 lg:p-8 gap-6 sm:gap-8 overflow-y-auto relative z-10">
       <header className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100">{isWhiteLabel ? `${INDUSTRY_PRESETS[settings.industry || 'hvac']?.name || 'Trade'} Office Settings` : 'HVAC Office Settings'}</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100">{isWhiteLabel ? `${INDUSTRY_PRESETS[settings.industry || 'hvac']?.name || 'Trade'} Office Settings` : (SV_MODE ? 'Spring Valley Roofing Office Settings' : 'HVAC Office Settings')}</h1>
           <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Ordered by immediate revenue & operational value to your business.</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -278,6 +280,7 @@ export default function SettingsPage() {
         {/* ================================================================= */}
         {/* 0. SPECIALIZED TRADE MODE (ROOFING / HVAC)                       */}
         {/* ================================================================= */}
+        {!SV_MODE && (
         <section id="section-trade" className="bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-indigo-950/40 p-4 sm:p-8 rounded-2xl sm:rounded-[2.5rem] border border-cyan-500/30 space-y-6 relative overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.1)]">
           <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
 
@@ -395,6 +398,7 @@ export default function SettingsPage() {
             })}
           </div>
         </section>
+        )}
 
         {/* ================================================================= */}
         {/* 1. EMERGENCY ROUTING & SAFETY DISPATCH (TOP VALUE TO OWNER)       */}
@@ -432,7 +436,7 @@ export default function SettingsPage() {
                 value={settings.emergency_dispatch_webhook || ""}
                 onChange={(e) => setSettings({ ...settings, emergency_dispatch_webhook: e.target.value })}
                 className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 transition-all font-mono shadow-inner placeholder:text-slate-400 dark:text-slate-500"
-                placeholder="https://api.blueprint.ai/webhooks/hvac-emergency"
+                placeholder="https://your-crm.example/webhooks/emergency"
               />
             </div>
 

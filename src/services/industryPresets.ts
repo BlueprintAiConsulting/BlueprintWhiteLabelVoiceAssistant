@@ -131,22 +131,22 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     defaultOfficeName: 'Spring Valley Roofing',
     defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Chris',
-    defaultOwnerTitle: 'Master Roofing Specialist & Owner',
+    defaultOwnerTitle: 'Owner, CertainTeed Master Craftsman',
     defaultOwnerPhone: '+17175770668',
     emergencyKeywords: ['active leak', 'water pouring', 'roof collapse', 'tree on roof', 'downed line', 'emergency tarp', 'ceiling sagging'],
-    equipmentTypes: ['Architectural Shingle', 'Metal Roof', 'Flat EPDM Rubber', 'Tile', 'Slate', 'Vinyl Siding', 'Fiber Cement / Hardie', 'Seamless Gutters'],
+    equipmentTypes: ['CertainTeed Landmark Architectural Shingle', 'CertainTeed Vinyl Siding', 'Insulated Siding', 'Cedar Impressions Shake', 'Attic / Ridge Ventilation'],
     callTypes: [
       { key: 'roof_replacement_estimate', label: 'Roof Replacement Quote', description: 'Full tear-off or new roof estimate' },
-      { key: 'siding_estimate', label: 'Siding Replacement Quote', description: 'Vinyl, Hardie, or board & batten quote' },
+      { key: 'siding_estimate', label: 'Siding Replacement Quote', description: 'CertainTeed vinyl, insulated, or Cedar Impressions quote' },
       { key: 'roof_repair', label: 'Roof Repair', description: 'Shingle repair, pipe boot, or flashing leak' },
       { key: 'storm_hail_damage', label: 'Storm / Hail Inspection', description: 'Insurance storm damage assessment' },
-      { key: 'gutter_soffit_repair', label: 'Gutters & Fascia', description: 'Seamless gutters, downspouts, soffit' },
+      { key: 'gutter_soffit_repair', label: 'Attic Ventilation', description: 'Ridge and intake ventilation, ice dams' },
       { key: 'emergency_tarping', label: 'Emergency Tarping', description: 'Active leak requiring immediate roof tarping' },
       { key: 'general_office', label: 'General Office', description: 'Billing, vendor, or general question' },
       { key: 'spam', label: 'Spam / Telemarketer', description: 'Unsolicited call' }
     ],
     tier1LifeSafetyInstructions: 'LIFE SAFETY ALERT: Instruct caller to immediately leave the building if structural roof collapse or downed electrical lines are present. Call 911 or electric utility before taking details.',
-    tier2EmergencyGuidance: 'Active interior ceiling leaks pouring during heavy rain or tree damage requiring immediate tarping should be collected (address + callback) and dispatched to the on-call tarp crew.',
+    tier2EmergencyGuidance: 'Active interior ceiling leaks pouring during heavy rain or tree damage requiring immediate tarping should be collected (address + callback) and flagged urgent so the office calls back right away for emergency tarping.',
     prohibitedClaims: [
       'Quoting exact per-square-foot roof replacement prices by phone without satellite/in-person measurement',
       'Guaranteeing 100% insurance claim approval by phone',
@@ -154,16 +154,16 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       'Promising exact completion dates before permit approval and crew scheduling'
     ],
     pricingDefaults: {
-      serviceCall: '$99 Roof Leak Diagnostic & Inspection',
-      afterHours: '$249 Emergency Roof Tarping Dispatch',
-      maintenancePlanName: 'Spring Valley RoofGuard Protection Plan',
-      maintenancePlanPrice: '$299/year',
-      maintenancePlanBenefits: 'Annual 21-point roof inspection, gutter cleaning, resealing pipe boots/flashing, emergency priority tarping, and 10% discount on future repairs.'
+      serviceCall: 'Free written estimates; exact pricing is given in writing after an in-person inspection',
+      afterHours: 'Emergency tarping and leak containment available; the office confirms timing and cost',
+      maintenancePlanName: '',
+      maintenancePlanPrice: '',
+      maintenancePlanBenefits: 'No maintenance plan is offered. Do not mention one.'
     },
     customFaqs: [
-      { id: 'rf1', question: 'Do you offer free estimates for roof replacements?', answer: 'Yes! We offer 100% free, comprehensive in-person roof replacement and siding estimates with satellite 3D roof reports.' },
-      { id: 'rf2', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Absolutely. We inspect your roof for hail or wind damage, document all evidence for your adjuster, and walk you through the insurance claim process.' },
-      { id: 'rf3', question: 'How quickly can you tarp an active roof leak?', answer: 'We offer 24/7 emergency tarping services. During active storms, our emergency response crew arrives promptly to secure your roof and prevent interior water damage.' }
+      { id: 'rf1', question: 'Do you offer free estimates for roof replacements?', answer: 'Yes. Estimates are free and written, and we get back to you within one business day. We are family owned and operated out of Pottstown and serve Montgomery and Chester Counties. Office hours are Monday to Friday 8am to 7pm and Saturday 8am to 4pm. Phone (610) 948-5207.' },
+      { id: 'rf2', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Yes. We document the damage with photos, meet your adjuster on site, and handle supplements for hail and wind claims. We never promise a claim will be approved.' },
+      { id: 'rf3', question: 'How quickly can you tarp an active roof leak?', answer: 'We do emergency tarping and leak containment. I will flag your call as urgent so the office calls you right back to confirm timing.' }
     ],
     quickScenarios: [
       {
@@ -185,9 +185,9 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       {
         id: 'siding_hardie_quote',
         icon: 'Layers',
-        title: 'Hardie Board Siding Quote',
+        title: 'CertainTeed Siding Quote',
         badge: 'Siding Lead',
-        prompt: "Hello, we are remodeling our home exterior and want an estimate for James Hardie fiber cement siding installation.",
+        prompt: "Hello, we are redoing our home exterior and want an estimate for new CertainTeed vinyl siding.",
         description: 'Tests siding material intake, property details, and scheduling an estimator visit.'
       }
     ],

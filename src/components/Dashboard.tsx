@@ -1,3 +1,4 @@
+import { SV_MODE } from "../tenant.ts";
 import React, { useState, useEffect } from "react";
 import { db, collection, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, writeBatch, handleFirestoreError, OperationType, addDoc, serverTimestamp, auth, onAuthStateChanged } from "../firebase.ts";
 import { Lead, CallType, CallStatus } from "../types.ts";
@@ -62,12 +63,12 @@ const SAMPLE_DEMO_LEADS: Lead[] = [
     callback_number: "(717) 555-9134",
     call_type: "roof_replacement_estimate",
     equipment_type: "CertainTeed Landmark Architectural",
-    property_address: "884 High Ridge Rd, Red Lion, PA",
+    property_address: "884 High Ridge Rd, Gilbertsville, PA",
     call_status: "booked",
-    ai_summary: "Homeowner looking for complete roof replacement quote. 24-year-old 3-tab shingles curling. Scheduled comprehensive 21-point roof & attic inspection for Tuesday morning.",
+    ai_summary: "Homeowner looking for complete roof replacement quote. 24-year-old 3-tab shingles curling. Free written estimate booked for Tuesday morning.",
     transcript: [
       { role: "user", text: "We need an estimate on replacing our old roof before winter." },
-      { role: "assistant", text: "Spring Valley Roofing can certainly help. Our 21-point roof and attic inspection includes high-resolution drone imaging. Let's get that scheduled for you!" }
+      { role: "assistant", text: "Spring Valley Roofing can certainly help. Estimates are free and in writing. Let's get one scheduled for you." }
     ],
     created_at: { toDate: () => new Date(Date.now() - 1000 * 60 * 85) } as any
   },
@@ -140,8 +141,10 @@ const SAMPLE_DEMO_LEADS: Lead[] = [
   }
 ];
 
+const DEMO_LEADS: Lead[] = SV_MODE ? SAMPLE_DEMO_LEADS.filter((l: any) => String(l.id || "").startsWith("lead_roof")) : SAMPLE_DEMO_LEADS;
+
 export default function Dashboard() {
-  const [leads, setLeads] = useState<Lead[]>(SAMPLE_DEMO_LEADS);
+  const [leads, setLeads] = useState<Lead[]>(DEMO_LEADS);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<CallType | "all">("all");
@@ -157,18 +160,18 @@ export default function Dashboard() {
         const q = query(collection(db, "leads"), orderBy("created_at", "desc"));
         const unsubscribeLeads = onSnapshot(q, (snapshot) => {
           const leadsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
-          setLeads(leadsData.length > 0 ? leadsData : SAMPLE_DEMO_LEADS);
+          setLeads(leadsData.length > 0 ? leadsData : DEMO_LEADS);
           setSelectedLead(prev => prev ? leadsData.find(l => l.id === prev.id) || null : null);
           setIsLoading(false);
         }, (error) => {
           console.warn("Firestore leads subscription error:", error);
-          setLeads(SAMPLE_DEMO_LEADS);
+          setLeads(DEMO_LEADS);
           setIsLoading(false);
         });
         return () => unsubscribeLeads();
       } else {
         setIsDemoMode(true);
-        setLeads(SAMPLE_DEMO_LEADS);
+        setLeads(DEMO_LEADS);
         setIsLoading(false);
       }
     });

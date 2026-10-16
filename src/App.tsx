@@ -10,7 +10,10 @@ import QADashboard from "./components/QADashboard.tsx";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import logoImg from "./assets/logo.jpg";
+import blueprintLogo from "./assets/logo.jpg";
+import svLogo from "./assets/sv-logo.png";
+import { SV_MODE, SV_BRAND } from "./tenant.ts";
+const logoImg = SV_MODE ? svLogo : blueprintLogo;
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -74,8 +77,8 @@ function Sidebar({ isOpen, onClose, isDarkMode, onToggleTheme }: { isOpen: boole
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/simulator", label: "Simulator", icon: Phone },
-    { path: "/qa-dashboard", label: "QA Audit", icon: ShieldCheck },
-    { path: "/qa", label: "QA Tests", icon: CheckCircle },
+    ...(SV_MODE ? [] : [{ path: "/qa-dashboard", label: "QA Audit", icon: ShieldCheck }]),
+    ...(SV_MODE ? [] : [{ path: "/qa", label: "QA Tests", icon: CheckCircle }]),
     { path: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 
@@ -101,12 +104,12 @@ function Sidebar({ isOpen, onClose, isDarkMode, onToggleTheme }: { isOpen: boole
           <div className="flex items-center gap-3">
             <img
               src={logoImg}
-              alt="Blueprint AI Consulting Co. Logo"
+              alt={SV_MODE ? "Spring Valley Roofing logo" : "Blueprint AI Consulting Co. Logo"}
               className="w-10 h-10 rounded-xl border border-cyan-500/40 shadow-[0_0_15px_rgba(34,211,238,0.25)] object-cover"
             />
             <div>
-              <span className="font-serif italic text-lg text-slate-900 dark:text-slate-100 font-bold block leading-tight tracking-wide">Blueprint AI</span>
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-400 font-bold block">Consulting Co.</span>
+              <span className="font-serif italic text-lg text-slate-900 dark:text-slate-100 font-bold block leading-tight tracking-wide">{SV_MODE ? SV_BRAND : "Blueprint AI"}</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-400 font-bold block">{SV_MODE ? "AI Receptionist" : "Consulting Co."}</span>
             </div>
           </div>
           <button
@@ -194,8 +197,8 @@ function MobileBottomNav() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/simulator", label: "Simulator", icon: Phone },
-    { path: "/qa-dashboard", label: "QA Audit", icon: ShieldCheck },
-    { path: "/qa", label: "QA Tests", icon: CheckCircle },
+    ...(SV_MODE ? [] : [{ path: "/qa-dashboard", label: "QA Audit", icon: ShieldCheck }]),
+    ...(SV_MODE ? [] : [{ path: "/qa", label: "QA Tests", icon: CheckCircle }]),
     { path: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 
@@ -278,11 +281,11 @@ export default function App() {
           <div className="flex items-center gap-3">
             <img
               src={logoImg}
-              alt="Blueprint AI Consulting Co. Logo"
+              alt={SV_MODE ? "Spring Valley Roofing logo" : "Blueprint AI Consulting Co. Logo"}
               className="w-8 h-8 rounded-lg border border-cyan-500/40 shadow-[0_0_10px_rgba(34,211,238,0.2)] object-cover"
             />
             <div>
-              <span className="font-serif italic text-base text-slate-900 dark:text-slate-100 font-bold block leading-none">Blueprint AI</span>
+              <span className="font-serif italic text-base text-slate-900 dark:text-slate-100 font-bold block leading-none">{SV_MODE ? SV_BRAND : "Blueprint AI"}</span>
               <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-400 font-bold block mt-0.5">Voice Receptionist</span>
             </div>
           </div>
