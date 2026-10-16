@@ -390,7 +390,8 @@ async function synthesizeSpeechPcm24k(text, voiceName) {
         },
         audioConfig: {
           audioEncoding: "LINEAR16",
-          sampleRateHertz: 24000
+          sampleRateHertz: 24000,
+          speakingRate: 1.05
         }
       })
     });
@@ -432,7 +433,7 @@ function wrapPcm16kToWavBase64(pcmBase64) {
 }
 
 exports.voiceReceptionistTurn = onRequest(
-  { cors: false },
+  { cors: false, memory: "1GiB", cpu: 1, minInstances: 1 },
   async (req, res) => {
     setCorsHeaders(req, res);
 
@@ -530,7 +531,7 @@ CRITICAL CONVERSATIONAL PHONE VOICE RULES (ACT AS AN EXPERIENCED HUMAN MALE DISP
         contents,
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 250
+          maxOutputTokens: 50
         }
       };
 
