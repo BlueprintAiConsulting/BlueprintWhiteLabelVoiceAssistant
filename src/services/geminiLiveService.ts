@@ -64,7 +64,7 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
 
       let gateGain = 1.0;
       if (this.isReceptionistSpeaking) {
-        gateGain = rms >= 0.045 ? 1.0 : 0.0;
+        gateGain = rms >= 0.025 ? 1.0 : 0.0;
       }
 
       for (let i = 0; i < channelData.length; i++) {
@@ -130,12 +130,107 @@ export class GeminiLiveSession {
   private configuredOfficeName = "Spring Valley Roofing";
   private configuredPersonaName = "Megan";
   private configuredVoiceName = "Aoede";
+  private speechRecognizer: any = null;
+  private speechRecognitionActive = false;
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
     this.audioQueue = new AudioPlaybackQueue(24000, (isPlaying) => {
       this.handlePlaybackStateChange(isPlaying);
     });
+  }
+
+  private initNativeSpeechRecognition() {
+    if (typeof window === "undefined" || this.speechRecognizer) return;
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    try {
+      const recognizer = new SpeechRec();
+      recognizer.continuous = true;
+      recognizer.interimResults = true;
+      recognizer.lang = "en-US";
+      recognizer.maxAlternatives = 1;
+
+      recognizer.onstart = () => {
+        this.speechRecognitionActive = true;
+      };
+
+      recognizer.onresult = (event: any) => {
+        if (!this.isConnected || this.isReceptionistSpeaking) return;
+
+        let interim = "";
+        let final = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const res = event.results[i];
+          const transcriptChunk = res?.[0]?.transcript || "";
+          if (res.isFinal) {
+            final += transcriptChunk;
+          } else {
+            interim += transcriptChunk;
+          }
+        }
+
+        const trimmedInterim = interim.trim();
+        if (trimmedInterim) {
+          this.options.onTurnStateChange?.("caller_speaking");
+        }
+
+        const trimmedFinal = final.trim();
+        if (trimmedFinal && !this.vertexProcessingTurn) {
+          this.vertexSpeechDetected = false;
+          this.vertexPcmChunks = [];
+          this.vertexSilenceStartMs = 0;
+          if (this.useVertexVoiceEngine) {
+            void this.processVertexVoiceTurn({ userText: trimmedFinal });
+          } else {
+            void this.sendUserText(trimmedFinal);
+          }
+        }
+      };
+
+      recognizer.onerror = (event: any) => {
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+          console.warn("Native SpeechRecognition error:", event.error);
+        }
+      };
+
+      recognizer.onend = () => {
+        this.speechRecognitionActive = false;
+        if (this.isConnected && !this.isReceptionistSpeaking) {
+          try {
+            recognizer.start();
+          } catch (_) {}
+        }
+      };
+
+      this.speechRecognizer = recognizer;
+      if (this.isConnected && !this.isReceptionistSpeaking) {
+        try {
+          recognizer.start();
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.warn("Could not start native SpeechRecognition:", err);
+    }
+  }
+
+  private pauseNativeSpeechRecognition() {
+    if (this.speechRecognizer && this.speechRecognitionActive) {
+      try {
+        this.speechRecognizer.abort();
+      } catch (_) {}
+      this.speechRecognitionActive = false;
+    }
+  }
+
+  private resumeNativeSpeechRecognition() {
+    if (this.speechRecognizer && !this.speechRecognitionActive && this.isConnected && !this.isReceptionistSpeaking) {
+      try {
+        this.speechRecognizer.start();
+      } catch (_) {}
+    }
   }
 
   private handlePlaybackStateChange(isPlaying: boolean) {
@@ -146,8 +241,10 @@ export class GeminiLiveSession {
       } catch (_) {}
     }
     if (isPlaying) {
+      this.pauseNativeSpeechRecognition();
       this.options.onTurnStateChange?.("receptionist_speaking");
     } else {
+      this.resumeNativeSpeechRecognition();
       // Once playback drains and turn complete has been received, transition to listening
       if (this.turnCompleteReceived && this.isConnected) {
         this.options.onTurnStateChange?.("listening");
@@ -172,6 +269,7 @@ export class GeminiLiveSession {
     const prewarmedCtx = typeof window !== "undefined" ? (window as any).__prewarmedAudioCtx : null;
     this.audioQueue.init(prewarmedCtx || this.audioCtx || undefined);
     void this.prepareAudio();
+    this.initNativeSpeechRecognition();
 
     const accessToken = this.options.accessToken || "";
     const apiKey = this.options.apiKey || "";
@@ -210,7 +308,8 @@ export class GeminiLiveSession {
 
     this.ws.onclose = (event: CloseEvent) => {
       const isTestEnv = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
-      if (!isTestEnv && !this.useVertexVoiceEngine && (event.code === 1011 || !this.hasGreeted)) {
+      if (!isTestEnv && !this.useVertexVoiceEngine && (event.code !== 1000 || !this.hasGreeted)) {
+        console.warn("WebSocket closed unexpectedly, activating Vertex AI voice engine fallback:", event);
         void this.activateVertexVoiceEngine();
         return;
       }
@@ -496,6 +595,7 @@ export class GeminiLiveSession {
     }
 
     await this.prepareAudio();
+    this.initNativeSpeechRecognition();
     this.options.onTranscript?.({ role: "system", text: "Connected to Voice Receptionist (Vertex AI Live Audio)." });
 
     try {
@@ -694,7 +794,7 @@ export class GeminiLiveSession {
       const rms = Math.sqrt(sumSq / int16.length);
 
       if (this.isReceptionistSpeaking) {
-        if (rms >= 0.055) {
+        if (rms >= 0.030) {
           this.audioQueue.clear();
           this.telemetry?.recordInterruption();
           this.options.onInterrupted?.();
@@ -705,7 +805,7 @@ export class GeminiLiveSession {
       }
 
       const now = Date.now();
-      if (rms >= 0.018) {
+      if (rms >= 0.005) {
         if (!this.vertexSpeechDetected) {
           this.vertexSpeechDetected = true;
           this.vertexSpeechStartMs = now;
@@ -717,14 +817,14 @@ export class GeminiLiveSession {
         this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
         if (this.vertexSilenceStartMs === 0) {
           this.vertexSilenceStartMs = now;
-        } else if (now - this.vertexSilenceStartMs >= 1100 && !this.vertexProcessingTurn) {
+        } else if (now - this.vertexSilenceStartMs >= 900 && !this.vertexProcessingTurn) {
           const speechDuration = now - this.vertexSpeechStartMs;
           const chunks = this.vertexPcmChunks;
           this.vertexPcmChunks = [];
           this.vertexSpeechDetected = false;
           this.vertexSilenceStartMs = 0;
 
-          if (speechDuration >= 350 && chunks.length > 0) {
+          if (speechDuration >= 250 && chunks.length > 0) {
             const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
             const combined = new Uint8Array(totalLen);
             let offset = 0;
@@ -749,7 +849,13 @@ export class GeminiLiveSession {
         audio: {
           mimeType: "audio/pcm;rate=16000",
           data: base64Data
-        }
+        },
+        mediaChunks: [
+          {
+            mimeType: "audio/pcm;rate=16000",
+            data: base64Data
+          }
+        ]
       }
     };
     try {
@@ -791,7 +897,7 @@ export class GeminiLiveSession {
 
         let gateGain = 1.0;
         if (this.isReceptionistSpeaking) {
-          gateGain = rms >= 0.045 ? 1.0 : 0.0;
+          gateGain = rms >= 0.025 ? 1.0 : 0.0;
         }
 
         for (let i = 0; i < inputData.length; i++) {
@@ -1129,6 +1235,18 @@ export class GeminiLiveSession {
     this.turnCompleteReceived = false;
     this.audioQueue.close();
     this.micCapturePromise = null;
+
+    if (this.speechRecognizer) {
+      try {
+        this.speechRecognizer.onstart = null;
+        this.speechRecognizer.onresult = null;
+        this.speechRecognizer.onerror = null;
+        this.speechRecognizer.onend = null;
+        this.speechRecognizer.abort();
+      } catch (_) {}
+      this.speechRecognizer = null;
+      this.speechRecognitionActive = false;
+    }
 
     if (this.workletNode) {
       this.workletNode.port.onmessage = null;

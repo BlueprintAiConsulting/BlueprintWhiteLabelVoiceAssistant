@@ -182,6 +182,7 @@ export default function Simulator() {
 
   const handleInitiateVoiceCall = async () => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      (window as any).__prewarmedMicStream = null;
       setMicPermissionError("unsupported");
       setMicPermissionModalOpen(true);
       return;
@@ -203,8 +204,25 @@ export default function Simulator() {
         } catch (_) {}
       }
 
-      // 2. Trigger the browser's microphone permission prompt with a safe fallback stream if no mic or blocked
-      let stream: MediaStream;
+      // 2. Query browser permission state if supported to detect pre-blocked states
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const perm = await navigator.permissions.query({ name: "microphone" as any });
+          if (perm && perm.state === "denied") {
+            (window as any).__prewarmedMicStream = null;
+            setMicPermissionError("denied");
+            setMicPermissionModalOpen(true);
+            setIsLoading(false);
+            return;
+          }
+        } catch (_) {}
+      }
+
+      // 3. Clear any stale cached stream
+      (window as any).__prewarmedMicStream = null;
+
+      // 4. Trigger the browser's native microphone permission prompt directly
+      let stream: MediaStream | null = null;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -214,17 +232,29 @@ export default function Simulator() {
           }
         });
       } catch (gErr: any) {
-        try {
-          if (gErr?.name === "OverconstrainedError" || gErr?.name === "TypeError") {
+        if (gErr?.name === "OverconstrainedError" || gErr?.name === "TypeError") {
+          try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          } else {
-            throw gErr;
+          } catch (retryErr: any) {
+            gErr = retryErr;
           }
-        } catch (fallbackErr) {
-          console.warn("Using WebAudio fallback stream for voice call playback:", fallbackErr);
-          const ctx = (window as any).__prewarmedAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
-          const dest = ctx.createMediaStreamDestination();
-          stream = dest.stream;
+        }
+
+        if (!stream) {
+          console.warn("Microphone access prompt error:", gErr);
+          (window as any).__prewarmedMicStream = null;
+          setIsLoading(false);
+          const isDenied = gErr?.name === "NotAllowedError" ||
+            gErr?.name === "PermissionDeniedError" ||
+            /denied|dismissed|not allowed/i.test(gErr?.message || "");
+
+          if (isDenied) {
+            setMicPermissionError("denied");
+          } else {
+            setMicPermissionError("unsupported");
+          }
+          setMicPermissionModalOpen(true);
+          return;
         }
       }
 
@@ -242,6 +272,21 @@ export default function Simulator() {
 
   const handleGrantMicAndStart = async () => {
     await handleInitiateVoiceCall();
+  };
+
+  const handleStartListenOnlyCall = async () => {
+    try {
+      setMicPermissionModalOpen(false);
+      setMicPermissionError(null);
+      setIsLoading(true);
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = (window as any).__prewarmedAudioCtx || new AudioCtx();
+      const dest = ctx.createMediaStreamDestination();
+      await startVoiceCall(dest.stream);
+    } catch (e) {
+      console.warn("Listen only voice call initiation error:", e);
+      setIsLoading(false);
+    }
   };
 
   const startVoiceCall = async (existingStream?: MediaStream) => {
@@ -263,6 +308,11 @@ export default function Simulator() {
       if (prewarmed && prewarmed.active && prewarmed.getAudioTracks().some((t: any) => t.readyState === "live")) {
         stream = prewarmed;
       }
+    }
+    if (!stream || !stream.active) {
+      const ctx = (window as any).__prewarmedAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+      const dest = ctx.createMediaStreamDestination();
+      stream = dest.stream;
     }
     if (stream && stream.active) {
       (window as any).__prewarmedMicStream = stream;
@@ -448,6 +498,7 @@ export default function Simulator() {
     callTransferAudioFX.stopRingback();
     setTransferDetails(null);
     setCallerAudioLevel(0);
+    (window as any).__prewarmedMicStream = null;
     if (liveSessionRef.current) {
       liveSessionRef.current.stop();
       liveSessionRef.current = null;
@@ -1222,6 +1273,13 @@ export default function Simulator() {
                     </button>
                     <button
                       type="button"
+                      onClick={handleStartListenOnlyCall}
+                      className="py-3.5 px-5 rounded-2xl bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 font-bold text-xs uppercase tracking-wider transition-colors min-h-[48px] cursor-pointer"
+                    >
+                      Listen Only (No Mic)
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         setMicPermissionModalOpen(false);
                         setMicPermissionError(null);
@@ -1252,6 +1310,13 @@ export default function Simulator() {
                       className="flex-1 py-3.5 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all min-h-[48px] cursor-pointer"
                     >
                       Use Text Call Instead
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleStartListenOnlyCall}
+                      className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs uppercase tracking-wider transition-colors min-h-[48px] cursor-pointer border border-cyan-500/30"
+                    >
+                      Listen Only (No Mic)
                     </button>
                     <button
                       type="button"
