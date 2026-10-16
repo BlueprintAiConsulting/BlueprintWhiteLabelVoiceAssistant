@@ -238,6 +238,286 @@ exports.twilioSendSms = onRequest(
   }
 );
 
+async function getGoogleCloudAccessToken() {
+  try {
+    const metaRes = await fetch(
+      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+      { headers: { "Metadata-Flavor": "Google" } }
+    );
+    if (metaRes.ok) {
+      const metaData = await metaRes.json();
+      if (metaData.access_token) return metaData.access_token;
+    }
+  } catch (_) {}
+  try {
+    const cred = admin.app().options.credential;
+    if (cred && typeof cred.getAccessToken === "function") {
+      const tokenObj = await cred.getAccessToken();
+      if (tokenObj && tokenObj.access_token) return tokenObj.access_token;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function callVertexGemini(requestBody) {
+  const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "blueprint-operations";
+  const token = await getGoogleCloudAccessToken();
+  if (token) {
+    const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent`;
+    const vertexRes = await fetch(vertexUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
+    if (vertexRes.ok) {
+      return await vertexRes.json();
+    }
+    const errText = await vertexRes.text();
+    console.warn("Vertex AI gemini-2.5-flash warning:", vertexRes.status, errText);
+  }
+
+  const apiKey = process.env.GEMINI_LIVE_API_KEY || process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    const studioRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
+      }
+    );
+    if (studioRes.ok) {
+      return await studioRes.json();
+    }
+  }
+  return null;
+}
+
+function mapGeminiVoiceToTtsVoice(voiceName) {
+  const map = {
+    Aoede: { name: "en-US-Journey-F", ssmlGender: "FEMALE" },
+    Kore: { name: "en-US-Neural2-C", ssmlGender: "FEMALE" },
+    Leda: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
+    Puck: { name: "en-US-Journey-D", ssmlGender: "MALE" },
+    Charon: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
+    Fenrir: { name: "en-US-Neural2-J", ssmlGender: "MALE" }
+  };
+  return map[voiceName] || { name: "en-US-Journey-F", ssmlGender: "FEMALE" };
+}
+
+async function synthesizeSpeechPcm24k(text, voiceName) {
+  if (!text || !String(text).trim()) return "";
+  try {
+    const token = await getGoogleCloudAccessToken();
+    if (!token) return "";
+    const voiceSpec = mapGeminiVoiceToTtsVoice(voiceName);
+    const ttsRes = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        input: { text: String(text).trim() },
+        voice: {
+          languageCode: "en-US",
+          name: voiceSpec.name
+        },
+        audioConfig: {
+          audioEncoding: "LINEAR16",
+          sampleRateHertz: 24000
+        }
+      })
+    });
+    if (!ttsRes.ok) {
+      const errText = await ttsRes.text();
+      console.warn("Cloud TTS warning:", ttsRes.status, errText);
+      return "";
+    }
+    const ttsData = await ttsRes.json();
+    if (!ttsData.audioContent) return "";
+    const wavBuffer = Buffer.from(ttsData.audioContent, "base64");
+    // Strip 44-byte WAV header so AudioPlaybackQueue receives raw 24kHz Int16 PCM
+    const pcmBuffer = wavBuffer.length > 44 ? wavBuffer.subarray(44) : wavBuffer;
+    return pcmBuffer.toString("base64");
+  } catch (e) {
+    console.warn("Error synthesizing speech PCM:", e);
+    return "";
+  }
+}
+
+function wrapPcm16kToWavBase64(pcmBase64) {
+  const pcmBuffer = Buffer.from(pcmBase64, "base64");
+  const wavHeader = Buffer.alloc(44);
+  const dataLength = pcmBuffer.length;
+  wavHeader.write("RIFF", 0);
+  wavHeader.writeUInt32LE(36 + dataLength, 4);
+  wavHeader.write("WAVE", 8);
+  wavHeader.write("fmt ", 12);
+  wavHeader.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  wavHeader.writeUInt16LE(1, 20);  // AudioFormat (1 = PCM)
+  wavHeader.writeUInt16LE(1, 22);  // NumChannels (1 = mono)
+  wavHeader.writeUInt32LE(16000, 24); // SampleRate (16000)
+  wavHeader.writeUInt32LE(32000, 28); // ByteRate (16000 * 2)
+  wavHeader.writeUInt16LE(2, 32);  // BlockAlign (2)
+  wavHeader.writeUInt16LE(16, 34); // BitsPerSample (16)
+  wavHeader.write("data", 36);
+  wavHeader.writeUInt32LE(dataLength, 40);
+  return Buffer.concat([wavHeader, pcmBuffer]).toString("base64");
+}
+
+exports.voiceReceptionistTurn = onRequest(
+  { cors: false },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    try {
+      const body = req.body || {};
+      const action = body.action || "turn";
+      const officeName = body.officeName || "Spring Valley Roofing";
+      const receptionistName = body.receptionistName || "Megan";
+      const voiceName = body.voiceName || "Aoede";
+      const systemInstruction = body.systemInstruction || `You are ${receptionistName}, the warm, concise phone receptionist for ${officeName}.`;
+
+      if (action === "greet") {
+        const greetingText = `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?`;
+        const audioPcmBase64 = await synthesizeSpeechPcm24k(greetingText, voiceName);
+        res.status(200).json({
+          text: greetingText,
+          audioPcmBase64,
+          toolCalls: []
+        });
+        return;
+      }
+
+      const history = Array.isArray(body.history) ? body.history : [];
+      const contents = [];
+
+      for (const h of history) {
+        if (!h || !h.text) continue;
+        contents.push({
+          role: h.role === "assistant" || h.role === "model" ? "model" : "user",
+          parts: [{ text: String(h.text) }]
+        });
+      }
+
+      let callerTranscript = (body.userText || "").trim();
+
+      if (body.audioPcmBase64 && !callerTranscript) {
+        const wavBase64 = wrapPcm16kToWavBase64(body.audioPcmBase64);
+        // Step 1: Fast transcribe + respond or transcribe caller audio
+        const transcribeData = await callVertexGemini({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: "audio/wav",
+                    data: wavBase64
+                  }
+                },
+                {
+                  text: "Transcribe the caller's exact spoken words in English. If there is only background noise, silence, or unintelligible sound, return an empty string. Return JSON ONLY: {\"transcript\": \"...\"}"
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.0
+          }
+        });
+        const rawTr = transcribeData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+        try {
+          const parsedTr = JSON.parse(rawTr);
+          callerTranscript = String(parsedTr.transcript || "").trim();
+        } catch (_) {}
+      }
+
+      if (!callerTranscript && !body.toolResponseText) {
+        res.status(200).json({
+          callerTranscript: "",
+          text: "",
+          audioPcmBase64: "",
+          toolCalls: []
+        });
+        return;
+      }
+
+      if (callerTranscript) {
+        contents.push({
+          role: "user",
+          parts: [{ text: callerTranscript }]
+        });
+      } else if (body.toolResponseText) {
+        contents.push({
+          role: "user",
+          parts: [{ text: `[SYSTEM TOOL EXECUTION RESULT]: ${body.toolResponseText}\nNow speak a concise, natural 1-2 sentence response to the caller.` }]
+        });
+      }
+
+      const geminiReq = {
+        systemInstruction: {
+          parts: [
+            {
+              text: `${systemInstruction}\n\nIMPORTANT PHONE VOICE RULES:\n- Keep spoken responses concise (1 to 2 natural sentences).\n- Never use markdown, bullet points, asterisks, or emojis.\n- Always sound like a real, helpful human office receptionist on the phone.`
+            }
+          ]
+        },
+        contents,
+        generationConfig: {
+          temperature: 0.35
+        }
+      };
+
+      if (Array.isArray(body.tools) && body.tools.length > 0 && !body.toolResponseText) {
+        geminiReq.tools = body.tools;
+      }
+
+      const geminiData = await callVertexGemini(geminiReq);
+      const parts = geminiData?.candidates?.[0]?.content?.parts || [];
+
+      const toolCalls = [];
+      const textParts = [];
+
+      for (const p of parts) {
+        if (p.functionCall) {
+          toolCalls.push({
+            id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            name: p.functionCall.name,
+            args: p.functionCall.args || {}
+          });
+        }
+        if (p.text) {
+          textParts.push(p.text);
+        }
+      }
+
+      const replyText = textParts.join(" ").trim();
+      const audioPcmBase64 = replyText ? await synthesizeSpeechPcm24k(replyText, voiceName) : "";
+
+      res.status(200).json({
+        callerTranscript,
+        text: replyText,
+        audioPcmBase64,
+        toolCalls
+      });
+    } catch (err) {
+      console.error("Error in voiceReceptionistTurn:", err);
+      res.status(500).json({ error: "VOICE_TURN_ERROR", message: err.message || "Failed to process voice turn." });
+    }
+  }
+);
+
 exports.twilioVoiceWebhook = onRequest(
   { cors: false },
   async (req, res) => {
@@ -303,7 +583,7 @@ exports.twilioVoiceWebhook = onRequest(
         return;
       }
 
-      // Caller spoke: evaluate emergency / transfer / AI response
+      // Caller spoke: evaluate emergency / transfer / AI response via Vertex AI
       const lowerSpeech = speechResult.toLowerCase();
       const emergencyKeywords = settings.emergency_keywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "active leak", "water pouring", "collapse", "emergency"];
       const isKeywordEmergency = emergencyKeywords.some(kw => lowerSpeech.includes(String(kw).toLowerCase()));
@@ -314,10 +594,8 @@ exports.twilioVoiceWebhook = onRequest(
       let isCallDone = /\b(thank you|thanks that's all|goodbye|bye|that is all)\b/i.test(lowerSpeech) && turn >= 2;
       let callType = isKeywordEmergency ? "emergency" : "repair_request";
 
-      const apiKey = process.env.GEMINI_LIVE_API_KEY || process.env.GEMINI_API_KEY;
-      if (apiKey) {
-        try {
-          const prompt = `You are ${receptionistName}, the warm, concise phone receptionist for ${officeName}.
+      try {
+        const prompt = `You are ${receptionistName}, the warm, concise phone receptionist for ${officeName}.
 Caller Phone: ${callerFrom}
 Turn Number: ${turn}
 Caller just said: "${speechResult}"
@@ -333,48 +611,42 @@ Respond with valid JSON ONLY matching this schema:
   "issue_summary": "concise summary of the caller's request"
 }`;
 
-          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json", temperature: 0.3 }
-            })
-          });
+        const geminiData = await callVertexGemini({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.3 }
+        });
 
-          if (geminiRes.ok) {
-            const geminiData = await geminiRes.json();
-            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            const parsed = JSON.parse(rawText);
-            if (parsed.spoken_reply) aiReply = parsed.spoken_reply;
-            if (typeof parsed.should_transfer === "boolean") shouldTransfer = shouldTransfer || parsed.should_transfer;
-            if (typeof parsed.is_complete === "boolean") isCallDone = parsed.is_complete;
-            if (parsed.call_type) callType = parsed.call_type;
+        if (geminiData) {
+          const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          const parsed = JSON.parse(rawText);
+          if (parsed.spoken_reply) aiReply = parsed.spoken_reply;
+          if (typeof parsed.should_transfer === "boolean") shouldTransfer = shouldTransfer || parsed.should_transfer;
+          if (typeof parsed.is_complete === "boolean") isCallDone = parsed.is_complete;
+          if (parsed.call_type) callType = parsed.call_type;
 
-            // Log or update lead in Firestore
-            try {
-              const leadRef = admin.firestore().collection("leads").doc(`twilio_${callSid}`);
-              const leadUpdate = {
-                callback_number: callerFrom,
-                call_type: callType,
-                emergency_flag: Boolean(isKeywordEmergency || callType === "emergency"),
-                issue_description: parsed.issue_summary || speechResult,
-                reason_for_call: parsed.issue_summary || speechResult,
-                status: shouldTransfer ? "dispatched" : "new",
-                source: "twilio_phone",
-                updated_at: admin.firestore.FieldValue.serverTimestamp()
-              };
-              if (parsed.caller_name) leadUpdate.caller_name = parsed.caller_name;
-              if (parsed.property_address) leadUpdate.property_address = parsed.property_address;
-              if (turn <= 1) leadUpdate.created_at = admin.firestore.FieldValue.serverTimestamp();
-              await leadRef.set(leadUpdate, { merge: true });
-            } catch (dbErr) {
-              console.warn("Failed to log Twilio call lead to Firestore:", dbErr);
-            }
+          // Log or update lead in Firestore
+          try {
+            const leadRef = admin.firestore().collection("leads").doc(`twilio_${callSid}`);
+            const leadUpdate = {
+              callback_number: callerFrom,
+              call_type: callType,
+              emergency_flag: Boolean(isKeywordEmergency || callType === "emergency"),
+              issue_description: parsed.issue_summary || speechResult,
+              reason_for_call: parsed.issue_summary || speechResult,
+              status: shouldTransfer ? "dispatched" : "new",
+              source: "twilio_phone",
+              updated_at: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (parsed.caller_name) leadUpdate.caller_name = parsed.caller_name;
+            if (parsed.property_address) leadUpdate.property_address = parsed.property_address;
+            if (turn <= 1) leadUpdate.created_at = admin.firestore.FieldValue.serverTimestamp();
+            await leadRef.set(leadUpdate, { merge: true });
+          } catch (dbErr) {
+            console.warn("Failed to log Twilio call lead to Firestore:", dbErr);
           }
-        } catch (aiErr) {
-          console.warn("Gemini generation in twilioVoiceWebhook failed, using fallback reply:", aiErr);
         }
+      } catch (aiErr) {
+        console.warn("Gemini generation in twilioVoiceWebhook failed, using fallback reply:", aiErr);
       }
 
       if (shouldTransfer && settings.transfer_enabled !== false && transferPhone) {
@@ -423,4 +695,5 @@ Respond with valid JSON ONLY matching this schema:
     }
   }
 );
+
 

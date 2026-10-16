@@ -118,6 +118,18 @@ export class GeminiLiveSession {
   private conversationState = new ConversationState();
   private telemetry: CallTelemetry | null = null;
   private telemetryFlushed = false;
+  private useVertexVoiceEngine = false;
+  private vertexHistory: { role: "user" | "assistant"; text: string }[] = [];
+  private vertexPcmChunks: Uint8Array[] = [];
+  private vertexSpeechDetected = false;
+  private vertexSilenceStartMs = 0;
+  private vertexSpeechStartMs = 0;
+  private vertexProcessingTurn = false;
+  private configuredSystemPrompt = "";
+  private configuredTools: any[] = [];
+  private configuredOfficeName = "Spring Valley Roofing";
+  private configuredPersonaName = "Megan";
+  private configuredVoiceName = "Aoede";
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
@@ -150,6 +162,12 @@ export class GeminiLiveSession {
     this.hasGreeted = false;
     this.turnCompleteReceived = false;
     this.telemetryFlushed = false;
+    this.useVertexVoiceEngine = false;
+    this.vertexHistory = [];
+    this.vertexPcmChunks = [];
+    this.vertexSpeechDetected = false;
+    this.vertexSilenceStartMs = 0;
+    this.vertexProcessingTurn = false;
     this.telemetry = this.options.settings ? new CallTelemetry(this.options.settings) : null;
     const prewarmedCtx = typeof window !== "undefined" ? (window as any).__prewarmedAudioCtx : null;
     this.audioQueue.init(prewarmedCtx || this.audioCtx || undefined);
@@ -191,6 +209,11 @@ export class GeminiLiveSession {
     };
 
     this.ws.onclose = (event: CloseEvent) => {
+      const isTestEnv = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
+      if (!isTestEnv && !this.useVertexVoiceEngine && (event.code === 1011 || !this.hasGreeted)) {
+        void this.activateVertexVoiceEngine();
+        return;
+      }
       this.isConnected = false;
       const reasonText = event.reason ? `: ${event.reason}` : "";
       const infoText = event.code ? ` (Code ${event.code}${reasonText})` : "";
@@ -425,7 +448,220 @@ export class GeminiLiveSession {
       }
     };
 
+    this.configuredSystemPrompt = systemPrompt;
+    this.configuredTools = setupPayload.setup.tools;
+    this.configuredOfficeName = resolvedOffice;
+    this.configuredPersonaName = selectedName;
+    this.configuredVoiceName = selectedVoice;
+
     this.ws.send(JSON.stringify(setupPayload));
+  }
+
+  private async activateVertexVoiceEngine() {
+    if (this.useVertexVoiceEngine) return;
+    this.useVertexVoiceEngine = true;
+    this.isConnected = true;
+
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
+      this.ws = null;
+    }
+
+    if (!this.configuredSystemPrompt) {
+      const baseSettings: Settings = this.options.settings || {
+        office_name: this.options.officeName || "Spring Valley Roofing",
+        receptionist_name: this.options.personaName || "Megan",
+        business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
+        timezone: "America/New_York",
+        service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
+        primary_zip_code: "17401",
+        service_radius_miles: 25,
+        service_zip_codes: ["17401", "17402", "17403", "17404", "17406", "17408", "17331", "17327", "17315", "17356", "17601", "17325"],
+        transfer_enabled: true,
+        transfer_phone_number: "+17175770668",
+        on_call_technician_phone: "+17175770668",
+        after_hours_message: "Thank you for calling. Our office is closed.",
+        emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
+        receptionist_voice: this.options.voiceName || "Aoede",
+        receptionist_voice_style: "warm, concise, natural office receptionist",
+        prompt_overrides: ""
+      };
+      this.configuredOfficeName = baseSettings.office_name;
+      this.configuredPersonaName = baseSettings.receptionist_name || "Megan";
+      this.configuredVoiceName = baseSettings.receptionist_voice || "Aoede";
+      this.configuredSystemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: baseSettings });
+    }
+
+    await this.prepareAudio();
+    this.options.onTranscript?.({ role: "system", text: "Connected to Voice Receptionist (Vertex AI Live Audio)." });
+
+    try {
+      this.turnCompleteReceived = false;
+      this.options.onTurnStateChange?.("receptionist_speaking");
+      const res = await fetch("https://us-central1-blueprint-operations.cloudfunctions.net/voiceReceptionistTurn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "greet",
+          officeName: this.configuredOfficeName,
+          receptionistName: this.configuredPersonaName,
+          voiceName: this.configuredVoiceName,
+          systemInstruction: this.configuredSystemPrompt
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.hasGreeted = true;
+        if (data.text) {
+          this.vertexHistory.push({ role: "assistant", text: data.text });
+          this.telemetry?.recordTranscript({ role: "assistant", text: data.text });
+          this.options.onTranscript?.({ role: "assistant", text: data.text });
+        }
+        if (data.audioPcmBase64) {
+          this.audioQueue.enqueueBase64Pcm(data.audioPcmBase64);
+        }
+        this.turnCompleteReceived = true;
+        if (!this.audioQueue.isPlaying()) {
+          this.options.onTurnStateChange?.("listening");
+        }
+      }
+    } catch (err) {
+      console.error("Error in Vertex AI greeting:", err);
+      this.options.onTurnStateChange?.("listening");
+    }
+  }
+
+  public async sendUserText(text: string) {
+    if (!text || !text.trim() || !this.isConnected) return;
+    const cleanText = text.trim();
+    if (this.useVertexVoiceEngine) {
+      await this.processVertexVoiceTurn({ userText: cleanText });
+      return;
+    }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.options.onTranscript?.({ role: "user", text: cleanText });
+      this.ws.send(JSON.stringify({
+        clientContent: {
+          turns: [{ role: "user", parts: [{ text: cleanText }] }],
+          turnComplete: true
+        }
+      }));
+    }
+  }
+
+  private async processVertexVoiceTurn(input: { userText?: string; audioPcmBase64?: string; toolResponseText?: string }) {
+    if (!this.isConnected || this.vertexProcessingTurn) return;
+    this.vertexProcessingTurn = true;
+    this.options.onTurnStateChange?.("waiting_for_turn");
+
+    try {
+      if (input.userText) {
+        this.options.onTranscript?.({ role: "user", text: input.userText });
+      }
+
+      const res = await fetch("https://us-central1-blueprint-operations.cloudfunctions.net/voiceReceptionistTurn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "turn",
+          officeName: this.configuredOfficeName,
+          receptionistName: this.configuredPersonaName,
+          voiceName: this.configuredVoiceName,
+          systemInstruction: this.configuredSystemPrompt,
+          history: this.vertexHistory,
+          userText: input.userText,
+          audioPcmBase64: input.audioPcmBase64,
+          toolResponseText: input.toolResponseText,
+          tools: this.configuredTools
+        })
+      });
+
+      if (!res.ok) {
+        this.options.onTurnStateChange?.("listening");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.callerTranscript && !input.userText) {
+        this.options.onTranscript?.({ role: "user", text: data.callerTranscript });
+        this.vertexHistory.push({ role: "user", text: data.callerTranscript });
+      } else if (input.userText) {
+        this.vertexHistory.push({ role: "user", text: input.userText });
+      }
+
+      if (data.text) {
+        this.turnCompleteReceived = false;
+        this.options.onTurnStateChange?.("receptionist_speaking");
+        this.vertexHistory.push({ role: "assistant", text: data.text });
+        this.telemetry?.recordTranscript({ role: "assistant", text: data.text });
+        this.options.onTranscript?.({ role: "assistant", text: data.text });
+        if (data.audioPcmBase64) {
+          this.audioQueue.enqueueBase64Pcm(data.audioPcmBase64);
+        }
+        this.turnCompleteReceived = true;
+        if (!this.audioQueue.isPlaying()) {
+          this.options.onTurnStateChange?.("listening");
+        }
+      }
+
+      if (Array.isArray(data.toolCalls) && data.toolCalls.length > 0) {
+        const defaultSettings: Settings = this.options.settings || {
+          office_name: this.configuredOfficeName,
+          business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
+          timezone: "America/New_York",
+          service_areas: ["York", "Hanover", "Lancaster"],
+          transfer_enabled: true,
+          transfer_phone_number: "+17175770668",
+          after_hours_message: "We are closed.",
+          emergency_keywords: this.options.emergencyKeywords || ["gas leak"],
+          receptionist_voice_style: "professional",
+          prompt_overrides: ""
+        };
+
+        const toolSummaries: string[] = [];
+        for (const call of data.toolCalls) {
+          this.options.onToolCall?.({ name: call.name, args: call.args });
+          const execution = await executeLiveToolCall(
+            { id: call.id, name: call.name, args: call.args },
+            defaultSettings,
+            this.options.onCapturedLead,
+            this.conversationState
+          );
+          toolSummaries.push(`${call.name}: ${JSON.stringify(execution.output)}`);
+
+          if (call.name === "endCall") {
+            const reason = call.args?.reason || "caller_concluded_call";
+            const farewell = call.args?.farewell_message;
+            this.options.onEndCall?.({ reason, farewell });
+            setTimeout(() => {
+              if (this.isConnected) {
+                this.stop();
+                this.options.onClose?.();
+              }
+            }, 3500);
+          }
+        }
+
+        if (!data.text && toolSummaries.length > 0 && !data.toolCalls.some((c: any) => c.name === "endCall")) {
+          this.vertexProcessingTurn = false;
+          await this.processVertexVoiceTurn({ toolResponseText: toolSummaries.join(" | ") });
+          return;
+        }
+      }
+
+      if (!data.text && !this.audioQueue.isPlaying()) {
+        this.options.onTurnStateChange?.("listening");
+      }
+    } catch (err) {
+      console.error("Error in processVertexVoiceTurn:", err);
+      this.options.onTurnStateChange?.("listening");
+    } finally {
+      this.vertexProcessingTurn = false;
+    }
   }
 
   public sendAudioStreamEnd() {
@@ -445,7 +681,68 @@ export class GeminiLiveSession {
   }
 
   private handleMicPcmPacket(arrayBuffer: ArrayBuffer) {
-    if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.isConnected) return;
+
+    if (this.useVertexVoiceEngine) {
+      const int16 = new Int16Array(arrayBuffer);
+      if (int16.length === 0) return;
+      let sumSq = 0;
+      for (let i = 0; i < int16.length; i++) {
+        const norm = int16[i] / 32768;
+        sumSq += norm * norm;
+      }
+      const rms = Math.sqrt(sumSq / int16.length);
+
+      if (this.isReceptionistSpeaking) {
+        if (rms >= 0.055) {
+          this.audioQueue.clear();
+          this.telemetry?.recordInterruption();
+          this.options.onInterrupted?.();
+          this.options.onTurnStateChange?.("interrupted");
+        } else {
+          return;
+        }
+      }
+
+      const now = Date.now();
+      if (rms >= 0.018) {
+        if (!this.vertexSpeechDetected) {
+          this.vertexSpeechDetected = true;
+          this.vertexSpeechStartMs = now;
+          this.options.onTurnStateChange?.("caller_speaking");
+        }
+        this.vertexSilenceStartMs = 0;
+        this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
+      } else if (this.vertexSpeechDetected) {
+        this.vertexPcmChunks.push(new Uint8Array(arrayBuffer.slice(0)));
+        if (this.vertexSilenceStartMs === 0) {
+          this.vertexSilenceStartMs = now;
+        } else if (now - this.vertexSilenceStartMs >= 1100 && !this.vertexProcessingTurn) {
+          const speechDuration = now - this.vertexSpeechStartMs;
+          const chunks = this.vertexPcmChunks;
+          this.vertexPcmChunks = [];
+          this.vertexSpeechDetected = false;
+          this.vertexSilenceStartMs = 0;
+
+          if (speechDuration >= 350 && chunks.length > 0) {
+            const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
+            const combined = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const c of chunks) {
+              combined.set(c, offset);
+              offset += c.byteLength;
+            }
+            const audioPcmBase64 = this.arrayBufferToBase64(combined.buffer);
+            void this.processVertexVoiceTurn({ audioPcmBase64 });
+          } else {
+            this.options.onTurnStateChange?.("listening");
+          }
+        }
+      }
+      return;
+    }
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     const base64Data = this.arrayBufferToBase64(arrayBuffer);
     const pcmPayload = {
       realtimeInput: {

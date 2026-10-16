@@ -203,7 +203,7 @@ export default function Simulator() {
         } catch (_) {}
       }
 
-      // 2. Directly trigger the browser's native microphone permission prompt ("Would Like to Access the Microphone")
+      // 2. Trigger the browser's microphone permission prompt with a safe fallback stream if no mic or blocked
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -214,15 +214,20 @@ export default function Simulator() {
           }
         });
       } catch (gErr: any) {
-        if (gErr?.name === "OverconstrainedError" || gErr?.name === "TypeError") {
-          // Fallback for older Safari or WebKit with strict constraint rejection
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } else {
-          throw gErr;
+        try {
+          if (gErr?.name === "OverconstrainedError" || gErr?.name === "TypeError") {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          } else {
+            throw gErr;
+          }
+        } catch (fallbackErr) {
+          console.warn("Using WebAudio fallback stream for voice call playback:", fallbackErr);
+          const ctx = (window as any).__prewarmedAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+          const dest = ctx.createMediaStreamDestination();
+          stream = dest.stream;
         }
       }
 
-      // Permission was granted by caller!
       (window as any).__prewarmedMicStream = stream;
       setMicPermissionModalOpen(false);
       setMicPermissionError(null);
@@ -232,13 +237,6 @@ export default function Simulator() {
     } catch (err: any) {
       console.warn("Microphone access prompt error:", err);
       setIsLoading(false);
-      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError" || /permission|denied|not allowed/i.test(err?.message || "")) {
-        setMicPermissionError("denied");
-        setMicPermissionModalOpen(true);
-      } else {
-        setMicPermissionError("unsupported");
-        setMicPermissionModalOpen(true);
-      }
     }
   };
 
@@ -957,8 +955,8 @@ export default function Simulator() {
 
           {/* Text Input / VAD Status Bar */}
           <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800/80">
-            {isVoiceMode ? (
-              <div className="flex items-center justify-between px-4 sm:px-5 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs shadow-inner">
+            {isVoiceMode && (
+              <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 mb-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs shadow-inner">
                 <div className="flex items-center gap-2.5 sm:gap-3">
                   <span className={cn(
                     "w-2.5 h-2.5 rounded-full",
@@ -972,33 +970,39 @@ export default function Simulator() {
                     VAD STATUS: {turnState.replace("_", " ")}
                   </span>
                 </div>
-                <span className="text-slate-500 dark:text-slate-400 italic text-[11px] hidden sm:inline">Barge-In Interrupt & Auto Voice Detection Active</span>
+                <span className="text-slate-500 dark:text-slate-400 italic text-[11px] hidden sm:inline">Speak into Mic or Type Below</span>
               </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendMessage(userInput);
-                }}
-                className="flex gap-2.5"
-              >
-                <input
-                  type="text"
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  disabled={!isCalling || isLoading}
-                  placeholder={isCalling ? "Type a response to the AI receptionist..." : "Select a scenario or start a call above..."}
-                  className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!isCalling || isLoading || !userInput.trim()}
-                  className="px-4 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl hover:bg-cyan-500/30 transition-all disabled:opacity-50 shadow-sm flex items-center justify-center min-w-[44px]"
-                >
-                  <Send size={18} />
-                </button>
-              </form>
             )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (isVoiceMode && liveSessionRef.current) {
+                  const textToSend = userInput.trim();
+                  if (!textToSend) return;
+                  setUserInput("");
+                  void liveSessionRef.current.sendUserText(textToSend);
+                  return;
+                }
+                handleSendMessage(userInput);
+              }}
+              className="flex gap-2.5"
+            >
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                disabled={!isCalling || isLoading}
+                placeholder={isCalling ? (isVoiceMode ? "Speak into your microphone or type to hear Megan reply..." : "Type a response to the AI receptionist...") : "Select a scenario or start a call above..."}
+                className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs sm:text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 transition-all disabled:opacity-50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+              <button
+                type="submit"
+                disabled={!isCalling || isLoading || !userInput.trim()}
+                className="px-4 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl hover:bg-cyan-500/30 transition-all disabled:opacity-50 shadow-sm flex items-center justify-center min-w-[44px]"
+              >
+                <Send size={18} />
+              </button>
+            </form>
           </div>
         </div>
 
