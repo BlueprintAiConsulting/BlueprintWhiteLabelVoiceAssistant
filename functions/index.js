@@ -631,7 +631,7 @@ exports.twilioVoiceWebhook = onRequest(
       const isKeywordEmergency = emergencyKeywords.some(kw => lowerSpeech.includes(String(kw).toLowerCase()));
       const asksForHumanOrOwner = /\b(josh|owner|manager|human|person|someone|transfer|dispatcher|technician)\b/i.test(lowerSpeech);
 
-      let aiReply = `I have noted that down for ${officeName}. Could you please share your name and the property street address and ZIP code so we can get a technician scheduled for you?`;
+      let aiReply = `I have noted that down for ${officeName}. Could you please share your name and the property street address and town so we can get a technician scheduled for you?`;
       let shouldTransfer = isKeywordEmergency || asksForHumanOrOwner;
       let isCallDone = /\b(thank you|thanks that's all|goodbye|bye|that is all)\b/i.test(lowerSpeech) && turn >= 2;
       let callType = isKeywordEmergency ? "emergency" : "repair_request";
