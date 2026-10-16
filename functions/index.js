@@ -280,27 +280,7 @@ async function callVertexGemini(requestBody) {
   const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "blueprint-operations";
   const token = await getGoogleCloudAccessToken();
   if (token) {
-    // 1. Primary: Gemini 2.5 Flash on Vertex us-central1 (co-located with Cloud Function for ultra-low latency ~700ms)
-    try {
-      const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent`;
-      const vertexRes = await fetch(vertexUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
-      });
-      if (vertexRes.ok) {
-        return await vertexRes.json();
-      }
-      const errText = await vertexRes.text();
-      console.warn("Vertex AI gemini-2.5-flash warning:", vertexRes.status, errText);
-    } catch (e25) {
-      console.warn("Vertex AI gemini-2.5-flash error:", e25);
-    }
-
-    // 2. High-availability fallback: Gemini 3.8 Flash on Vertex AI Global location
+    // 1. Primary: Gemini 3.8 Flash on Vertex AI Global with thinkingLevel: "low"
     try {
       const global38Url = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/gemini-3.8-flash:generateContent`;
       const global38Res = await fetch(global38Url, {
@@ -318,6 +298,26 @@ async function callVertexGemini(requestBody) {
       console.warn("Vertex AI gemini-3.8-flash global warning:", global38Res.status, err38);
     } catch (e38) {
       console.warn("Vertex AI gemini-3.8-flash global error:", e38);
+    }
+
+    // 2. High-availability fallback: Gemini 2.5 Flash on Vertex us-central1
+    try {
+      const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent`;
+      const vertexRes = await fetch(vertexUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+      });
+      if (vertexRes.ok) {
+        return await vertexRes.json();
+      }
+      const errText = await vertexRes.text();
+      console.warn("Vertex AI gemini-2.5-flash warning:", vertexRes.status, errText);
+    } catch (e25) {
+      console.warn("Vertex AI gemini-2.5-flash error:", e25);
     }
   }
 
@@ -518,7 +518,8 @@ CRITICAL CONVERSATIONAL PHONE VOICE RULES (ACT AS AN EXPERIENCED HUMAN MALE DISP
           temperature: 0.3,
           maxOutputTokens: 250,
           thinkingConfig: {
-            thinkingBudget: 0
+            thinkingBudget: 0,
+            thinkingLevel: "low"
           }
         }
       };
