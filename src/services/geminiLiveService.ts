@@ -4,6 +4,7 @@ import { Lead, Settings } from "../types.ts";
 import { executeLiveToolCall } from "./liveToolDispatcher.ts";
 import { buildDynamicSystemPrompt } from "./livePromptBuilder.ts";
 import { ConversationState } from "./conversationState.ts";
+import { SV_MODE } from "../tenant.ts";
 import { CallTelemetry, persistCallTelemetry } from "./observabilityService.ts";
 
 export interface GeminiLiveOptions {
@@ -368,10 +369,10 @@ export class GeminiLiveSession {
       receptionist_name: "Mike",
       business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
       timezone: "America/New_York",
-      service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
-      primary_zip_code: "17401",
+      service_areas: SV_MODE ? ["Pottstown", "Collegeville", "Upper Providence", "Royersford", "Limerick", "Douglassville", "Gilbertsville", "Phoenixville", "Montgomery County"] : ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
+      primary_zip_code: SV_MODE ? "19464" : "17401",
       service_radius_miles: 25,
-      service_zip_codes: ["17401", "17402", "17403", "17404", "17406", "17408", "17331", "17327", "17315", "17356", "17601", "17325"],
+      service_zip_codes: SV_MODE ? ["19464", "19465", "19426", "19468", "19473", "19518", "19525", "19403", "19460", "19475"] : ["17401", "17402", "17403", "17404", "17406", "17408", "17331", "17327", "17315", "17356", "17601", "17325"],
       transfer_enabled: true,
       transfer_phone_number: "+17175770668",
       on_call_technician_phone: "+17175770668",
@@ -426,11 +427,11 @@ export class GeminiLiveSession {
           automaticActivityDetection: {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
-            endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            // Require 1.5 seconds of sustained vocal energy before committing speech
-            prefixPaddingMs: 1500,
-            // Allow 1.8 seconds of natural silence before committing turn completion
-            silenceDurationMs: 1800
+            // Faster turn-taking than the 1.8s noise-immunity setting, while keeping
+            // some start padding so room noise doesn't trigger a turn.
+            endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+            prefixPaddingMs: 800,
+            silenceDurationMs: 900
           }
         },
         tools: [
@@ -453,13 +454,13 @@ export class GeminiLiveSession {
               },
               {
                 name: "confirmCallerDetails",
-                description: "Records an explicit caller confirmation after the receptionist reads back the full address/ZIP or the exact appointment slot and the caller says it is correct. Never call this before the caller explicitly confirms.",
+                description: "Records an explicit caller confirmation after the receptionist reads back the street address and town (or the exact appointment slot) and the caller says it is correct. Never call this before the caller explicitly confirms.",
                 parameters: {
                   type: "OBJECT",
                   properties: {
                     confirmation_type: { type: "STRING", enum: ["address", "appointment", "all"] },
-                    full_address: { type: "STRING", description: "Complete street address, city, state, and ZIP as read back to the caller." },
-                    zip_code: { type: "STRING", description: "ZIP code repeated digit by digit." },
+                    full_address: { type: "STRING", description: "Street address and town as read back to the caller. State defaults to PA; ZIP optional." },
+                    zip_code: { type: "STRING", description: "ZIP code only if the caller volunteered it. Never ask for it." },
                     appointment_start: { type: "STRING", description: "Exact slot the caller explicitly accepted." }
                   },
                   required: ["confirmation_type"]
@@ -480,9 +481,9 @@ export class GeminiLiveSession {
                     },
                     emergency_flag: { type: "BOOLEAN", description: "True if emergency call." },
                     emergency_type: { type: "STRING" },
-                    property_address: { type: "STRING", description: "Full service address only after the caller confirms the complete read-back, including ZIP code." },
-                    address_confirmed: { type: "BOOLEAN", description: "True only after the receptionist reads back the complete street address, city, state, and ZIP and the caller says it is correct." },
-                    zip_code_confirmed: { type: "BOOLEAN", description: "True only after the receptionist repeats every ZIP digit and the caller confirms it." },
+                    property_address: { type: "STRING", description: "Service address (street + town) after the caller confirms the read-back. ZIP optional." },
+                    address_confirmed: { type: "BOOLEAN", description: "True only after the receptionist reads back the street address and town and the caller says it is correct." },
+                    zip_code_confirmed: { type: "BOOLEAN", description: "Deprecated. Leave unset; ZIP is not required." },
                     equipment_type: { type: "STRING", description: "e.g., Furnace, AC, Heat Pump" },
                     issue_description: { type: "STRING" },
                     preferred_appointment_date: { type: "STRING" },
@@ -540,7 +541,7 @@ export class GeminiLiveSession {
                     caller_name: { type: "STRING", description: "Full name of the caller." },
                     callback_number: { type: "STRING", description: "Callback phone number." },
                     appointment_start: { type: "STRING", description: "Exact date and time selected (e.g. 2026-08-10 10:00)." },
-                    property_address: { type: "STRING", description: "Full service property address including ZIP code." },
+                    property_address: { type: "STRING", description: "Service property address (street + town). ZIP optional." },
                     service_type: { type: "STRING", description: "Service type requested (e.g. roof replacement estimate, repair, inspection)." },
                     issue_description: { type: "STRING", description: "Brief description of the service request or issue." },
                     appointment_confirmed: { type: "BOOLEAN", description: "Pass true when the caller agreed to this appointment slot." },

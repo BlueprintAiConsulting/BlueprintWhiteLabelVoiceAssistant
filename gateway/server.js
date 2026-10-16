@@ -122,7 +122,7 @@ class PhoneSession {
     this.reconnectAttempts = 0;
     this.gemini.send(JSON.stringify({
       setup: {
-        model: "models/gemini-3.1-flash-live-preview",
+        model: "models/gemini-3.8-live",
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
@@ -132,11 +132,9 @@ class PhoneSession {
           automaticActivityDetection: {
             disabled: false,
             startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
-            endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-            // Require sustained medium-level speech before barge-in; low phone
-            // line noise should not interrupt Megan.
-            prefixPaddingMs: 1000,
-            silenceDurationMs: 1600
+            endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+            prefixPaddingMs: 300,
+            silenceDurationMs: 800
           }
         },
         tools: [{ functionDeclarations: toolDeclarations() }]

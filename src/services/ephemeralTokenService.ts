@@ -50,7 +50,7 @@ export async function requestGeminiEphemeralToken(options: EphemeralTokenOptions
             access_token: tokenName,
             expires_in_seconds: 60,
             session_expiration_seconds: 1800,
-            model: "gemini-3.1-flash-live-preview",
+            model: "gemini-3.8-live",
             response_modality: "AUDIO"
           };
         }

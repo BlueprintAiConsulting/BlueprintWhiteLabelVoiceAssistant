@@ -92,7 +92,6 @@ export class ConversationState {
   confirmCallerDetails(args: Record<string, any>): StateGuardResult {
     const confirmationType = text(args.confirmation_type).toLowerCase();
     const address = text(args.full_address || args.property_address);
-    const zipCode = text(args.zip_code);
     const missing: string[] = [];
 
     if (!["address", "appointment", "all"].includes(confirmationType)) {
@@ -105,7 +104,6 @@ export class ConversationState {
 
     if (confirmationType === "address" || confirmationType === "all") {
       if (!address) missing.push("full_address");
-      if (!zipCode) missing.push("zip_code");
     }
     if (confirmationType === "appointment" || confirmationType === "all") {
       const appointment = text(args.appointment_start);
@@ -152,7 +150,6 @@ export class ConversationState {
     if (SERVICE_CALL_TYPES.has(callType)) {
       if (!this.state.property_address) missing.push("property_address");
       if (!this.state.address_confirmed) missing.push("address_confirmation");
-      if (!this.state.zip_code_confirmed) missing.push("zip_code_confirmation");
     }
 
     if (missing.length > 0) {
@@ -190,7 +187,6 @@ export class ConversationState {
     if (!this.state.callback_number) missing.push("callback_number");
     if (!this.state.property_address) missing.push("property_address");
     if (!this.state.address_confirmed) missing.push("address_confirmation");
-    if (!this.state.zip_code_confirmed) missing.push("zip_code_confirmation");
     if (!appointment) missing.push("appointment_start");
     if (appointment && !this.state.available_slots.includes(appointment)) missing.push("checked_available_slot");
     if (!this.state.appointment_confirmed || this.state.selected_appointment !== appointment) missing.push("appointment_confirmation");
