@@ -414,9 +414,10 @@ export default function Dashboard() {
               <div className="flex-1 sm:flex-none flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 px-3 py-2 rounded-xl backdrop-blur-sm min-h-[44px]">
                 <Clock size={14} className="text-cyan-400 shrink-0" />
                 <select
+                  aria-label="Filter by lead status"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as any)}
-                  className="text-xs sm:text-sm bg-transparent focus:outline-none text-slate-700 dark:text-slate-300 font-medium w-full cursor-pointer"
+                  className="text-xs sm:text-sm bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/80 text-slate-700 dark:text-slate-300 font-medium w-full cursor-pointer"
                 >
                   <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">All Statuses</option>
                   <option value="new" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">New</option>

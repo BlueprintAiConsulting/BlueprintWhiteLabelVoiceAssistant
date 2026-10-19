@@ -664,7 +664,7 @@ export default function Simulator() {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif italic text-slate-900 dark:text-slate-100 tracking-tight">Call Simulator</h1>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 text-[10px] sm:text-[11px] font-mono font-bold shadow-glow-cyan-sm">
               <Zap size={13} className="text-cyan-400 animate-pulse" />
-              GEMINI 2.0 MULTIMODAL
+              GEMINI 3.8 LIVE VOICE
             </span>
 
             {/* Quick 1-Click Trade Switcher (hidden in Spring Valley build) */}
@@ -675,7 +675,7 @@ export default function Simulator() {
                 onClick={() => handleSwitchTrade("hvac")}
                 disabled={isCalling}
                 className={cn(
-                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
+                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500",
                   activeIndustry === "hvac"
                     ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
@@ -688,7 +688,7 @@ export default function Simulator() {
                 onClick={() => handleSwitchTrade("roofing_siding")}
                 disabled={isCalling}
                 className={cn(
-                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50",
+                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
                   activeIndustry === "roofing_siding"
                     ? "bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.5)] font-black"
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
@@ -700,14 +700,14 @@ export default function Simulator() {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Active Trade: <span className="text-cyan-300 font-semibold">{INDUSTRY_PRESETS[activeIndustry]?.name}</span> ({settings?.office_name || INDUSTRY_PRESETS[activeIndustry]?.defaultOfficeName}) — simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.
+            Active Trade: <span className="text-cyan-700 dark:text-cyan-300 font-semibold">{INDUSTRY_PRESETS[activeIndustry]?.name}</span> ({settings?.office_name || INDUSTRY_PRESETS[activeIndustry]?.defaultOfficeName}) — simulate live inbound caller conversations with ultra-low latency voice & barge-in AI receptionist technology.
           </p>
         </div>
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 w-full lg:w-auto">
           {isCalling ? (
             <button
               onClick={endCall}
-              className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-500/25 dark:text-rose-200 dark:border-rose-500/60 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(244,63,94,0.2)] min-h-[48px] active:scale-[0.98] cursor-pointer"
+              className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 dark:bg-rose-500/25 dark:text-rose-200 dark:border-rose-500/60 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(244,63,94,0.2)] min-h-[48px] active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
             >
               <PhoneOff size={18} />
               <span>Hang Up ({isVoiceMode ? "Voice Mode" : "Text Mode"})</span>
@@ -717,7 +717,7 @@ export default function Simulator() {
               <button
                 onClick={handleInitiateVoiceCall}
                 disabled={isLoading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm hover:from-cyan-400 hover:to-cyan-300 transition-all shadow-[0_0_25px_rgba(34,211,238,0.45)] disabled:opacity-50 relative overflow-hidden group min-h-[48px] active:scale-[0.98] cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 px-6 py-3.5 rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm hover:from-cyan-400 hover:to-cyan-300 transition-all shadow-[0_0_25px_rgba(34,211,238,0.45)] disabled:opacity-50 relative overflow-hidden group min-h-[48px] active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
               >
                 <Mic size={18} className="text-slate-950 animate-pulse" />
                 <span>Live Voice Call (Mic)</span>
@@ -726,7 +726,7 @@ export default function Simulator() {
                 <button
                   onClick={() => startCall()}
                   disabled={isLoading}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 dark:border-emerald-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 dark:border-emerald-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
                   <Phone size={15} />
                   Text Call
@@ -734,7 +734,7 @@ export default function Simulator() {
                 <button
                   onClick={simulateMissedCall}
                   disabled={isLoading}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 border border-amber-500/30 dark:border-amber-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/80 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 border border-amber-500/30 dark:border-amber-500/40 px-4 py-3 rounded-2xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all shadow-sm disabled:opacity-50 min-h-[44px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
                   <MessageSquare size={15} />
                   Missed Text
@@ -828,7 +828,7 @@ export default function Simulator() {
                   key={scenario.id}
                   onClick={() => startCall(scenario.prompt)}
                   disabled={isLoading}
-                  className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-sm dark:shadow-md cursor-pointer active:scale-[0.99]"
+                  className="flex items-center gap-3 p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] transition-all text-left group disabled:opacity-50 shadow-sm dark:shadow-md cursor-pointer active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
                 >
                   <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 shrink-0 group-hover:bg-cyan-500/20 transition-all">
                     <Sparkles size={16} />
@@ -861,7 +861,7 @@ export default function Simulator() {
                 type="button"
                 onClick={() => startCall(sc.prompt)}
                 disabled={isLoading}
-                className="px-3 py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-medium whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[36px] cursor-pointer"
+                className="px-3 py-1.5 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-medium whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[36px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
               >
                 <Sparkles size={12} className="text-cyan-500 dark:text-cyan-400" />
                 <span>{sc.title || sc.label}</span>
@@ -1145,23 +1145,23 @@ export default function Simulator() {
           </section>
 
           {/* AI Tool & Function Call Stream */}
-          <section className="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl  shadow-lg space-y-3 flex-1 flex flex-col">
-            <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-1.5">
+          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 p-4 rounded-2xl shadow-sm dark:shadow-lg space-y-3 flex-1 flex flex-col">
+            <h3 className="text-sm font-semibold text-cyan-700 dark:text-cyan-400 flex items-center gap-1.5">
               <Cpu size={14} />
               AI Tool & Function Call Stream
             </h3>
             <div className="flex-1 overflow-y-auto space-y-2 max-h-56">
               {debugInfo.length > 0 ? (
                 debugInfo.map((info, idx) => (
-                  <div key={idx} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono text-[10px] space-y-1">
-                    <div className="text-cyan-400 font-bold">⚡ {info.name}()</div>
-                    <pre className="text-slate-400 overflow-x-auto text-[9px] bg-slate-900 p-1.5 rounded border border-slate-800/60">
+                  <div key={idx} className="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-mono text-[10px] space-y-1">
+                    <div className="text-cyan-700 dark:text-cyan-400 font-bold">⚡ {info.name}()</div>
+                    <pre className="text-slate-700 dark:text-slate-400 overflow-x-auto text-[9px] bg-white dark:bg-slate-900 p-1.5 rounded border border-slate-200 dark:border-slate-800/60">
                       {JSON.stringify(info.args, null, 2)}
                     </pre>
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center text-slate-500 font-mono text-[11px] bg-slate-950/40 rounded-xl border border-slate-800/60">
+                <div className="p-4 text-center text-slate-500 dark:text-slate-400 font-mono text-[11px] bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-slate-200 dark:border-slate-800/60">
                   Awaiting function calls (e.g. transferCall, saveLead, bookEstimate)...
                 </div>
               )}
