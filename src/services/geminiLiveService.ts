@@ -379,7 +379,7 @@ export class GeminiLiveSession {
       after_hours_message: "Thank you for calling. Our office is closed.",
       emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
       receptionist_voice: "Puck",
-      receptionist_voice_style: "warm, conversational, natural male office dispatcher",
+      receptionist_voice_style: "warm, conversational, natural male front-desk dispatcher with friendly human inflection",
       prompt_overrides: ""
     };
 
@@ -621,7 +621,7 @@ export class GeminiLiveSession {
         after_hours_message: "Thank you for calling. Our office is closed.",
         emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
         receptionist_voice: this.options.voiceName || "Puck",
-        receptionist_voice_style: "warm, conversational, natural male office dispatcher",
+        receptionist_voice_style: "warm, conversational, natural male front-desk dispatcher with friendly human inflection",
         prompt_overrides: ""
       };
       this.configuredOfficeName = baseSettings.office_name;
@@ -1183,7 +1183,7 @@ export class GeminiLiveSession {
     }
     const receptionistName = this.options.personaName || this.options.settings?.receptionist_name || "Mike";
 
-    const greetingPrompt = `[INBOUND CALL CONNECTED] Answer the phone immediately and cleanly with your official greeting: "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?" Speak with crisp, confident clarity. Never use vocal fillers like "uh", "um", "ugh", or hesitation.`;
+    const greetingPrompt = `[INBOUND CALL CONNECTED] Answer the phone warmly and naturally: "Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?" Speak in a warm, relaxed, friendly conversational tone with natural human inflection, like a real person at the front desk.`;
 
     const initialGreetingPayload = {
       realtimeInput: {

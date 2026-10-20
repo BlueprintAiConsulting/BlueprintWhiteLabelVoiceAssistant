@@ -54,7 +54,7 @@ const DEFAULT_SETTINGS: Settings = {
   after_hours_message: "Thank you for calling. Our office is currently closed. If this is an emergency, please stay on the line for instant routing.",
   emergency_keywords: ["gas leak", "carbon monoxide", "no heat", "sparks", "smoke", "freezing", "water leaking"],
   receptionist_voice: "Puck",
-  receptionist_voice_style: "warm, conversational, natural male office dispatcher & front-desk specialist",
+  receptionist_voice_style: "warm, conversational, natural male front-desk dispatcher with friendly human inflection",
   prompt_overrides: "",
   calendar_id: "primary",
   appointment_duration_minutes: 60,
