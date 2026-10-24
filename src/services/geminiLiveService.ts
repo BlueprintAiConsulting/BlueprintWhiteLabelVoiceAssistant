@@ -905,7 +905,7 @@ export class GeminiLiveSession {
         } else {
           if (this.vertexSilenceStartMs === 0) {
             this.vertexSilenceStartMs = now;
-          } else if (now - this.vertexSilenceStartMs >= 240 && !this.vertexProcessingTurn) {
+          } else if (now - this.vertexSilenceStartMs >= 400 && !this.vertexProcessingTurn) {
             const speechDuration = now - this.vertexSpeechStartMs;
             const chunks = this.vertexPcmChunks;
             this.vertexPcmChunks = [];
@@ -913,8 +913,8 @@ export class GeminiLiveSession {
             this.vertexSilenceStartMs = 0;
             this.consecutiveSpeechFrames = 0;
 
-            // Only submit if caller actually spoke (>= 200ms and >= 6 frames). Discard clicks/coughs/rustles.
-            if (speechDuration >= 200 && chunks.length >= 6) {
+            // Only submit if caller actually spoke (>= 280ms and >= 8 frames). Discard clicks/coughs/rustles.
+            if (speechDuration >= 280 && chunks.length >= 8) {
               const totalLen = chunks.reduce((acc, c) => acc + c.byteLength, 0);
               const combined = new Uint8Array(totalLen);
               let offset = 0;
