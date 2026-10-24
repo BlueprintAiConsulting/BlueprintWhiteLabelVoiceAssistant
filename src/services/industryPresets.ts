@@ -549,17 +549,9 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
   }
 
   // Roofing guardrail: If roofing mode is active, purge any HVAC / old Apex branding remnants
-  let resolvedReceptionistName = isChangingTrade ? preset.defaultReceptionistName : (existingSettings?.receptionist_name || preset.defaultReceptionistName);
-  let resolvedReceptionistVoice = isChangingTrade ? (industry === "roofing_siding" ? "Puck" : (existingSettings?.receptionist_voice || "Puck")) : (existingSettings?.receptionist_voice || "Puck");
   if (industry === "roofing_siding") {
     if (!resolvedOfficeName || /lunar|heating|cooling|hvac|apex/i.test(resolvedOfficeName)) {
       resolvedOfficeName = "Spring Valley Roofing";
-    }
-    if (!resolvedReceptionistName || resolvedReceptionistName === "Sarah") {
-      resolvedReceptionistName = "Mike";
-    }
-    if (!resolvedReceptionistVoice || resolvedReceptionistVoice === "Aoede") {
-      resolvedReceptionistVoice = "Puck";
     }
   }
 
@@ -577,8 +569,8 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
     on_call_technician_phone: preset.defaultOwnerPhone,
     after_hours_message: `Thank you for calling ${preset.defaultOfficeName}. Our office is currently closed.`,
     emergency_keywords: preset.emergencyKeywords,
-    receptionist_voice: "Puck",
-    receptionist_voice_style: "warm, conversational, natural front-desk dispatcher with friendly human inflection",
+    receptionist_voice: "Aoede",
+    receptionist_voice_style: "warm, concise, natural office receptionist",
     prompt_overrides: "",
     calendar_id: "primary",
     appointment_duration_minutes: 60,
@@ -590,9 +582,6 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
     ...base,
     industry: industry,
     office_name: resolvedOfficeName,
-    receptionist_name: resolvedReceptionistName,
-    receptionist_voice: resolvedReceptionistVoice,
-    receptionist_voice_style: existingSettings?.receptionist_voice_style || "warm, conversational, natural front-desk dispatcher with friendly human inflection",
     owner_name: isChangingTrade ? preset.defaultOwnerName : (existingSettings?.owner_name || preset.defaultOwnerName),
     owner_title: isChangingTrade ? preset.defaultOwnerTitle : (existingSettings?.owner_title || preset.defaultOwnerTitle),
     owner_phone_number: existingSettings?.owner_phone_number || preset.defaultOwnerPhone,
