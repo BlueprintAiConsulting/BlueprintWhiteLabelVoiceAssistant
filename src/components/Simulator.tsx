@@ -32,8 +32,8 @@ export default function Simulator() {
   const [debugInfo, setDebugInfo] = useState<{ name: string; args: any }[]>([]);
   const [callDuration, setCallDuration] = useState(0);
   const [transferDetails, setTransferDetails] = useState<{ target: string; reason: string; status: string } | null>(null);
-  const [activeVoiceName, setActiveVoiceName] = useState(SV_MODE ? "Aoede" : "Puck");
-  const [activePersonaName, setActivePersonaName] = useState(SV_MODE ? "Sarah" : "Mike");
+  const [activeVoiceName, setActiveVoiceName] = useState("Aoede");
+  const [activePersonaName, setActivePersonaName] = useState("Sarah");
   const [activeIndustry, setActiveIndustry] = useState<IndustryType>(SV_MODE ? "roofing_siding" : "hvac");
   const [settings, setSettings] = useState<any>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
@@ -335,8 +335,8 @@ export default function Simulator() {
         if (activeIndustry === "roofing_siding" && (!activeSettings.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeSettings.office_name))) {
           activeSettings.office_name = "Spring Valley Roofing";
         }
-        const loadedVoice = activeSettings.receptionist_voice || "Puck";
-        const loadedName = activeSettings.receptionist_name || "Mike";
+        const loadedVoice = activeSettings.receptionist_voice || "Aoede";
+        const loadedName = activeSettings.receptionist_name || "Sarah";
         setActiveVoiceName(loadedVoice);
         setActivePersonaName(loadedName);
         const tradeTitle = INDUSTRY_PRESETS[activeIndustry]?.name || activeIndustry;
@@ -369,8 +369,8 @@ export default function Simulator() {
         }
       }
 
-      const loadedVoice = activeSettings?.receptionist_voice || "Puck";
-      const loadedName = activeSettings?.receptionist_name || "Mike";
+      const loadedVoice = activeSettings?.receptionist_voice || "Aoede";
+      const loadedName = activeSettings?.receptionist_name || "Sarah";
       
       const session = new GeminiLiveSession({
         accessToken: tokenRes?.access_token,
