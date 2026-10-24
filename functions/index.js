@@ -358,14 +358,14 @@ async function callVertexGemini(requestBody) {
 
 function mapGeminiVoiceToTtsVoice(voiceName) {
   const map = {
-    Aoede: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
+    Aoede: { name: "en-US-Journey-F", ssmlGender: "FEMALE" },
     Kore: { name: "en-US-Neural2-C", ssmlGender: "FEMALE" },
     Leda: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
-    Puck: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
+    Puck: { name: "en-US-Journey-D", ssmlGender: "MALE" },
     Charon: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
     Fenrir: { name: "en-US-Neural2-J", ssmlGender: "MALE" }
   };
-  return map[voiceName] || { name: "en-US-Neural2-D", ssmlGender: "MALE" };
+  return map[voiceName] || { name: "en-US-Journey-D", ssmlGender: "MALE" };
 }
 
 async function synthesizeSpeechPcm24k(text, voiceName) {
