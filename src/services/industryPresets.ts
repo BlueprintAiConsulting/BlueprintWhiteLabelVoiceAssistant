@@ -46,7 +46,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Heating, Air Conditioning & Indoor Air Quality Specialists',
     iconName: 'Wind',
     defaultOfficeName: 'Lunar Heating and Cooling',
-    defaultReceptionistName: 'Sarah',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Master HVAC Technician & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -129,7 +129,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Premier Roof Replacement, Storm Damage & Siding Contractors',
     iconName: 'Home',
     defaultOfficeName: 'Spring Valley Roofing',
-    defaultReceptionistName: 'Sarah',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Chris',
     defaultOwnerTitle: 'Owner, CertainTeed Master Craftsman',
     defaultOwnerPhone: '+17175770668',
@@ -213,7 +213,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: '24/7 Emergency Plumbing, Drain Clearing & Tankless Water Heaters',
     iconName: 'Droplets',
     defaultOfficeName: 'FlowMaster Plumbing & Drains',
-    defaultReceptionistName: 'Sarah',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Master Plumber & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -287,7 +287,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Licensed Electrical Contractors, Panel Upgrades & EV Chargers',
     iconName: 'Zap',
     defaultOfficeName: 'Current Tech Electrical',
-    defaultReceptionistName: 'Sarah',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Master Electrician & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -362,7 +362,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Hazardous Tree Removal, Storm Emergency Arborists & Hardscaping',
     iconName: 'Trees',
     defaultOfficeName: 'TimberCare Tree & Landscape',
-    defaultReceptionistName: 'Sarah',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'Certified Arborist & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -436,7 +436,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Design-Build Custom Remodeling, Additions & Renovations',
     iconName: 'Hammer',
     defaultOfficeName: 'Blueprint Design & Build',
-    defaultReceptionistName: 'Sarah',
+    defaultReceptionistName: 'Mike',
     defaultOwnerName: 'Josh',
     defaultOwnerTitle: 'General Contractor & Owner',
     defaultOwnerPhone: '+17175770668',
@@ -549,9 +549,17 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
   }
 
   // Roofing guardrail: If roofing mode is active, purge any HVAC / old Apex branding remnants
+  let resolvedReceptionistName = isChangingTrade ? preset.defaultReceptionistName : (existingSettings?.receptionist_name || preset.defaultReceptionistName);
+  let resolvedReceptionistVoice = isChangingTrade ? (industry === "roofing_siding" ? "Puck" : (existingSettings?.receptionist_voice || "Puck")) : (existingSettings?.receptionist_voice || "Puck");
   if (industry === "roofing_siding") {
     if (!resolvedOfficeName || /lunar|heating|cooling|hvac|apex/i.test(resolvedOfficeName)) {
       resolvedOfficeName = "Spring Valley Roofing";
+    }
+    if (!resolvedReceptionistName || resolvedReceptionistName === "Sarah") {
+      resolvedReceptionistName = "Mike";
+    }
+    if (!resolvedReceptionistVoice || resolvedReceptionistVoice === "Aoede") {
+      resolvedReceptionistVoice = "Puck";
     }
   }
 
@@ -569,8 +577,8 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
     on_call_technician_phone: preset.defaultOwnerPhone,
     after_hours_message: `Thank you for calling ${preset.defaultOfficeName}. Our office is currently closed.`,
     emergency_keywords: preset.emergencyKeywords,
-    receptionist_voice: "Aoede",
-    receptionist_voice_style: "warm, concise, natural office receptionist",
+    receptionist_voice: "Puck",
+    receptionist_voice_style: "warm, conversational, natural front-desk dispatcher with friendly human inflection",
     prompt_overrides: "",
     calendar_id: "primary",
     appointment_duration_minutes: 60,
@@ -582,6 +590,9 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
     ...base,
     industry: industry,
     office_name: resolvedOfficeName,
+    receptionist_name: resolvedReceptionistName,
+    receptionist_voice: resolvedReceptionistVoice,
+    receptionist_voice_style: existingSettings?.receptionist_voice_style || "warm, conversational, natural front-desk dispatcher with friendly human inflection",
     owner_name: isChangingTrade ? preset.defaultOwnerName : (existingSettings?.owner_name || preset.defaultOwnerName),
     owner_title: isChangingTrade ? preset.defaultOwnerTitle : (existingSettings?.owner_title || preset.defaultOwnerTitle),
     owner_phone_number: existingSettings?.owner_phone_number || preset.defaultOwnerPhone,
