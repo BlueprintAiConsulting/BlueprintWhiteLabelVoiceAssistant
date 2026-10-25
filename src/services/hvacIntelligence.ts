@@ -26,6 +26,20 @@ function detectEquipment(text: string): string | undefined {
   if (/\b(air conditioner|air conditioning|\bac\b|central air)\b/.test(text)) return "Air Conditioning";
   if (/\b(thermostat)\b/.test(text)) return "Thermostat";
   if (/\b(duct|ductwork)\b/.test(text)) return "Ductwork";
+  if (/\b(shingle|certainteed|landmark|roof replacement|new roof|tear[ -]?off)\b/.test(text)) return "Architectural Shingle Roof";
+  if (/\b(siding|cedar impressions|vinyl siding|hardie)\b/.test(text)) return "Vinyl / Insulated Siding";
+  if (/\b(pipe boot|flashing|chimney leak|valley|skylight|roof leak|tarp)\b/.test(text)) return "Roof Flashing / Leak Repair";
+  if (/\b(gutter|downspout|soffit|fascia|ridge vent|ice dam)\b/.test(text)) return "Gutters, Soffit & Ventilation";
+  if (/\b(tankless|rinnai|navien)\b/.test(text)) return "Tankless Water Heater";
+  if (/\b(water heater|hot water tank)\b/.test(text)) return "Tank Water Heater";
+  if (/\b(sewer|main drain|hydro[ -]?jet|clogged drain|sump pump)\b/.test(text)) return "Drain / Sewer & Sump System";
+  if (/\b(burst pipe|pex|copper pipe|repipe|water line|shutoff valve)\b/.test(text)) return "Plumbing Supply Piping";
+  if (/\b(panel|200[ -]?amp|100[ -]?amp|breaker|subpanel|fuse box)\b/.test(text)) return "Main Breaker Panel";
+  if (/\b(ev charger|tesla|level 2|nema 14-50)\b/.test(text)) return "EV Level 2 Charger";
+  if (/\b(generator|generac|transfer switch)\b/.test(text)) return "Whole-House Generator";
+  if (/\b(stump|stump grinding)\b/.test(text)) return "Stump Grinding";
+  if (/\b(tree|arborist|limb|branch|oak|pine|crane removal)\b/.test(text)) return "Tree Removal / Pruning";
+  if (/\b(kitchen remodel|bathroom remodel|addition|in-law suite|custom deck)\b/.test(text)) return "Remodeling / Design-Build";
   return undefined;
 }
 

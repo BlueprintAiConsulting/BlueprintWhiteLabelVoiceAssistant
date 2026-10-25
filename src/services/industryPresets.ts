@@ -26,6 +26,8 @@ export interface IndustryDefinition {
     maintenancePlanPrice: string;
     maintenancePlanBenefits: string;
   };
+  domainKnowledge?: string[];
+  objectionHandling?: { trigger: string; response: string }[];
   customFaqs: { id: string; question: string; answer: string }[];
   quickScenarios: {
     id: string;
@@ -76,10 +78,32 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       maintenancePlanPrice: '$19/mo or $199/yr',
       maintenancePlanBenefits: 'Includes 2 precision tune-ups per year (Spring AC & Fall Furnace), 15% discount on all repairs, priority VIP scheduling, and zero emergency trip fees.'
     },
+    domainKnowledge: [
+      'We service and install all major residential and light commercial HVAC brands including Trane, Carrier, Lennox, Rheem, Goodman, Bryant, Mitsubishi Electric, Bosch, and Navien.',
+      'Common AC symptoms: blowing warm air or weak airflow is often caused by a failed dual-run capacitor, worn contactor, dirty condenser coil, low refrigerant (R-410A or R-454B), or a frozen evaporator coil. If the caller sees ice on the copper refrigerant lines, advise switching the thermostat fan from Auto to On and turning cooling Off so the coil thaws before our technician arrives.',
+      'Common furnace/heating symptoms: short-cycling (turning on and off every few minutes) or blowing cold air is frequently caused by a dirty flame sensor, failed hot surface ignitor, clogged air filter tripping the high-limit switch, or a blocked condensate drain trap.',
+      'System replacements (12-20+ year old units): we perform a free in-home Manual J heat-load calculation to properly size high-efficiency SEER2 air conditioners, cold-climate inverter heat pumps, and 96%+ AFUE variable-speed gas furnaces, and walk homeowners through utility rebates, federal 25C tax credits, and financing.',
+      'Indoor Air Quality (IAQ): we install AprilAire whole-home humidifiers, dehumidifiers, MERV 11-16 media air cleaners, and UV-C germicidal air scrubbers.'
+    ],
+    objectionHandling: [
+      {
+        trigger: 'Caller asks for an exact repair price or ballpark over the phone',
+        response: 'Explain warmly that because the same symptom (like warm air) could be a simple capacitor or a refrigerant issue, our technician comes out for an $89 diagnostic, pinpoints the exact issue, and gives an upfront flat-rate price before doing any work—no surprises.'
+      },
+      {
+        trigger: 'Caller asks how much a brand-new AC or furnace costs over the phone',
+        response: 'Explain that system cost depends on home square footage, ductwork, and efficiency tier, which is why our in-home replacement estimates are 100% free and include Good-Better-Best written options.'
+      },
+      {
+        trigger: 'Caller is hesitant about paying a diagnostic fee',
+        response: 'Reassure them that the $89 diagnostic covers a full multi-point test by an EPA-certified tech, or let them know our Comfort Club plan ($19/mo) waives trip fees and takes 15% off repairs.'
+      }
+    ],
     customFaqs: [
       { id: 'f1', question: 'How much is a diagnostic service call?', answer: 'Our standard diagnostic fee is $89. A licensed technician thoroughly inspects your system and provides an upfront, exact quote before any work begins.' },
       { id: 'f2', question: 'Do you offer free estimates on new systems?', answer: 'Yes! We provide 100% free, no-obligation in-home estimates for complete furnace, AC, heat pump, or mini-split replacements.' },
-      { id: 'f3', question: 'What is included in your Comfort Club maintenance plan?', answer: 'Our Comfort Club ($19/mo) includes 2 annual precision tune-ups, 15% off all repairs, priority scheduling, and waived after-hours dispatch fees.' }
+      { id: 'f3', question: 'What is included in your Comfort Club maintenance plan?', answer: 'Our Comfort Club ($19/mo) includes 2 annual precision tune-ups, 15% off all repairs, priority scheduling, and waived after-hours dispatch fees.' },
+      { id: 'f4', question: 'What should I do if my AC line is frozen?', answer: 'Turn your AC system Off at the thermostat and switch the fan to On. That helps thaw the indoor coil before our technician arrives so we can test your refrigerant pressures right away.' }
     ],
     quickScenarios: [
       {
@@ -160,10 +184,33 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       maintenancePlanPrice: '',
       maintenancePlanBenefits: 'No maintenance plan is offered. Do not mention one.'
     },
+    domainKnowledge: [
+      'Spring Valley Roofing is family-owned and operated out of Pottstown, PA, led by owner Chris (CertainTeed Master Craftsman), proudly serving Montgomery, Chester, and Berks Counties including Pottstown, Collegeville, Phoenixville, Royersford, Gilbertsville, Boyertown, King of Prussia, and West Chester.',
+      'Roofing systems & materials: We specialize in CertainTeed Landmark and Landmark PRO architectural dimensional shingles with StreakFighter algae protection, DiamondDeck synthetic underlayment, WinterGuard ice & water shield in all valleys/eaves/penetrations, drip edge, and balanced ridge-vent + soffit intake attic ventilation. We also service standing seam metal roofs and EPDM/TPO low-slope porch and flat roofs.',
+      'Common roof leak culprits: cracked or dry-rotted rubber pipe boots around plumbing vents, rusted chimney/dormer step or counter-flashing, lifted nail pops, clogged roof valleys, ice dams at the eaves, or wind-creased/missing shingles.',
+      'Siding & exterior expertise: We install CertainTeed Monogram and MainStreet vinyl siding, CedarBoards insulated vinyl siding, Cedar Impressions polymer shake accents, aluminum fascia, vented soffit, and seamless gutters.',
+      'Storm & hail insurance claims: High winds and hail often bruise the shingle fiberglass mat or break adhesive seal strips even when not obvious from the ground. We perform free storm inspections with detailed photo documentation, meet the homeowner insurance adjuster on the roof so nothing gets overlooked, and help navigate supplements—while never guaranteeing claim approval over the phone.',
+      'Active leak homeowner guidance: If water is actively dripping inside during rain, advise placing a bucket underneath and moving valuables away, and remind them never to climb onto a wet roof. Capture their address and callback number immediately so we can coordinate emergency tarping.'
+    ],
+    objectionHandling: [
+      {
+        trigger: 'Caller asks how much a new roof or repair costs over the phone',
+        response: 'Explain warmly that roof pricing depends on roof pitch, total squares, layers to tear off, decking condition, and shingle line, so we provide a 100% free, no-obligation in-person inspection and detailed written estimate—and offer to get them right on the schedule.'
+      },
+      {
+        trigger: 'Caller asks if they should file an insurance claim before we inspect',
+        response: 'Recommend having Chris or our storm specialist inspect the roof for free first—that way we can confirm whether there is legitimate wind or hail damage worth claiming before they put a claim on their insurance record.'
+      },
+      {
+        trigger: 'Caller asks if we do small repairs like a pipe boot or missing shingles or only full roofs',
+        response: 'Reassure them we handle everything from quick pipe-boot, flashing, and shingle repairs to emergency tarping, full CertainTeed roof replacements, and siding.'
+      }
+    ],
     customFaqs: [
       { id: 'rf1', question: 'Do you offer free estimates for roof replacements?', answer: 'Yes. Estimates are free and written, and we get back to you within one business day. We are family owned and operated out of Pottstown and serve Montgomery and Chester Counties. Office hours are Monday to Friday 8am to 7pm and Saturday 8am to 4pm. Phone (610) 948-5207.' },
       { id: 'rf2', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Yes. We document the damage with photos, meet your adjuster on site, and handle supplements for hail and wind claims. We never promise a claim will be approved.' },
-      { id: 'rf3', question: 'How quickly can you tarp an active roof leak?', answer: 'We do emergency tarping and leak containment. I will flag your call as urgent so the office calls you right back to confirm timing.' }
+      { id: 'rf3', question: 'How quickly can you tarp an active roof leak?', answer: 'We do emergency tarping and leak containment. I will flag your call as urgent so the office calls you right back to confirm timing.' },
+      { id: 'rf4', question: 'What roofing brands and warranties do you offer?', answer: 'As a CertainTeed Master Craftsman contractor, we install CertainTeed Landmark and Landmark PRO architectural shingles backed by strong manufacturer and workmanship warranties.' }
     ],
     quickScenarios: [
       {
@@ -242,6 +289,22 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       maintenancePlanPrice: '$15/mo or $149/yr',
       maintenancePlanBenefits: 'Annual whole-home plumbing inspection, water heater flush, free camera drain inspection once per year, and 15% discount on all repairs.'
     },
+    domainKnowledge: [
+      'Our licensed Master Plumbers handle emergency pipe bursts, main sewer line backups, hydro-jetting, HD sewer camera inspections, tank and tankless water heaters (Rinnai, Navien, Bradford White), sump pumps, and PEX/copper repiping.',
+      'Immediate emergency flood guidance: For a burst pipe or active leak, calmly guide the caller to shut off the local fixture angle stop valve (clockwise under the sink or behind the toilet) or the main house water shutoff valve (located in the basement along the front foundation wall, near the water meter, or in the utility closet).',
+      'Water heater triage: If a tank water heater is leaking from the bottom tank seam, the internal steel tank has corroded and requires replacement rather than repair; advise shutting off the cold-water supply valve on top of the heater and turning the gas dial to Pilot/Off or flipping the breaker.',
+      'Sewer & drain triage: If multiple fixtures (especially basement floor drains, downstairs showers, and toilets) gurgle or back up simultaneously, it indicates a main sewer line blockage (often tree roots or a bellied line) rather than a single sink trap clog. Advise stopping all water usage in the home until our plumber clears the main cleanout.'
+    ],
+    objectionHandling: [
+      {
+        trigger: 'Caller asks for an exact plumbing repair or drain clearing price over the phone',
+        response: 'Explain that for a $79 diagnostic visit, our licensed plumber inspects the exact pipe or drain issue and gives an upfront flat-rate price before starting any work—and offer to get a plumber headed their way.'
+      },
+      {
+        trigger: 'Caller asks how much a new tank or tankless water heater costs',
+        response: 'Share that we offer free in-home estimates on water heater replacements so we can check venting, gas line sizing, and gallon capacity, and give same-day installation options.'
+      }
+    ],
     customFaqs: [
       { id: 'p1', question: 'How much is your diagnostic fee?', answer: 'Our standard diagnostic inspection is $79. Our plumber inspects the leak or clog and provides an upfront flat-rate price before starting any work.' },
       { id: 'p2', question: 'Where is my main water shutoff valve?', answer: 'In most homes, the main shutoff valve is located in the basement near the front wall, near the water meter, or inside the water heater closet. Turn it clockwise to stop incoming water.' },
@@ -317,6 +380,22 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       maintenancePlanPrice: '$15/mo or $149/yr',
       maintenancePlanBenefits: 'Annual 30-point electrical safety check, thermal infrared panel inspection, surge protector testing, and 15% discount on all installations.'
     },
+    domainKnowledge: [
+      'Our licensed Master Electricians specialize in 100A to 200A/400A heavy-up service panel upgrades, replacement of hazardous/recalled panels (Federal Pacific Stab-Lok, Zinsco, Challenger, obsolete fuse boxes), EV Level 2 charging stations, whole-home standby generators (Generac, Kohler), and NEC-compliant troubleshooting.',
+      'EV Charger expertise: We install hardwired 48A/60A Tesla Wall Connectors, ChargePoint Home Flex, and commercial-grade Hubbell NEMA 14-50 receptacles, complete with load calculations, load-shedding devices if a 100A panel is near capacity, and municipal electrical inspection sign-off.',
+      'Electrical symptom triage: Warm or discolored outlets, a fishy/acrid plastic odor near switches or panels, or buzzing/crackling sounds indicate dangerous loose connections or arcing. Advise the caller to stop using that circuit immediately, unplug high-draw appliances (like space heaters), and never open the panel dead-front cover.',
+      'Partial power loss or flickering lights when large appliances kick on often points to a loose utility neutral or corroded meter lug—we coordinate directly with the electric utility when meter pulls are required.'
+    ],
+    objectionHandling: [
+      {
+        trigger: 'Caller asks for an exact price over the phone to troubleshoot a dead outlet or tripping breaker',
+        response: 'Explain that for an $89 diagnostic inspection, a licensed electrician traces the circuit fault safely with specialized meters and gives an upfront flat-rate repair price before doing any work.'
+      },
+      {
+        trigger: 'Caller asks how much a 200A panel upgrade or EV charger installation costs',
+        response: 'Explain that we provide free in-home estimates for panel upgrades and EV chargers so our electrician can check the panel capacity, wire run distance, and grounding, and provide an exact written quote.'
+      }
+    ],
     customFaqs: [
       { id: 'e1', question: 'How much does a 200-Amp panel upgrade cost?', answer: 'Most residential 200-Amp panel upgrades range between $2,200 and $3,800 depending on utility service feed, meter socket, and grounding requirements. We provide free in-person estimates.' },
       { id: 'e2', question: 'Can you install a Tesla / EV Level 2 charger at my home?', answer: 'Yes! We install dedicated 240V 50-Amp NEMA 14-50 outlets and hardwired EV chargers (Tesla Wall Connector, ChargePoint, JuiceBox) with complete local permitting.' },
@@ -391,6 +470,21 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       maintenancePlanPrice: '$399/year',
       maintenancePlanBenefits: 'Bi-annual Certified Arborist health inspection, priority storm emergency response, free deep root fertilization, and 15% discount on all trimming/removal.'
     },
+    domainKnowledge: [
+      'Our ISA Certified Arborists handle hazardous large-tree removals, zero-impact crane removals, structural crown pruning, canopy elevation, deep stump grinding (8-12 inches below grade with 811 utility markout), storm emergency clearing, and custom paver patios and retaining walls.',
+      'Tree triage factors: Tree removal pricing and equipment needs (climber vs bucket truck vs crane) depend on trunk diameter (DBH), height, species (oak, pine, maple, dead ash with Emerald Ash Borer), backyard gate access, and proximity to roofs, fences, septic fields, or overhead power lines.',
+      'Storm emergency & insurance: When a storm blows a tree onto a roof, garage, or across a driveway, we dispatch emergency crane and rigging crews to safely lift the tree without causing secondary structural damage, tarp roof breaches, and provide full photo documentation for homeowner insurance.'
+    ],
+    objectionHandling: [
+      {
+        trigger: 'Caller asks for a tree removal price over the phone',
+        response: 'Explain that tree removal cost depends heavily on height, trunk diameter, crane or bucket truck access, and proximity to roofs or wires—which is why our Certified Arborist comes out for a 100% free on-site estimate.'
+      },
+      {
+        trigger: 'Caller asks if they need to be home for the tree estimate',
+        response: 'Let them know that as long as our arborist has access to the yard and knows which tree they want looked at, we can inspect it, take photos, and send a written quote even if they are at work.'
+      }
+    ],
     customFaqs: [
       { id: 't1', question: 'Do you offer free estimates for tree removal?', answer: 'Yes! We provide 100% free, no-obligation on-site estimates by a Certified Arborist.' },
       { id: 't2', question: 'Does insurance cover a tree that fell on my house?', answer: 'In most cases, homeowner insurance covers tree removal and structural repairs if a tree falls on your house, garage, or driveway due to a storm. We document the damage for your adjuster.' },
@@ -466,6 +560,21 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
       maintenancePlanPrice: '$499/year',
       maintenancePlanBenefits: 'Annual comprehensive home exterior/interior audit, thermal leak imaging, roof/deck framing inspection, and priority scheduling on all renovations.'
     },
+    domainKnowledge: [
+      'We are a full-service licensed Design-Build General Contractor handling architectural drawings, structural engineering (LVL/steel beam installation for open-concept load-bearing wall removal), township building/zoning permits, and turnkey remodeling.',
+      'Core renovation specialties: Custom kitchen remodels (custom cabinetry, quartz/granite islands, tile backsplashes), luxury bathroom renovations (curbless Schluter waterproofed walk-in showers, freestanding soaking tubs, heated tile floors), first- and second-story home additions, in-law suites, finished basements with code egress windows, and Trex/TimberTech composite decks and covered porches.',
+      'Project workflow: Every remodeling project starts with a free in-home design consultation to discuss vision, layout, and target budget range, followed by 3D renderings, transparent line-item proposals, and full permit management.'
+    ],
+    objectionHandling: [
+      {
+        trigger: 'Caller asks how much a kitchen, bathroom, or addition costs over the phone',
+        response: 'Explain that because remodeling scope varies from a cosmetic refresh to moving plumbing and load-bearing walls, we start with a free in-home design consultation to measure the space, hear their ideas, and put together a clear written estimate.'
+      },
+      {
+        trigger: 'Caller asks if they need to hire their own architect or pull township permits',
+        response: 'Reassure them that as a turnkey design-build contractor, we handle all architectural plans, structural engineering, township building permits, and inspections from start to finish.'
+      }
+    ],
     customFaqs: [
       { id: 'gc1', question: 'How does your remodeling design-build process work?', answer: 'We start with a free in-home consultation to discuss your vision and budget. Next, we provide 3D architectural renders, line-item pricing, manage all township permits, and execute construction with our dedicated craftsmen.' },
       { id: 'gc2', question: 'Do you pull all necessary building permits?', answer: 'Yes! We handle 100% of municipal building, electrical, plumbing, and mechanical permits and coordinate all township inspections.' },

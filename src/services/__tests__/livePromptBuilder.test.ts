@@ -87,4 +87,24 @@ describe("Live System Prompt Builder Tests", () => {
     expect(prompt).toContain("URGENT HVAC EMERGENCY INTAKE (TIER 2 - NON-LIFE THREATENING)");
     expect(prompt).toContain("Please hang up immediately, get out to a safe location, and call 911!");
   });
+
+  it("injects deep sector background knowledge, objection handling, and one-question-per-turn rules across trades", () => {
+    const hvacPrompt = buildDynamicSystemPrompt({ settings: baseSettings });
+    expect(hvacPrompt).toContain("SECTOR BACKGROUND KNOWLEDGE & TRADE EXPERTISE");
+    expect(hvacPrompt).toContain("OBJECTION HANDLING & CALLER PLAYBOOK");
+    expect(hvacPrompt).toContain("ONE QUESTION AT A TIME");
+    expect(hvacPrompt).toContain("ACTIVE MEMORY & ZERO REPETITION");
+
+    const roofingPrompt = buildDynamicSystemPrompt({
+      settings: {
+        ...baseSettings,
+        industry: "roofing_siding",
+        office_name: "Spring Valley Roofing"
+      }
+    });
+    expect(roofingPrompt).toContain("Spring Valley Roofing");
+    expect(roofingPrompt).toContain("CertainTeed Master Craftsman");
+    expect(roofingPrompt).toContain("WinterGuard ice & water shield");
+    expect(roofingPrompt).toContain("OBJECTION HANDLING & CALLER PLAYBOOK");
+  });
 });
