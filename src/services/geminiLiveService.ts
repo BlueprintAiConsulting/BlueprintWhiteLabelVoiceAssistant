@@ -111,6 +111,35 @@ class AudioRecorderProcessor extends AudioWorkletProcessor {
 registerProcessor('audio-recorder-processor', AudioRecorderProcessor);
 `;
 
+const VERTEX_ENDPOINTS = [
+  "https://us-central1-beach-house-tanning-lounge.cloudfunctions.net/voiceReceptionistTurn",
+  "https://us-central1-blueprint-operations.cloudfunctions.net/voiceReceptionistTurn"
+];
+
+async function callVoiceTurnWithFailover(payload: any): Promise<Response> {
+  let lastError: any = null;
+  for (const endpoint of VERTEX_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        return res;
+      }
+      lastError = new Error(`Endpoint ${endpoint} returned status ${res.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("All voice turn endpoints failed.");
+}
+
 export class GeminiLiveSession {
   private ws: WebSocket | null = null;
   private audioQueue: AudioPlaybackQueue;
@@ -148,6 +177,8 @@ export class GeminiLiveSession {
   private preRollChunks: Uint8Array[] = [];
   private lastReceptionistSpeechEndMs: number = 0;
   private ambientNoiseFloor: number = 0.008;
+  private turnWatchdogTimer: any = null;
+  private wsConnectTimeout: any = null;
 
   constructor(options: GeminiLiveOptions) {
     this.options = options;
@@ -322,7 +353,18 @@ export class GeminiLiveSession {
 
     this.ws = new WebSocket(wsUrl);
 
+    this.wsConnectTimeout = setTimeout(() => {
+      if (!this.isConnected && !this.useVertexVoiceEngine) {
+        console.warn("WebSocket connection timed out (4s), activating Vertex AI voice engine fallback.");
+        void this.activateVertexVoiceEngine();
+      }
+    }, 4000);
+
     this.ws.onopen = () => {
+      if (this.wsConnectTimeout) {
+        clearTimeout(this.wsConnectTimeout);
+        this.wsConnectTimeout = null;
+      }
       this.sendSetupConfig();
     };
 
@@ -341,10 +383,24 @@ export class GeminiLiveSession {
 
     this.ws.onerror = (err) => {
       console.error("Gemini Live WebSocket error:", err);
-      this.options.onError?.(err);
+      if (this.wsConnectTimeout) {
+        clearTimeout(this.wsConnectTimeout);
+        this.wsConnectTimeout = null;
+      }
+      if (!this.useVertexVoiceEngine) {
+        console.warn("WebSocket error triggered, activating Vertex AI voice engine fallback.");
+        void this.activateVertexVoiceEngine();
+      } else {
+        this.options.onError?.(err);
+      }
     };
 
     this.ws.onclose = (event: CloseEvent) => {
+      if (this.wsConnectTimeout) {
+        clearTimeout(this.wsConnectTimeout);
+        this.wsConnectTimeout = null;
+      }
+      this.clearTurnWatchdog();
       const isTestEnv = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
       if (!isTestEnv && !this.useVertexVoiceEngine && (event.code !== 1000 || !this.hasGreeted)) {
         console.warn("WebSocket closed unexpectedly, activating Vertex AI voice engine fallback:", event);
@@ -592,8 +648,31 @@ export class GeminiLiveSession {
     this.ws.send(JSON.stringify(setupPayload));
   }
 
-  private async activateVertexVoiceEngine() {
-    if (this.useVertexVoiceEngine) return;
+  private startTurnWatchdog(pendingUserText?: string) {
+    this.clearTurnWatchdog();
+    this.turnWatchdogTimer = setTimeout(() => {
+      if (this.isConnected && !this.turnCompleteReceived && !this.audioQueue.isPlaying() && !this.useVertexVoiceEngine) {
+        console.warn("Gemini Live turn watchdog expired (4.5s latency threshold), activating Vertex AI voice engine fallback.");
+        void this.activateVertexVoiceEngine(pendingUserText);
+      }
+    }, 4500);
+  }
+
+  private clearTurnWatchdog() {
+    if (this.turnWatchdogTimer) {
+      clearTimeout(this.turnWatchdogTimer);
+      this.turnWatchdogTimer = null;
+    }
+  }
+
+  private async activateVertexVoiceEngine(pendingUserText?: string) {
+    if (this.useVertexVoiceEngine) {
+      if (pendingUserText) {
+        void this.processVertexVoiceTurn({ userText: pendingUserText });
+      }
+      return;
+    }
+    this.clearTurnWatchdog();
     this.useVertexVoiceEngine = true;
     this.isConnected = true;
 
@@ -602,6 +681,11 @@ export class GeminiLiveSession {
       this.ws.onmessage = null;
       this.ws.onerror = null;
       this.ws.onclose = null;
+      try {
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+        }
+      } catch (_) {}
       this.ws = null;
     }
 
@@ -637,16 +721,12 @@ export class GeminiLiveSession {
     try {
       this.turnCompleteReceived = false;
       this.options.onTurnStateChange?.("receptionist_speaking");
-      const res = await fetch("https://us-central1-blueprint-operations.cloudfunctions.net/voiceReceptionistTurn", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "greet",
-          officeName: this.configuredOfficeName,
-          receptionistName: this.configuredPersonaName,
-          voiceName: this.configuredVoiceName,
-          systemInstruction: this.configuredSystemPrompt
-        })
+      const res = await callVoiceTurnWithFailover({
+        action: "greet",
+        officeName: this.configuredOfficeName,
+        receptionistName: this.configuredPersonaName,
+        voiceName: this.configuredVoiceName,
+        systemInstruction: this.configuredSystemPrompt
       });
       if (res.ok) {
         const data = await res.json();
@@ -662,6 +742,9 @@ export class GeminiLiveSession {
         this.turnCompleteReceived = true;
         if (!this.audioQueue.isPlaying()) {
           this.options.onTurnStateChange?.("listening");
+        }
+        if (pendingUserText) {
+          void this.processVertexVoiceTurn({ userText: pendingUserText });
         }
       }
     } catch (err) {
@@ -679,6 +762,7 @@ export class GeminiLiveSession {
     }
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.options.onTranscript?.({ role: "user", text: cleanText });
+      this.startTurnWatchdog(cleanText);
       this.ws.send(JSON.stringify({
         clientContent: {
           turns: [{ role: "user", parts: [{ text: cleanText }] }],
@@ -698,21 +782,17 @@ export class GeminiLiveSession {
         this.options.onTranscript?.({ role: "user", text: input.userText });
       }
 
-      const res = await fetch("https://us-central1-blueprint-operations.cloudfunctions.net/voiceReceptionistTurn", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "turn",
-          officeName: this.configuredOfficeName,
-          receptionistName: this.configuredPersonaName,
-          voiceName: this.configuredVoiceName,
-          systemInstruction: this.configuredSystemPrompt,
-          history: this.vertexHistory,
-          userText: input.userText,
-          audioPcmBase64: input.audioPcmBase64,
-          toolResponseText: input.toolResponseText,
-          tools: this.configuredTools
-        })
+      const res = await callVoiceTurnWithFailover({
+        action: "turn",
+        officeName: this.configuredOfficeName,
+        receptionistName: this.configuredPersonaName,
+        voiceName: this.configuredVoiceName,
+        systemInstruction: this.configuredSystemPrompt,
+        history: this.vertexHistory,
+        userText: input.userText,
+        audioPcmBase64: input.audioPcmBase64,
+        toolResponseText: input.toolResponseText,
+        tools: this.configuredTools
       });
 
       if (!res.ok) {
@@ -1195,6 +1275,7 @@ export class GeminiLiveSession {
   }
 
   private async handleServerMessage(msg: any) {
+    this.clearTurnWatchdog();
     // 0. Setup Complete -> Answer Inbound Call Immediately
     if (msg.setupComplete) {
       this.isConnected = true;
@@ -1328,6 +1409,11 @@ export class GeminiLiveSession {
   }
 
   public stop() {
+    this.clearTurnWatchdog();
+    if (this.wsConnectTimeout) {
+      clearTimeout(this.wsConnectTimeout);
+      this.wsConnectTimeout = null;
+    }
     void this.flushTelemetry();
     this.sendAudioStreamEnd();
     this.isConnected = false;

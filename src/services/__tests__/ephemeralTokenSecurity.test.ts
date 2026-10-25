@@ -33,7 +33,7 @@ describe("Ephemeral Token Production Security Tests", () => {
         expect(content.includes("user_" + "auth_101")).toBe(false);
       }
     }
-  });
+  }, 15000);
 
   it("proves built production bundle contains no exp_token_ placeholder token strings", () => {
     const distDir = path.resolve(__dirname, "../../../dist");

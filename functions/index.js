@@ -710,7 +710,9 @@ Respond with valid JSON ONLY matching this schema:
           }
         }
       } catch (aiErr) {
-        console.warn("Gemini generation in twilioVoiceWebhook failed, using fallback reply:", aiErr);
+        console.warn("Gemini generation in twilioVoiceWebhook failed, activating safe transfer fallback:", aiErr);
+        shouldTransfer = true;
+        aiReply = `Thanks for calling ${officeName}. Let me connect you directly to our office team right now.`;
       }
 
       if (shouldTransfer && settings.transfer_enabled !== false && transferPhone) {
@@ -757,6 +759,20 @@ Respond with valid JSON ONLY matching this schema:
       res.set("Content-Type", "text/xml");
       res.status(200).send(fallbackTwiml);
     }
+  }
+);
+
+exports.twilioVoiceFallback = onRequest(
+  { cors: false },
+  async (req, res) => {
+    setCorsHeaders(req, res);
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Matthew-Neural">Thank you for calling. One moment while I connect your call directly to our office team.</Say>
+  <Dial>+17175770668</Dial>
+</Response>`;
+    res.set("Content-Type", "text/xml");
+    res.status(200).send(twiml);
   }
 );
 

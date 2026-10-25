@@ -390,6 +390,72 @@ export async function dispatchEmergencyAlert(leadData: Partial<Lead>, webhookUrl
   }
 }
 
+export const OFFLINE_LEADS_QUEUE_KEY = "lunar_offline_leads_queue";
+
+export function getOfflineLeadsQueue(): Partial<Lead>[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(OFFLINE_LEADS_QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.warn("Could not read offline leads queue:", e);
+    return [];
+  }
+}
+
+export function saveToOfflineLeadsQueue(lead: Partial<Lead>): void {
+  if (typeof window === "undefined") return;
+  try {
+    const queue = getOfflineLeadsQueue();
+    queue.push({
+      ...lead,
+      notes: `${lead.notes || ""} [Queued Offline ${new Date().toISOString()}]`.trim()
+    });
+    localStorage.setItem(OFFLINE_LEADS_QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) {
+    console.warn("Could not save to offline leads queue:", e);
+  }
+}
+
+export async function syncOfflineLeads(): Promise<number> {
+  if (typeof window === "undefined") return 0;
+  const queue = getOfflineLeadsQueue();
+  if (queue.length === 0) return 0;
+
+  let syncedCount = 0;
+  const remaining: Partial<Lead>[] = [];
+
+  for (const lead of queue) {
+    try {
+      const cleanedData = Object.fromEntries(
+        Object.entries(lead).filter(([_, v]) => v !== undefined)
+      );
+      await addDoc(collection(db, "leads"), {
+        ...cleanedData,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+        offline_synced: true,
+        call_status: lead.call_status || "new"
+      });
+      syncedCount++;
+    } catch (err) {
+      remaining.push(lead);
+    }
+  }
+
+  try {
+    localStorage.setItem(OFFLINE_LEADS_QUEUE_KEY, JSON.stringify(remaining));
+  } catch (_) {}
+
+  return syncedCount;
+}
+
+if (typeof window !== "undefined" && typeof process === "undefined") {
+  window.addEventListener("online", () => {
+    void syncOfflineLeads();
+  });
+}
+
 export async function processLead(leadData: Partial<Lead>) {
   // Always trigger emergency dispatch in parallel so life-safety webhooks are never blocked or dropped by DB latency
   if (leadData.emergency_flag) {
@@ -398,6 +464,11 @@ export async function processLead(leadData: Partial<Lead>) {
         dispatchEmergencyAlert(leadData, settings.emergency_dispatch_webhook);
       }
     }).catch(err => console.error("Emergency dispatch check failed:", err));
+  }
+
+  // Attempt to sync any backlog of offline leads first when in browser
+  if (typeof process === "undefined" || process.env.NODE_ENV !== "test") {
+    void syncOfflineLeads();
   }
 
   try {
@@ -420,7 +491,8 @@ export async function processLead(leadData: Partial<Lead>) {
     const docRef = await Promise.race([addDocPromise, timeoutPromise]);
     return docRef.id;
   } catch (error) {
-    console.warn("Firestore save fallback activated:", error instanceof Error ? error.message : error);
+    console.warn("Firestore save fallback activated, caching lead in offline queue:", error instanceof Error ? error.message : error);
+    saveToOfflineLeadsQueue(leadData);
     return `lead_offline_${Date.now()}`;
   }
 }
