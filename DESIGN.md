@@ -11,6 +11,10 @@ colors:
   amber-alert: "#f59e0b"
   success-emerald: "#10b981"
   border-slate: "#1e293b"
+  cyan-accent: "#06b6d4"
+  slate-muted: "#475569"
+  scrollbar-thumb: "rgba(148, 163, 184, 0.2)"
+  scrollbar-thumb-hover: "rgba(148, 163, 184, 0.4)"
 typography:
   display:
     fontFamily: "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif"
@@ -33,6 +37,7 @@ rounded:
   md: "12px"
   lg: "16px"
   xl: "24px"
+  full: "9999px"
 spacing:
   xs: "6px"
   sm: "12px"

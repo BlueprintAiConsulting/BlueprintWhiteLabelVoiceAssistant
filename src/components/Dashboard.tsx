@@ -585,7 +585,7 @@ export default function Dashboard() {
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }}
-                              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-slate-100 dark:bg-slate-800/80 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 text-slate-600 dark:text-slate-400 hover:text-cyan-700 dark:hover:text-cyan-400 border border-slate-200 dark:border-slate-700/60 hover:border-cyan-300 dark:hover:border-cyan-500/40 transition-all shadow-sm font-bold tracking-wide uppercase text-[10px] cursor-pointer"
+                              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg min-h-[44px] bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-cyan-700 dark:hover:text-cyan-400 border border-slate-200 dark:border-slate-700/60 hover:border-cyan-300 dark:hover:border-cyan-500/40 transition-all shadow-sm font-bold tracking-wide uppercase text-[10px] cursor-pointer"
                               title="Inspect Details"
                             >
                               Details <ChevronRight size={14} />

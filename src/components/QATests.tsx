@@ -318,7 +318,9 @@ export default function QATests() {
                                 </span>
                                 <div className={cn(
                                   "px-4 py-2.5 rounded-2xl text-xs max-w-[90%] transition-all duration-500 shadow-md",
-                                  entry.role === "user" ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 rounded-tr-none" : "bg-slate-900 text-slate-200 border border-slate-700/80 rounded-tl-none",
+                                  entry.role === "user"
+                                    ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 rounded-tr-none"
+                                    : "bg-slate-900 text-slate-200 border border-slate-700/80 rounded-tl-none",
                                   isErrorSnippet && "border-rose-500/40 bg-rose-500/10",
                                   isCurrentlyHighlighted && "ring-4 ring-cyan-400 ring-offset-4 ring-offset-slate-950 scale-[1.05] shadow-2xl z-20"
                                 )}>

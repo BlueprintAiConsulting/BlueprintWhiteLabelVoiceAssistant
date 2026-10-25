@@ -204,7 +204,9 @@ export default function QADashboard() {
                 onClick={() => setFilterFlaggedOnly(!filterFlaggedOnly)}
                 className={cn(
                   "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
-                  filterFlaggedOnly ? "bg-amber-500/20 text-amber-300 border-amber-500/50" : "bg-slate-800 text-slate-400 border-slate-700"
+                  filterFlaggedOnly
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/50"
+                    : "bg-slate-800 text-slate-400 border-slate-700"
                 )}
               >
                 Flagged Only ({metrics.flagged_calls_count})
@@ -280,7 +282,15 @@ export default function QADashboard() {
                 <h4 className="text-xs font-mono uppercase text-slate-400 font-bold">Call Transcript</h4>
                 <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 max-h-60 overflow-y-auto">
                   {selectedCall.transcript.map((t, idx) => (
-                    <div key={idx} className={cn("text-xs leading-relaxed p-2 rounded-xl", t.role === "assistant" ? "bg-cyan-950/30 text-cyan-200" : "bg-slate-800 text-slate-200")}>
+                    <div
+                      key={idx}
+                      className={cn(
+                        "text-xs leading-relaxed p-2 rounded-xl",
+                        t.role === "assistant"
+                          ? "bg-cyan-950/30 text-cyan-200 border border-cyan-500/20"
+                          : "bg-slate-800 text-slate-200"
+                      )}
+                    >
                       <span className="font-bold uppercase text-[10px] block opacity-60 font-mono">{t.role}</span>
                       {t.text}
                     </div>

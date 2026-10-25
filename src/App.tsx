@@ -265,7 +265,7 @@ export default function App() {
 
   return (
     <Router basename={import.meta.env.BASE_URL}>
-      <div className="flex flex-col md:flex-row h-[100dvh] w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-cyan-500/30 selection:text-cyan-800 dark:selection:text-cyan-200 relative">
+      <div className="flex flex-col md:flex-row h-[100dvh] w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans relative">
         
         {/* Subtle grid background pattern */}
         <div className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.04] pointer-events-none" 

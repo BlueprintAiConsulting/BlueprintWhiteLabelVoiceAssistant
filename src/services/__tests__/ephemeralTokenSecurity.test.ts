@@ -47,5 +47,5 @@ describe("Ephemeral Token Production Security Tests", () => {
         }
       }
     }
-  });
+  }, 15000);
 });

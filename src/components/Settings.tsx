@@ -324,7 +324,7 @@ export default function SettingsPage() {
               className={cn(
                 "px-5 py-3 rounded-xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer min-h-[44px] shrink-0 border",
                 settings.industry === "roofing_siding"
-                  ? "bg-emerald-500 text-slate-950 border-emerald-400 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                  ? "bg-emerald-500 text-emerald-950 font-black border-emerald-400 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
                   : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30"
               )}
             >
@@ -373,12 +373,19 @@ export default function SettingsPage() {
                   className={cn(
                     "p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between space-y-3 cursor-pointer group relative overflow-hidden",
                     isSelected
-                      ? "bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)] text-slate-100 ring-1 ring-cyan-400/50"
+                      ? "bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)] text-cyan-100 font-semibold ring-1 ring-cyan-400/50"
                       : "bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-slate-200"
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <div className={cn("p-2 rounded-xl border", isSelected ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300" : "bg-slate-900/60 border-slate-700 text-slate-400")}>
+                    <div
+                      className={cn(
+                        "p-2 rounded-xl border",
+                        isSelected
+                          ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
+                          : "bg-slate-900/60 border-slate-700 text-slate-400"
+                      )}
+                    >
                       {indKey === 'roofing_siding' && <Home size={18} />}
                       {indKey === 'hvac' && <Wind size={18} />}
                       {indKey === 'plumbing' && <Droplets size={18} />}
@@ -936,7 +943,7 @@ export default function SettingsPage() {
                   <button 
                     type="button"
                     onClick={() => setSettings({ ...settings, additional_transfer_numbers: settings.additional_transfer_numbers?.filter((_, idx) => idx !== i) })}
-                    className="p-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                    className="p-2 text-slate-400 dark:text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-all"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -1080,7 +1087,7 @@ export default function SettingsPage() {
                   <button 
                     type="button"
                     onClick={() => setSettings({ ...settings, custom_faqs: settings.custom_faqs?.filter((_, idx) => idx !== i) })}
-                    className="self-start p-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                    className="self-start p-2 text-slate-400 dark:text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-all"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -1158,7 +1165,7 @@ export default function SettingsPage() {
                     <button 
                       type="button"
                       onClick={() => setSettings({ ...settings, approved_learning_rules: settings.approved_learning_rules?.filter((_, idx) => idx !== i) })}
-                      className="p-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                      className="p-2 text-slate-400 dark:text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -1224,7 +1231,7 @@ export default function SettingsPage() {
 
             <label className="flex items-center gap-3 cursor-pointer shrink-0">
               <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Enable Twilio</span>
-              <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none" style={{ backgroundColor: settings.twilio_enabled ? '#06b6d4' : '#475569' }}>
+              <div className={cn("relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none", settings.twilio_enabled ? "bg-cyan-500" : "bg-slate-600")}>
                 <input
                   type="checkbox"
                   className="sr-only"

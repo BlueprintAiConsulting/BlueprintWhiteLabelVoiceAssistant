@@ -703,7 +703,7 @@ export default function Simulator() {
                 className={cn(
                   "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500",
                   activeIndustry === "hvac"
-                    ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                    ? "bg-cyan-500 text-cyan-950 shadow-[0_0_10px_rgba(34,211,238,0.5)] font-black"
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                 )}
               >
@@ -716,7 +716,7 @@ export default function Simulator() {
                 className={cn(
                   "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
                   activeIndustry === "roofing_siding"
-                    ? "bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.5)] font-black"
+                    ? "bg-emerald-500 text-emerald-950 shadow-[0_0_12px_rgba(16,185,129,0.5)] font-black"
                     : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                 )}
               >
@@ -772,24 +772,34 @@ export default function Simulator() {
       </div>
 
       {/* Mobile Segmented View Switcher (< lg screens) */}
-      <div className="lg:hidden flex items-center bg-white/95 dark:bg-slate-900/90 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800/90 shadow-sm dark:shadow-lg shrink-0 gap-1.5 z-10">
+      <div
+        role="tablist"
+        aria-label="Simulator View Tabs"
+        className="lg:hidden flex items-center bg-white/95 dark:bg-slate-900/90 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800/90 shadow-sm dark:shadow-lg shrink-0 gap-1.5 z-10"
+      >
         <button
           type="button"
+          role="tab"
+          aria-selected={mobileTab === "call"}
+          aria-label="Call View"
           onClick={() => setMobileTab("call")}
           className={cn(
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
             mobileTab === "call"
-              ? "bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.4)] font-black"
+              ? "bg-cyan-500 text-cyan-950 shadow-[0_0_15px_rgba(34,211,238,0.4)] font-black"
               : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
           )}
         >
-          <Phone size={14} className={cn(isCalling && "text-slate-950 animate-bounce")} />
+          <Phone size={14} className={cn(isCalling && "text-cyan-950 animate-pulse")} />
           <span>Call {isCalling ? "(Active)" : ""}</span>
           {isCalling && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />}
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={mobileTab === "scenarios"}
+          aria-label="Scenarios View"
           onClick={() => setMobileTab("scenarios")}
           className={cn(
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
@@ -804,6 +814,9 @@ export default function Simulator() {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={mobileTab === "telemetry"}
+          aria-label="Telemetry View"
           onClick={() => setMobileTab("telemetry")}
           className={cn(
             "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer",
@@ -1327,7 +1340,7 @@ export default function Simulator() {
                       type="button"
                       onClick={handleGrantMicAndStart}
                       disabled={isLoading}
-                      className="flex-1 py-3.5 px-5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(34,211,238,0.35)] flex items-center justify-center gap-2 min-h-[48px] cursor-pointer"
+                      className="flex-1 py-3.5 px-5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-cyan-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(34,211,238,0.35)] flex items-center justify-center gap-2 min-h-[48px] cursor-pointer"
                     >
                       <Mic size={16} />
                       {isLoading ? "Requesting Mic..." : "Try Requesting Mic Again"}
@@ -1368,7 +1381,7 @@ export default function Simulator() {
                         setMicPermissionError(null);
                         startCall();
                       }}
-                      className="flex-1 py-3.5 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all min-h-[48px] cursor-pointer"
+                      className="flex-1 py-3.5 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs uppercase tracking-wider transition-all min-h-[48px] cursor-pointer"
                     >
                       Use Text Call Instead
                     </button>

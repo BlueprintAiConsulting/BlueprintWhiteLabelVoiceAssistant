@@ -28,6 +28,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+::selection {
+  background-color: rgba(34, 211, 238, 0.3);
+  color: #020617;
+}
+
+.dark ::selection {
+  background-color: rgba(34, 211, 238, 0.3);
+  color: #22d3ee;
+}
+
 .safe-area-bottom {
   padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }
