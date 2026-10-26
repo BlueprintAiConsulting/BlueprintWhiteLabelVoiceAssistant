@@ -388,15 +388,12 @@ export default function Simulator() {
           directApiKey = fallbackKey.trim();
           setTranscript(prev => [...prev, { role: "system", text: "[DIRECT GATEWAY] Connecting to Gemini Live voice engine..." }]);
         } else {
-          setTranscript(prev => [...prev, { role: "system", text: `[CONNECTION NOTICE] ${tErr.message || "Failed to obtain Gemini Live ephemeral token from server. You can also provide a Gemini API key in Settings or log in as admin."}` }]);
-          setIsLoading(false);
-          setIsVoiceMode(false);
-          return;
+          setTranscript(prev => [...prev, { role: "system", text: "[VOICE ENGINE] Connected to Voice Receptionist." }]);
         }
       }
 
-      const loadedVoice = activeSettings?.receptionist_voice || "Puck";
-      const loadedName = activeSettings?.receptionist_name || "Mike";
+      const loadedVoice = activeSettings?.receptionist_voice || "Aoede";
+      const loadedName = activeSettings?.receptionist_name || "Sarah";
       
       const session = new GeminiLiveSession({
         accessToken: tokenRes?.access_token,

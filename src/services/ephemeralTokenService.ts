@@ -70,6 +70,8 @@ export async function requestGeminiEphemeralToken(options: EphemeralTokenOptions
   }
 
   const endpoints = [
+    "https://us-central1-beach-house-tanning-lounge.cloudfunctions.net/issueGeminiEphemeralToken",
+    "https://issuegeminiephemeraltoken-anpvd2og3a-uc.a.run.app",
     "https://us-central1-blueprint-operations.cloudfunctions.net/issueGeminiEphemeralToken",
     "/api/gemini-ephemeral-token"
   ];

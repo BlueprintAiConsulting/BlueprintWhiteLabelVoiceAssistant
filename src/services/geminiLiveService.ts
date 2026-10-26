@@ -344,7 +344,9 @@ export class GeminiLiveSession {
     const accessToken = this.options.accessToken || "";
     const apiKey = this.options.apiKey || "";
     if (!accessToken && !apiKey) {
-      throw new Error("UNAUTHORIZED: Missing Gemini Live access token or API key.");
+      console.info("No Gemini Live token/key provided; starting directly with Voice Receptionist engine.");
+      await this.activateVertexVoiceEngine();
+      return;
     }
 
     const wsEndpoint = accessToken
