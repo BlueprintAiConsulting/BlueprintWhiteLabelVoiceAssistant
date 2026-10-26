@@ -357,15 +357,15 @@ async function callVertexGemini(requestBody) {
 }
 
 function mapGeminiVoiceToTtsVoice(voiceName) {
-  const map = {
-    Aoede: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
-    Kore: { name: "en-US-Neural2-C", ssmlGender: "FEMALE" },
-    Leda: { name: "en-US-Neural2-F", ssmlGender: "FEMALE" },
-    Puck: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
-    Charon: { name: "en-US-Neural2-D", ssmlGender: "MALE" },
-    Fenrir: { name: "en-US-Neural2-J", ssmlGender: "MALE" }
+  // Chirp 3 HD voices are the same generative voice family Gemini Live uses natively,
+  // so a fallback turn sounds like the same human, not a robotic Neural2 voice.
+  const chirp = ["Aoede", "Kore", "Leda", "Zephyr", "Puck", "Charon", "Fenrir", "Orus"];
+  const legacy = {
+    Aoede: "en-US-Neural2-F", Kore: "en-US-Neural2-C", Leda: "en-US-Neural2-F", Zephyr: "en-US-Neural2-F",
+    Puck: "en-US-Neural2-D", Charon: "en-US-Neural2-D", Fenrir: "en-US-Neural2-J", Orus: "en-US-Neural2-J"
   };
-  return map[voiceName] || { name: "en-US-Neural2-D", ssmlGender: "MALE" };
+  const v = chirp.includes(voiceName) ? voiceName : "Aoede";
+  return { name: `en-US-Chirp3-HD-${v}`, legacyName: legacy[v] };
 }
 
 async function synthesizeSpeechPcm24k(text, voiceName) {
@@ -375,7 +375,7 @@ async function synthesizeSpeechPcm24k(text, voiceName) {
     if (!token) return "";
     const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "blueprint-operations";
     const voiceSpec = mapGeminiVoiceToTtsVoice(voiceName);
-    const ttsRes = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
+    const synth = (name) => fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -386,15 +386,20 @@ async function synthesizeSpeechPcm24k(text, voiceName) {
         input: { text: String(text).trim() },
         voice: {
           languageCode: "en-US",
-          name: voiceSpec.name
+          name
         },
         audioConfig: {
           audioEncoding: "LINEAR16",
-          sampleRateHertz: 24000,
-          speakingRate: 1.05
+          sampleRateHertz: 24000
         }
       })
     });
+    let ttsRes = await synth(voiceSpec.name);
+    if (!ttsRes.ok) {
+      const errText = await ttsRes.text();
+      console.warn("Chirp3-HD TTS warning, retrying legacy voice:", ttsRes.status, errText);
+      ttsRes = await synth(voiceSpec.legacyName);
+    }
     if (!ttsRes.ok) {
       const errText = await ttsRes.text();
       console.warn("Cloud TTS warning:", ttsRes.status, errText);
@@ -452,7 +457,12 @@ exports.voiceReceptionistTurn = onRequest(
       const systemInstruction = body.systemInstruction || `You are ${receptionistName}, the warm, natural phone dispatcher and front-desk specialist for ${officeName}.`;
 
       if (action === "greet") {
-        const greetingText = `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you out today?`;
+        const greetings = [
+          `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you?`,
+          `Hi, ${officeName}, this is ${receptionistName}. What can I do for you today?`,
+          `${officeName}, this is ${receptionistName} speaking. How can I help?`
+        ];
+        const greetingText = greetings[Math.floor(Math.random() * greetings.length)];
         const audioPcmBase64 = await synthesizeSpeechPcm24k(greetingText, voiceName);
         res.status(200).json({
           text: greetingText,
@@ -526,14 +536,18 @@ CRITICAL CONVERSATIONAL PHONE VOICE RULES (ACT AS AN EXPERIENCED FRONT-DESK DISP
 - ONE QUESTION AT A TIME: Ask only ONE clear question per turn so the caller never feels interrogated or overwhelmed.
 - ZERO REPETITION / ACTIVE MEMORY: Pay close attention to everything the caller already said in the conversation. Never re-ask for their name, town, street address, callback number, or issue if they already gave it.
 - TRADE-SAVVY EMPATHY & OBJECTION HANDLING: If the caller reports a home emergency (active roof leak, no heat, burst pipe, electrical sparks), lead with immediate human warmth ("Oh man, that's stressful—let's get our crew on that right away") and any safe practical tip before taking their address and callback number. If they ask for a ballpark price over the phone, warmly explain why an on-site look ensures an accurate upfront price and pivot to scheduling.
-- STRICTLY FORBIDDEN: NEVER use markdown, asterisks, bullet points, numbered lists, or emojis. Output plain, spoken conversational English only.`
+- STRICTLY FORBIDDEN: NEVER use markdown, asterisks, bullet points, numbered lists, or emojis. Output plain, spoken conversational English only.
+- SOUND HUMAN, NOT SCRIPTED: Vary how you start each turn (never the same opener twice in a row; sometimes no opener at all). Light natural speech habits are fine ("okay so", "yeah", "mm-hmm", "let's see"). Never say "Great question", "I understand your concern", "Certainly", "I'd be happy to assist", or "Thank you for providing that information". Never parrot the caller's sentence back. Use exclamation points rarely.
+- MIRROR THE CALLER: stressed caller means calm and reassuring; relaxed caller means easygoing; short busy caller means get to the point.
+- ALWAYS finish your sentence. Never trail off mid-thought.`
             }
           ]
         },
         contents,
         generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 90
+          temperature: 0.85,
+          topP: 0.95,
+          maxOutputTokens: 400
         }
       };
 
@@ -613,7 +627,7 @@ exports.twilioVoiceWebhook = onRequest(
       const receptionistName = req.query.receptionist || settings.receptionist_name || (isRoofing ? "Sarah" : "Mike");
       const isFemale = /sarah|female|aoede/i.test(receptionistName) || isRoofing;
       const transferPhone = req.query.transfer || settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668";
-      const pollyVoice = isFemale ? "Polly.Joanna-Neural" : "Polly.Matthew-Neural";
+      const pollyVoice = isFemale ? "Google.en-US-Chirp3-HD-Aoede" : "Google.en-US-Chirp3-HD-Puck";
 
       const body = req.body || {};
       const speechResult = (body.SpeechResult || req.query.SpeechResult || "").trim();
@@ -634,10 +648,10 @@ exports.twilioVoiceWebhook = onRequest(
         const greeting = `Thanks for calling ${officeName}, this is ${receptionistName}. How can I help you today?`;
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
+  <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" speechModel="phone_call" enhanced="true" language="en-US">
     <Say voice="${pollyVoice}">${escapeXml(greeting)}</Say>
   </Gather>
-  <Say voice="${pollyVoice}">We did not catch your response. Please call back if you still need assistance. Goodbye!</Say>
+  <Say voice="${pollyVoice}">Hm, I didn't catch anything there. Feel free to call us back anytime, okay? Bye now.</Say>
 </Response>`;
         res.set("Content-Type", "text/xml");
         res.status(200).send(twiml);
@@ -648,41 +662,61 @@ exports.twilioVoiceWebhook = onRequest(
       const lowerSpeech = speechResult.toLowerCase();
       const emergencyKeywords = settings.emergency_keywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "active leak", "water pouring", "collapse", "emergency"];
       const isKeywordEmergency = emergencyKeywords.some(kw => lowerSpeech.includes(String(kw).toLowerCase()));
-      const asksForHumanOrOwner = /\b(josh|owner|manager|human|person|someone|transfer|dispatcher|technician)\b/i.test(lowerSpeech);
+      const asksForHumanOrOwner = /\b(josh|owner|manager|real person|live person|a human|transfer me|dispatcher)\b|\b(speak|talk) (to|with) (someone|somebody|a person)\b/i.test(lowerSpeech);
 
-      let aiReply = `I have noted that down for ${officeName}. Could you please share your name and the property street address and town so we can get a technician scheduled for you?`;
+      let aiReply = `Okay, gotcha. And what's the address over there?`;
       let shouldTransfer = isKeywordEmergency || asksForHumanOrOwner;
       let isCallDone = /\b(thank you|thanks that's all|goodbye|bye|that is all)\b/i.test(lowerSpeech) && turn >= 2;
       let callType = isKeywordEmergency ? "emergency" : "repair_request";
 
+      // Conversation memory: Twilio webhooks are stateless, so load prior turns for this call
+      const leadRef = admin.firestore().collection("leads").doc(`twilio_${callSid}`);
+      let priorTurns = [];
+      try {
+        const leadSnap = await leadRef.get();
+        if (leadSnap.exists && Array.isArray(leadSnap.data().call_transcript)) {
+          priorTurns = leadSnap.data().call_transcript.slice(-14);
+        }
+      } catch (memErr) {
+        console.warn("Could not load Twilio call memory:", memErr);
+      }
+      const historyText = priorTurns.length
+        ? priorTurns.map(t => `${t.role === "assistant" ? receptionistName : "Caller"}: ${t.text}`).join("\n")
+        : "(This is the caller's first reply after your greeting.)";
+
       try {
         const tradeContext = `
-BUSINESS KNOWLEDGE & TRADE INTELLIGENCE:
-- Office: ${officeName} (serving local residential & commercial properties).
-- Diagnostic Inspection Fee: $89 standard diagnostic service fee ($79 for plumbing). A licensed technician pinpoints the fault and provides upfront flat-rate pricing before starting work.
-- Free Estimates: We provide 100% free written in-home estimates for complete roof replacements, new HVAC systems, siding, panel upgrades, and remodeling projects.
-- HVAC Expertise: We service and install all major brands (Trane, Carrier, Lennox, Rheem, Goodman, Bryant, Bosch, Mitsubishi). If an AC line is frozen with ice, instruct the caller to turn cooling Off and switch the fan to On so the coil thaws before the tech arrives. Comfort Club plan is $19/mo with 2 annual tune-ups and 15% off repairs.
-- Roofing Expertise: We are CertainTeed Master Craftsman installers specializing in CertainTeed Landmark & Landmark PRO architectural shingles with StreakFighter algae protection and DiamondDeck underlayment. We provide emergency leak tarping and full photo documentation for storm and hail insurance claims.
-- Plumbing Expertise: For burst pipes, advise shutting off the main water valve (front basement wall or meter, clockwise). For water heaters leaking from the bottom seam, internal tank corrosion requires replacement.
-- Electrical Expertise: 100A to 200A panel upgrades, EV Level 2 chargers (Tesla Wall Connector), tripping breaker troubleshooting (keep breaker off if smoking or arcing).
-- Answering Questions: When a caller asks a trade question, answer it directly, accurately, and warmly in 1-2 spoken sentences, then offer to schedule a specialist to visit their home.`;
+BUSINESS KNOWLEDGE:
+- Office: ${officeName}. Owner: ${settings.owner_name || "the owner"}${settings.owner_title ? ` (${settings.owner_title})` : ""}.
+- Service call / inspection: ${settings.pricing_service_call || "standard diagnostic visit, upfront pricing before any work"}.
+- After-hours / emergency: ${settings.pricing_after_hours || "emergency dispatch available"}.
+- Maintenance plan: ${settings.maintenance_plan_name || "maintenance plan"} ${settings.maintenance_plan_price ? `at ${settings.maintenance_plan_price}` : ""}${settings.maintenance_plan_benefits ? `: ${settings.maintenance_plan_benefits}` : ""}.
+- Free in-home estimates for full replacements and larger projects.
+${isRoofing ? "- Roofing: CertainTeed shingle installs, emergency leak tarping, full photo documentation for storm and hail insurance claims." : "- HVAC: all major brands serviced. Frozen AC line: turn cooling off, fan on, so the coil thaws."}
+${(Array.isArray(settings.custom_faqs) ? settings.custom_faqs : []).map(f => `- Q: ${f.question} A: ${f.answer}`).join("\n")}
+- When a caller asks a question, answer it directly in a sentence, then gently move toward getting someone out there.`;
 
-        const prompt = `You are ${receptionistName}, an experienced, confident, and warm ${isFemale ? "female" : "male"} office dispatcher & front-desk specialist for ${officeName}.
+        const prompt = `You are ${receptionistName}, a warm, experienced ${isFemale ? "woman" : "guy"} who answers the phones at ${officeName}. You've done this for years and you're genuinely good with people.
 Caller Phone: ${callerFrom}
-Turn Number: ${turn}
-Caller just said: "${speechResult}"
 ${tradeContext}
 
-CRITICAL VOICE & PERSONA INSTRUCTIONS:
-- You are a real human dispatcher on a live phone call, NOT an AI or automated system.
-- Speak in a natural, friendly, conversational human cadence.
-- Keep spoken replies punchy and brief (1 to 2 short sentences max).
-- Never sound robotic, never read canned scripts, and never use bullet points or lists.
-- Ask only ONE clear question at a time to keep the conversation flowing smoothly.
+CONVERSATION SO FAR:
+${historyText}
+Caller (just now): "${speechResult}"
+
+HOW YOU TALK (THIS IS A LIVE PHONE CALL, YOUR WORDS ARE SPOKEN ALOUD):
+- Sound like a real front-desk person, relaxed and friendly, not a call-center script or phone menu.
+- Usually 1 short sentence, 2 max. Ask ONE question at a time.
+- React to what they actually said first ("Oh no, okay", "Yep, we can do that", "Mm-hmm"), then ask the next thing. Vary your openers; never start two replies the same way.
+- Use contractions and everyday words. Light natural habits are fine ("okay so", "let's see", "alright").
+- NEVER say "Great question", "I understand your concern", "Certainly", "I'd be happy to assist", "Thank you for providing that information", or "Is there anything else I can help you with today". Never repeat the caller's sentence back word for word.
+- Remember everything in the conversation so far. NEVER re-ask for something they already told you.
+- Natural intake order: what's going on, then the address and town, then their name, then confirm the best number (you can see their caller ID).
+- If someone sincerely asks if you're a real person, say you're the office's virtual assistant and the team will follow up personally.
 
 Respond with valid JSON ONLY matching this schema:
 {
-  "spoken_reply": "1 to 2 short, natural conversational sentences to speak back to the caller over the phone. Natural ${isFemale ? "female" : "male"} dispatcher tone. Never use markdown, lists, or robotic phrasing.",
+  "spoken_reply": "What you say out loud next. Plain spoken English, complete sentences, no lists, no markdown.",
   "should_transfer": boolean (true ONLY if this is an active emergency or the caller asked to speak with ${settings.owner_name || "the owner"}/a human/dispatcher),
   "is_complete": boolean (true ONLY if the caller is saying goodbye or all info name/address/issue is confirmed and call is wrapping up),
   "call_type": "emergency" | "estimate_request" | "repair_request" | "maintenance_request" | "general_office",
@@ -693,7 +727,7 @@ Respond with valid JSON ONLY matching this schema:
 
         const geminiData = await callVertexGemini({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json", temperature: 0.3 }
+          generationConfig: { responseMimeType: "application/json", temperature: 0.8 }
         });
 
         if (geminiData) {
@@ -706,7 +740,6 @@ Respond with valid JSON ONLY matching this schema:
 
           // Log or update lead in Firestore
           try {
-            const leadRef = admin.firestore().collection("leads").doc(`twilio_${callSid}`);
             const leadUpdate = {
               callback_number: callerFrom,
               call_type: callType,
@@ -715,6 +748,10 @@ Respond with valid JSON ONLY matching this schema:
               reason_for_call: parsed.issue_summary || speechResult,
               status: shouldTransfer ? "dispatched" : "new",
               source: "twilio_phone",
+              call_transcript: admin.firestore.FieldValue.arrayUnion(
+                { role: "user", text: speechResult, turn, at: Date.now() },
+                { role: "assistant", text: aiReply, turn, at: Date.now() + 1 }
+              ),
               updated_at: admin.firestore.FieldValue.serverTimestamp()
             };
             if (parsed.caller_name) leadUpdate.caller_name = parsed.caller_name;
@@ -758,10 +795,10 @@ Respond with valid JSON ONLY matching this schema:
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
+  <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" speechModel="phone_call" enhanced="true" language="en-US">
     <Say voice="${pollyVoice}">${escapeXml(aiReply)}</Say>
   </Gather>
-  <Say voice="${pollyVoice}">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
+  <Say voice="${pollyVoice}">Okay, I didn't hear anything, so I'll let you go. Someone from ${escapeXml(officeName)} will follow up with you. Take care!</Say>
 </Response>`;
       res.set("Content-Type", "text/xml");
       res.status(200).send(twiml);
@@ -784,7 +821,7 @@ exports.twilioVoiceFallback = onRequest(
     setCorsHeaders(req, res);
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural">Thank you for calling Spring Valley Roofing. One moment while I connect your call directly to our office team.</Say>
+  <Say voice="Google.en-US-Chirp3-HD-Aoede">Thanks for calling Spring Valley Roofing. One moment while I connect your call directly to our office team.</Say>
   <Dial>+17175770668</Dial>
 </Response>`;
     res.set("Content-Type", "text/xml");
