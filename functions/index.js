@@ -611,8 +611,9 @@ exports.twilioVoiceWebhook = onRequest(
       const officeName = req.query.office || settings.office_name || "Spring Valley Roofing";
       const isRoofing = /roofing|spring valley/i.test(officeName);
       const receptionistName = req.query.receptionist || settings.receptionist_name || (isRoofing ? "Sarah" : "Mike");
+      const isFemale = /sarah|female|aoede/i.test(receptionistName) || isRoofing;
       const transferPhone = req.query.transfer || settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668";
-      const pollyVoice = /sarah/i.test(receptionistName) ? "Polly.Joanna-Neural" : "Polly.Matthew-Neural";
+      const pollyVoice = isFemale ? "Polly.Joanna-Neural" : "Polly.Matthew-Neural";
 
       const body = req.body || {};
       const speechResult = (body.SpeechResult || req.query.SpeechResult || "").trim();
@@ -666,7 +667,7 @@ BUSINESS KNOWLEDGE & TRADE INTELLIGENCE:
 - Electrical Expertise: 100A to 200A panel upgrades, EV Level 2 chargers (Tesla Wall Connector), tripping breaker troubleshooting (keep breaker off if smoking or arcing).
 - Answering Questions: When a caller asks a trade question, answer it directly, accurately, and warmly in 1-2 spoken sentences, then offer to schedule a specialist to visit their home.`;
 
-        const prompt = `You are ${receptionistName}, an experienced, confident, and warm male office dispatcher & front-desk specialist for ${officeName}.
+        const prompt = `You are ${receptionistName}, an experienced, confident, and warm ${isFemale ? "female" : "male"} office dispatcher & front-desk specialist for ${officeName}.
 Caller Phone: ${callerFrom}
 Turn Number: ${turn}
 Caller just said: "${speechResult}"
@@ -681,7 +682,7 @@ CRITICAL VOICE & PERSONA INSTRUCTIONS:
 
 Respond with valid JSON ONLY matching this schema:
 {
-  "spoken_reply": "1 to 2 short, natural conversational sentences to speak back to the caller over the phone. Natural male dispatcher tone. Never use markdown, lists, or robotic phrasing.",
+  "spoken_reply": "1 to 2 short, natural conversational sentences to speak back to the caller over the phone. Natural ${isFemale ? "female" : "male"} dispatcher tone. Never use markdown, lists, or robotic phrasing.",
   "should_transfer": boolean (true ONLY if this is an active emergency or the caller asked to speak with ${settings.owner_name || "the owner"}/a human/dispatcher),
   "is_complete": boolean (true ONLY if the caller is saying goodbye or all info name/address/issue is confirmed and call is wrapping up),
   "call_type": "emergency" | "estimate_request" | "repair_request" | "maintenance_request" | "general_office",
@@ -760,7 +761,7 @@ Respond with valid JSON ONLY matching this schema:
   <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
     <Say voice="${pollyVoice}">${escapeXml(aiReply)}</Say>
   </Gather>
-  <Say voice="Polly.Matthew-Neural">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
+  <Say voice="${pollyVoice}">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
 </Response>`;
       res.set("Content-Type", "text/xml");
       res.status(200).send(twiml);
@@ -768,7 +769,7 @@ Respond with valid JSON ONLY matching this schema:
       console.error("Error in twilioVoiceWebhook:", err);
       const fallbackTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Matthew-Neural">Thank you for calling. Please hold while we connect your call.</Say>
+  <Say voice="${pollyVoice}">Thank you for calling. Please hold while we connect your call.</Say>
   <Dial>+17175770668</Dial>
 </Response>`;
       res.set("Content-Type", "text/xml");
@@ -783,7 +784,7 @@ exports.twilioVoiceFallback = onRequest(
     setCorsHeaders(req, res);
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Matthew-Neural">Thank you for calling. One moment while I connect your call directly to our office team.</Say>
+  <Say voice="Polly.Joanna-Neural">Thank you for calling Spring Valley Roofing. One moment while I connect your call directly to our office team.</Say>
   <Dial>+17175770668</Dial>
 </Response>`;
     res.set("Content-Type", "text/xml");
