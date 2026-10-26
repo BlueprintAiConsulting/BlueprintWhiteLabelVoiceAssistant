@@ -446,8 +446,9 @@ exports.voiceReceptionistTurn = onRequest(
       const body = req.body || {};
       const action = body.action || "turn";
       const officeName = body.officeName || "Spring Valley Roofing";
-      const receptionistName = body.receptionistName || "Mike";
-      const voiceName = body.voiceName || "Puck";
+      const isRoofing = /roofing|spring valley/i.test(officeName);
+      const receptionistName = body.receptionistName || (isRoofing ? "Sarah" : "Mike");
+      const voiceName = body.voiceName || (isRoofing ? "Aoede" : "Puck");
       const systemInstruction = body.systemInstruction || `You are ${receptionistName}, the warm, natural phone dispatcher and front-desk specialist for ${officeName}.`;
 
       if (action === "greet") {
@@ -607,9 +608,11 @@ exports.twilioVoiceWebhook = onRequest(
         console.warn("Could not read settings/config in twilioVoiceWebhook:", e);
       }
 
-      const officeName = req.query.office || settings.office_name || "our office";
-      const receptionistName = req.query.receptionist || settings.receptionist_name || "Mike";
+      const officeName = req.query.office || settings.office_name || "Spring Valley Roofing";
+      const isRoofing = /roofing|spring valley/i.test(officeName);
+      const receptionistName = req.query.receptionist || settings.receptionist_name || (isRoofing ? "Sarah" : "Mike");
       const transferPhone = req.query.transfer || settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668";
+      const pollyVoice = /sarah/i.test(receptionistName) ? "Polly.Joanna-Neural" : "Polly.Matthew-Neural";
 
       const body = req.body || {};
       const speechResult = (body.SpeechResult || req.query.SpeechResult || "").trim();
@@ -631,9 +634,9 @@ exports.twilioVoiceWebhook = onRequest(
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
-    <Say voice="Polly.Matthew-Neural">${escapeXml(greeting)}</Say>
+    <Say voice="${pollyVoice}">${escapeXml(greeting)}</Say>
   </Gather>
-  <Say voice="Polly.Matthew-Neural">We did not catch your response. Please call back if you still need assistance. Goodbye!</Say>
+  <Say voice="${pollyVoice}">We did not catch your response. Please call back if you still need assistance. Goodbye!</Say>
 </Response>`;
         res.set("Content-Type", "text/xml");
         res.status(200).send(twiml);
@@ -733,7 +736,7 @@ Respond with valid JSON ONLY matching this schema:
           : `${aiReply} Please hold while I connect your call.`;
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Matthew-Neural">${escapeXml(transferAnnouncement)}</Say>
+  <Say voice="${pollyVoice}">${escapeXml(transferAnnouncement)}</Say>
   <Dial>${escapeXml(transferPhone)}</Dial>
 </Response>`;
         res.set("Content-Type", "text/xml");
@@ -744,7 +747,7 @@ Respond with valid JSON ONLY matching this schema:
       if (isCallDone) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Matthew-Neural">${escapeXml(aiReply)}</Say>
+  <Say voice="${pollyVoice}">${escapeXml(aiReply)}</Say>
   <Hangup/>
 </Response>`;
         res.set("Content-Type", "text/xml");
@@ -755,7 +758,7 @@ Respond with valid JSON ONLY matching this schema:
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="${escapeXml(nextWebhookUrl)}" method="POST" speechTimeout="auto" language="en-US">
-    <Say voice="Polly.Matthew-Neural">${escapeXml(aiReply)}</Say>
+    <Say voice="${pollyVoice}">${escapeXml(aiReply)}</Say>
   </Gather>
   <Say voice="Polly.Matthew-Neural">Thank you for calling ${escapeXml(officeName)}. We have logged your details and our team will follow up shortly. Goodbye!</Say>
 </Response>`;

@@ -21,12 +21,15 @@ export function buildDynamicSystemPrompt(context: SystemPromptContext): string {
   const preset = INDUSTRY_PRESETS[industryKey] || INDUSTRY_PRESETS.hvac;
 
   let officeName = settings.office_name || preset.defaultOfficeName;
+  let receptionistName = settings.receptionist_name || preset.defaultReceptionistName;
   if (industryKey === "roofing_siding") {
     if (!officeName || /lunar|heating|cooling|hvac|apex/i.test(officeName)) {
       officeName = "Spring Valley Roofing";
     }
+    if (!receptionistName || receptionistName === "Mike") {
+      receptionistName = "Sarah";
+    }
   }
-  const receptionistName = settings.receptionist_name || preset.defaultReceptionistName;
   const ownerName = settings.owner_name || preset.defaultOwnerName;
   const ownerTitle = settings.owner_title || preset.defaultOwnerTitle;
   const timezone = settings.timezone || "America/New_York";

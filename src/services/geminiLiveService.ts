@@ -113,6 +113,7 @@ registerProcessor('audio-recorder-processor', AudioRecorderProcessor);
 
 const VERTEX_ENDPOINTS = [
   "https://us-central1-beach-house-tanning-lounge.cloudfunctions.net/voiceReceptionistTurn",
+  "https://voicereceptionistturn-anpvd2og3a-uc.a.run.app",
   "https://us-central1-blueprint-operations.cloudfunctions.net/voiceReceptionistTurn"
 ];
 
@@ -167,8 +168,8 @@ export class GeminiLiveSession {
   private configuredSystemPrompt = "";
   private configuredTools: any[] = [];
   private configuredOfficeName = "Spring Valley Roofing";
-  private configuredPersonaName = "Mike";
-  private configuredVoiceName = "Puck";
+  private configuredPersonaName = "Sarah";
+  private configuredVoiceName = "Aoede";
   private speechRecognizer: any = null;
   private speechRecognitionActive = false;
   private bargeInEnabled: boolean = true;
@@ -692,7 +693,7 @@ export class GeminiLiveSession {
     if (!this.configuredSystemPrompt) {
       const baseSettings: Settings = this.options.settings || {
         office_name: this.options.officeName || "Spring Valley Roofing",
-        receptionist_name: this.options.personaName || "Mike",
+        receptionist_name: this.options.personaName || "Sarah",
         business_hours: { start: "09:00", end: "17:00", days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
         timezone: "America/New_York",
         service_areas: ["York", "Hanover", "Lancaster", "Gettysburg", "Red Lion", "Dallastown", "South Central PA"],
@@ -704,13 +705,13 @@ export class GeminiLiveSession {
         on_call_technician_phone: "+17175770668",
         after_hours_message: "Thank you for calling. Our office is closed.",
         emergency_keywords: this.options.emergencyKeywords || ["gas leak", "carbon monoxide", "no heat", "sparks"],
-        receptionist_voice: this.options.voiceName || "Puck",
-        receptionist_voice_style: "warm, conversational, natural male front-desk dispatcher with friendly human inflection",
+        receptionist_voice: this.options.voiceName || "Aoede",
+        receptionist_voice_style: "warm, conversational, natural female front-desk dispatcher with friendly human inflection",
         prompt_overrides: ""
       };
       this.configuredOfficeName = baseSettings.office_name;
-      this.configuredPersonaName = baseSettings.receptionist_name || "Mike";
-      this.configuredVoiceName = baseSettings.receptionist_voice || "Puck";
+      this.configuredPersonaName = baseSettings.receptionist_name || "Sarah";
+      this.configuredVoiceName = baseSettings.receptionist_voice || "Aoede";
       this.configuredSystemPrompt = this.options.systemInstruction || buildDynamicSystemPrompt({ settings: baseSettings });
     }
 
@@ -738,9 +739,12 @@ export class GeminiLiveSession {
         }
         if (data.audioPcmBase64) {
           this.audioQueue.enqueueBase64Pcm(data.audioPcmBase64);
+        } else if (data.text) {
+          this.speakFallback(data.text);
         }
         this.turnCompleteReceived = true;
-        if (!this.audioQueue.isPlaying()) {
+        const isSpeaking = this.audioQueue.isPlaying() || (typeof window !== "undefined" && window.speechSynthesis?.speaking);
+        if (!isSpeaking) {
           this.options.onTurnStateChange?.("listening");
         }
         if (pendingUserText) {
@@ -769,6 +773,33 @@ export class GeminiLiveSession {
           turnComplete: true
         }
       }));
+    }
+  }
+
+  private speakFallback(text: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.05;
+      const voices = window.speechSynthesis.getVoices();
+      const femaleVoice = voices.find(v => /female|samantha|karen|victoria|zira|sarah|natural/i.test(v.name));
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
+      utterance.onstart = () => {
+        this.options.onTurnStateChange?.("receptionist_speaking");
+      };
+      utterance.onend = () => {
+        this.options.onTurnStateChange?.("listening");
+      };
+      utterance.onerror = () => {
+        this.options.onTurnStateChange?.("listening");
+      };
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn("speechSynthesis fallback failed:", e);
     }
   }
 
@@ -817,9 +848,12 @@ export class GeminiLiveSession {
         this.options.onTranscript?.({ role: "assistant", text: data.text });
         if (data.audioPcmBase64) {
           this.audioQueue.enqueueBase64Pcm(data.audioPcmBase64);
+        } else if (data.text) {
+          this.speakFallback(data.text);
         }
         this.turnCompleteReceived = true;
-        if (!this.audioQueue.isPlaying()) {
+        const isSpeaking = this.audioQueue.isPlaying() || (typeof window !== "undefined" && window.speechSynthesis?.speaking);
+        if (!isSpeaking) {
           this.options.onTurnStateChange?.("listening");
         }
       }
@@ -1410,6 +1444,11 @@ export class GeminiLiveSession {
 
   public stop() {
     this.clearTurnWatchdog();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {}
+    }
     if (this.wsConnectTimeout) {
       clearTimeout(this.wsConnectTimeout);
       this.wsConnectTimeout = null;

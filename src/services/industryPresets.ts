@@ -153,7 +153,7 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     tagline: 'Premier Roof Replacement, Storm Damage & Siding Contractors',
     iconName: 'Home',
     defaultOfficeName: 'Spring Valley Roofing',
-    defaultReceptionistName: 'Mike',
+    defaultReceptionistName: 'Sarah',
     defaultOwnerName: 'Chris',
     defaultOwnerTitle: 'Owner, CertainTeed Master Craftsman',
     defaultOwnerPhone: '+17175770668',
@@ -659,16 +659,16 @@ export function getSettingsForIndustry(industry: IndustryType, existingSettings?
 
   // Roofing guardrail: If roofing mode is active, purge any HVAC / old Apex branding remnants
   let resolvedReceptionistName = isChangingTrade ? preset.defaultReceptionistName : (existingSettings?.receptionist_name || preset.defaultReceptionistName);
-  let resolvedReceptionistVoice = isChangingTrade ? (industry === "roofing_siding" ? "Puck" : (existingSettings?.receptionist_voice || "Puck")) : (existingSettings?.receptionist_voice || "Puck");
+  let resolvedReceptionistVoice = isChangingTrade ? (industry === "roofing_siding" ? "Aoede" : (existingSettings?.receptionist_voice || "Puck")) : (existingSettings?.receptionist_voice || (industry === "roofing_siding" ? "Aoede" : "Puck"));
   if (industry === "roofing_siding") {
     if (!resolvedOfficeName || /lunar|heating|cooling|hvac|apex/i.test(resolvedOfficeName)) {
       resolvedOfficeName = "Spring Valley Roofing";
     }
-    if (!resolvedReceptionistName || resolvedReceptionistName === "Sarah") {
-      resolvedReceptionistName = "Mike";
+    if (!resolvedReceptionistName || resolvedReceptionistName === "Mike") {
+      resolvedReceptionistName = "Sarah";
     }
-    if (!resolvedReceptionistVoice || resolvedReceptionistVoice === "Aoede") {
-      resolvedReceptionistVoice = "Puck";
+    if (!resolvedReceptionistVoice || resolvedReceptionistVoice === "Puck") {
+      resolvedReceptionistVoice = "Aoede";
     }
   }
 

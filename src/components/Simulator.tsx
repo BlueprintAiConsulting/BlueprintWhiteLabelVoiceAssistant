@@ -60,11 +60,11 @@ export default function Simulator() {
         if (!cfg.office_name || /lunar|heating|cooling|hvac|apex/i.test(cfg.office_name)) {
           cfg.office_name = "Spring Valley Roofing";
         }
-        if (!cfg.receptionist_name || cfg.receptionist_name === "Sarah") {
-          cfg.receptionist_name = "Mike";
+        if (!cfg.receptionist_name || cfg.receptionist_name === "Mike") {
+          cfg.receptionist_name = "Sarah";
         }
-        if (!cfg.receptionist_voice || cfg.receptionist_voice === "Aoede") {
-          cfg.receptionist_voice = "Puck";
+        if (!cfg.receptionist_voice || cfg.receptionist_voice === "Puck") {
+          cfg.receptionist_voice = "Aoede";
         }
       }
       return cfg;
@@ -342,15 +342,15 @@ export default function Simulator() {
           if (!activeSettings.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeSettings.office_name)) {
             activeSettings.office_name = "Spring Valley Roofing";
           }
-          if (!activeSettings.receptionist_name || activeSettings.receptionist_name === "Sarah") {
-            activeSettings.receptionist_name = "Mike";
+          if (!activeSettings.receptionist_name || activeSettings.receptionist_name === "Mike") {
+            activeSettings.receptionist_name = "Sarah";
           }
-          if (!activeSettings.receptionist_voice || activeSettings.receptionist_voice === "Aoede") {
-            activeSettings.receptionist_voice = "Puck";
+          if (!activeSettings.receptionist_voice || activeSettings.receptionist_voice === "Puck") {
+            activeSettings.receptionist_voice = "Aoede";
           }
         }
-        const loadedVoice = activeSettings.receptionist_voice || "Puck";
-        const loadedName = activeSettings.receptionist_name || "Mike";
+        const loadedVoice = activeSettings.receptionist_voice || (activeIndustry === "roofing_siding" ? "Aoede" : "Puck");
+        const loadedName = activeSettings.receptionist_name || (activeIndustry === "roofing_siding" ? "Sarah" : "Mike");
         setActiveVoiceName(loadedVoice);
         setActivePersonaName(loadedName);
         const tradeTitle = INDUSTRY_PRESETS[activeIndustry]?.name || activeIndustry;
@@ -361,15 +361,15 @@ export default function Simulator() {
           if (!activeSettings.office_name || /lunar|heating|cooling|hvac|apex/i.test(activeSettings.office_name)) {
             activeSettings.office_name = "Spring Valley Roofing";
           }
-          if (!activeSettings.receptionist_name || activeSettings.receptionist_name === "Sarah") {
-            activeSettings.receptionist_name = "Mike";
+          if (!activeSettings.receptionist_name || activeSettings.receptionist_name === "Mike") {
+            activeSettings.receptionist_name = "Sarah";
           }
-          if (!activeSettings.receptionist_voice || activeSettings.receptionist_voice === "Aoede") {
-            activeSettings.receptionist_voice = "Puck";
+          if (!activeSettings.receptionist_voice || activeSettings.receptionist_voice === "Puck") {
+            activeSettings.receptionist_voice = "Aoede";
           }
         }
-        const loadedVoice = activeSettings?.receptionist_voice || "Puck";
-        const loadedName = activeSettings?.receptionist_name || "Mike";
+        const loadedVoice = activeSettings?.receptionist_voice || (activeIndustry === "roofing_siding" ? "Aoede" : "Puck");
+        const loadedName = activeSettings?.receptionist_name || (activeIndustry === "roofing_siding" ? "Sarah" : "Mike");
         setActiveVoiceName(loadedVoice);
         setActivePersonaName(loadedName);
         setTranscript(prev => [...prev, { role: "system", text: `[SETTINGS WARNING] Operating on local trade preset: "${activeSettings.office_name}".` }]);
