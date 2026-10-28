@@ -535,7 +535,11 @@ CRITICAL CONVERSATIONAL PHONE VOICE RULES (ACT AS AN EXPERIENCED FRONT-DESK DISP
 - Use natural conversational confirmations when appropriate ("Gotcha", "Sure thing", "I hear you", "No problem at all", "Let's get that taken care of").
 - ONE QUESTION AT A TIME: Ask only ONE clear question per turn so the caller never feels interrogated or overwhelmed.
 - ZERO REPETITION / ACTIVE MEMORY: Pay close attention to everything the caller already said in the conversation. Never re-ask for their name, town, street address, callback number, or issue if they already gave it.
-- TRADE-SAVVY EMPATHY & OBJECTION HANDLING: If the caller reports a home emergency (active roof leak, no heat, burst pipe, electrical sparks), lead with immediate human warmth ("Oh man, that's stressful—let's get our crew on that right away") and any safe practical tip before taking their address and callback number. If they ask for a ballpark price over the phone, warmly explain why an on-site look ensures an accurate upfront price and pivot to scheduling.
+- TRADE-SAVVY EMPATHY & INTAKE HANDLING:
+  * ROOF REPLACEMENTS & ESTIMATES: When a caller inquires about a roof replacement, new roof quote, or aging shingles, confirm warmly that all our written estimates are 100% free with zero obligation. Ask about the age of their roof or number of stories, get the street address and town, and schedule an on-site estimate visit.
+  * ROUTINE ROOF REPAIRS: When a caller reports missing shingles, a leaking pipe boot collar, chimney flashing, or a small ceiling water spot, reassure them warmly that we do routine repairs every day and never push an unnecessary full replacement. Schedule an on-roof repair assessment.
+  * ACTIVE LEAK EMERGENCIES: Only if the caller states water is actively pouring or dripping through their ceiling right now during rain, lead with immediate empathy, advise placing a bucket underneath, keeping off the roof, and capture address and phone immediately for emergency dispatch.
+  * PRICING QUESTIONS: If they ask for a ballpark price over the phone, warmly explain that pricing depends on roof pitch, squares, layers to tear off, and decking condition—which is why our in-person inspection and written estimate are completely free.
 - STRICTLY FORBIDDEN: NEVER use markdown, asterisks, bullet points, numbered lists, or emojis. Output plain, spoken conversational English only.
 - SOUND HUMAN, NOT SCRIPTED: Vary how you start each turn (never the same opener twice in a row; sometimes no opener at all). Light natural speech habits are fine ("okay so", "yeah", "mm-hmm", "let's see"). Never say "Great question", "I understand your concern", "Certainly", "I'd be happy to assist", or "Thank you for providing that information". Never parrot the caller's sentence back. Use exclamation points rarely.
 - MIRROR THE CALLER: stressed caller means calm and reassuring; relaxed caller means easygoing; short busy caller means get to the point.
@@ -625,6 +629,7 @@ exports.twilioVoiceWebhook = onRequest(
       const officeName = req.query.office || settings.office_name || "Spring Valley Roofing";
       const isRoofing = /roofing|spring valley/i.test(officeName);
       const receptionistName = req.query.receptionist || settings.receptionist_name || (isRoofing ? "Sarah" : "Mike");
+      const ownerName = isRoofing ? (settings.owner_name && settings.owner_name !== "Josh" ? settings.owner_name : "Chris") : (settings.owner_name || "Josh");
       const isFemale = /sarah|female|aoede/i.test(receptionistName) || isRoofing;
       const transferPhone = req.query.transfer || settings.on_call_technician_phone || settings.transfer_phone_number || "+17175770668";
       const pollyVoice = isFemale ? "Google.en-US-Chirp3-HD-Aoede" : "Google.en-US-Chirp3-HD-Puck";
@@ -660,14 +665,18 @@ exports.twilioVoiceWebhook = onRequest(
 
       // Caller spoke: evaluate emergency / transfer / AI response via Vertex AI
       const lowerSpeech = speechResult.toLowerCase();
-      const emergencyKeywords = settings.emergency_keywords || ["gas leak", "carbon monoxide", "no heat", "sparks", "active leak", "water pouring", "collapse", "emergency"];
-      const isKeywordEmergency = emergencyKeywords.some(kw => lowerSpeech.includes(String(kw).toLowerCase()));
-      const asksForHumanOrOwner = /\b(josh|owner|manager|real person|live person|a human|transfer me|dispatcher)\b|\b(speak|talk) (to|with) (someone|somebody|a person)\b/i.test(lowerSpeech);
+      const emergencyKeywords = settings.emergency_keywords || ["water pouring", "roof collapse", "tree on roof", "emergency tarp", "gas leak", "carbon monoxide", "no heat", "sparks"];
+      const isKeywordEmergency = emergencyKeywords.some(kw => lowerSpeech.includes(String(kw).toLowerCase()))
+        && !lowerSpeech.includes("replacement")
+        && !lowerSpeech.includes("estimate")
+        && !lowerSpeech.includes("quote");
+      const ownerRegex = new RegExp(`\\b(${ownerName.toLowerCase()}|owner|manager|real person|live person|a human|transfer me|dispatcher)\\b|\\b(speak|talk) (to|with) (someone|somebody|a person)\\b`, "i");
+      const asksForHumanOrOwner = ownerRegex.test(lowerSpeech);
 
       let aiReply = `Okay, gotcha. And what's the address over there?`;
       let shouldTransfer = isKeywordEmergency || asksForHumanOrOwner;
       let isCallDone = /\b(thank you|thanks that's all|goodbye|bye|that is all)\b/i.test(lowerSpeech) && turn >= 2;
-      let callType = isKeywordEmergency ? "emergency" : "repair_request";
+      let callType = isKeywordEmergency ? "emergency" : (lowerSpeech.includes("replacement") || lowerSpeech.includes("estimate") || lowerSpeech.includes("quote") ? "estimate_request" : "repair_request");
 
       // Conversation memory: Twilio webhooks are stateless, so load prior turns for this call
       const leadRef = admin.firestore().collection("leads").doc(`twilio_${callSid}`);
@@ -687,12 +696,15 @@ exports.twilioVoiceWebhook = onRequest(
       try {
         const tradeContext = `
 BUSINESS KNOWLEDGE:
-- Office: ${officeName}. Owner: ${settings.owner_name || "the owner"}${settings.owner_title ? ` (${settings.owner_title})` : ""}.
-- Service call / inspection: ${settings.pricing_service_call || "standard diagnostic visit, upfront pricing before any work"}.
+- Office: ${officeName}. Owner: ${ownerName}${isRoofing ? " (CertainTeed Master Craftsman)" : ""}.
+- Service call / inspection: ${settings.pricing_service_call || (isRoofing ? "100% free written estimates for replacements; upfront pricing before any repair work" : "standard diagnostic visit, upfront pricing before any work")}.
 - After-hours / emergency: ${settings.pricing_after_hours || "emergency dispatch available"}.
-- Maintenance plan: ${settings.maintenance_plan_name || "maintenance plan"} ${settings.maintenance_plan_price ? `at ${settings.maintenance_plan_price}` : ""}${settings.maintenance_plan_benefits ? `: ${settings.maintenance_plan_benefits}` : ""}.
+- Maintenance plan: ${settings.maintenance_plan_name ? `${settings.maintenance_plan_name} at ${settings.maintenance_plan_price}: ${settings.maintenance_plan_benefits}` : "No maintenance plan is offered. Do not mention one."}
 - Free in-home estimates for full replacements and larger projects.
-${isRoofing ? "- Roofing: CertainTeed shingle installs, emergency leak tarping, full photo documentation for storm and hail insurance claims." : "- HVAC: all major brands serviced. Frozen AC line: turn cooling off, fan on, so the coil thaws."}
+${isRoofing ? `- Roofing Services: We specialize in full CertainTeed roof replacements (CertainTeed Landmark and Landmark PRO architectural shingles, 1-2 day installation, full tear-offs down to bare decking, WinterGuard ice & water shield, balanced ridge ventilation) and routine roof repairs (pipe boot collar replacements, chimney and dormer flashing resealing, wind-blown and creased shingle patches, valley leak repairs).
+- Roof Replacement Inquiries: When callers ask about a roof replacement, new roof quote, or aging shingles, confirm all estimates are 100% free and in writing. Ask about the approximate age of their roof or number of stories, gather their street address and town, and offer an estimate slot with Chris or an estimator.
+- Routine Roof Repairs: When callers ask about a minor leak, leaking pipe boot, chimney flashing, or a couple missing shingles, reassure them that we handle small repairs every day and never push an unnecessary replacement. Schedule an on-roof evaluation.
+- Active Leaks: Only if water is actively pouring or dripping into the home right now, advise placing a bucket underneath, staying off the roof, and get their address immediately for emergency tarping.` : "- HVAC: all major brands serviced. Frozen AC line: turn cooling off, fan on, so the coil thaws."}
 ${(Array.isArray(settings.custom_faqs) ? settings.custom_faqs : []).map(f => `- Q: ${f.question} A: ${f.answer}`).join("\n")}
 - When a caller asks a question, answer it directly in a sentence, then gently move toward getting someone out there.`;
 
@@ -707,6 +719,10 @@ Caller (just now): "${speechResult}"
 HOW YOU TALK (THIS IS A LIVE PHONE CALL, YOUR WORDS ARE SPOKEN ALOUD):
 - Sound like a real front-desk person, relaxed and friendly, not a call-center script or phone menu.
 - BITE-SIZED NATURAL ANSWERS (SWEET SPOT): Routine turns should be 1 to 2 short sentences. When giving emergency guidance, safety instructions, or technical advice, keep it to 2 to 3 concise sentences max (under 45 words). Share the single most urgent tip first, never monologue, and finish by asking only ONE clear question.
+- ROOF REPLACEMENTS & GENERAL REPAIRS:
+  * For full roof replacements: All written estimates are 100% free with no pressure. Ask one question at a time (like roof age or stories) and offer an inspection slot with Chris.
+  * For routine repairs (pipe boot collars, flashing, missing shingles): Reassure the caller that we do small repairs every day and won't push a whole new roof. Schedule an on-roof assessment.
+  * For active emergencies: Only if water is actively pouring inside during rain, advise a bucket and get address for emergency tarping.
 - React to what they actually said first ("Oh no, okay", "Yep, we can do that", "Mm-hmm"), then ask the next thing. Vary your openers; never start two replies the same way.
 - Use contractions and everyday words. Light natural habits are fine ("okay so", "let's see", "alright").
 - NEVER say "Great question", "I understand your concern", "Certainly", "I'd be happy to assist", "Thank you for providing that information", or "Is there anything else I can help you with today". Never repeat the caller's sentence back word for word.
@@ -717,7 +733,7 @@ HOW YOU TALK (THIS IS A LIVE PHONE CALL, YOUR WORDS ARE SPOKEN ALOUD):
 Respond with valid JSON ONLY matching this schema:
 {
   "spoken_reply": "What you say out loud next. Plain spoken English, complete sentences, no lists, no markdown.",
-  "should_transfer": boolean (true ONLY if this is an active emergency or the caller asked to speak with ${settings.owner_name || "the owner"}/a human/dispatcher),
+  "should_transfer": boolean (true ONLY if this is an active emergency or the caller asked to speak with ${ownerName}/a human/dispatcher),
   "is_complete": boolean (true ONLY if the caller is saying goodbye or all info name/address/issue is confirmed and call is wrapping up),
   "call_type": "emergency" | "estimate_request" | "repair_request" | "maintenance_request" | "general_office",
   "caller_name": "extracted caller name if mentioned or empty string",

@@ -186,33 +186,57 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
     },
     domainKnowledge: [
       'Spring Valley Roofing is family-owned and operated out of Pottstown, PA, led by owner Chris (CertainTeed Master Craftsman), proudly serving Montgomery, Chester, and Berks Counties including Pottstown, Collegeville, Phoenixville, Royersford, Gilbertsville, Boyertown, King of Prussia, and West Chester.',
-      'Roofing systems & materials: We specialize in CertainTeed Landmark and Landmark PRO architectural dimensional shingles with StreakFighter algae protection, DiamondDeck synthetic underlayment, WinterGuard ice & water shield in all valleys/eaves/penetrations, drip edge, and balanced ridge-vent + soffit intake attic ventilation. We also service standing seam metal roofs and EPDM/TPO low-slope porch and flat roofs.',
-      'Common roof leak culprits: cracked or dry-rotted rubber pipe boots around plumbing vents, rusted chimney/dormer step or counter-flashing, lifted nail pops, clogged roof valleys, ice dams at the eaves, or wind-creased/missing shingles.',
+      'Roof replacement expertise & signs of wear: Architectural shingles (like CertainTeed Landmark) typically last 20 to 25 years, while older 3-tab shingles last 15 to 20 years. Key indicators for full replacement include heavy granule buildup in gutters and downspouts (exposing the brittle asphalt mat to sun degradation), curling or cupped edges, brittle shingles that snap, dark algae or moss growth, and decking soft spots. We provide 100% free, comprehensive written estimates.',
+      'Full tear-off vs overlay standard: We strongly advise a complete tear-off of old shingles down to the bare plywood decking. Overlays trap excess heat, void manufacturer warranties, hide rotting wood, and prevent proper installation of ice and water barriers. A full tear-off lets us inspect every piece of plywood decking, replace deteriorated wood, and build a clean, warranted system.',
+      'Roofing systems & materials: We specialize in CertainTeed Landmark and Landmark PRO architectural dimensional shingles with StreakFighter algae resistance, DiamondDeck synthetic underlayment, WinterGuard ice & water shield in all valleys, eaves, and penetrations, heavy-duty drip edge, and balanced ridge-vent plus soffit intake attic ventilation. Most full residential roof replacements are completed in just 1 to 2 days with full landscape tarping and continuous magnetic sweeps for nails.',
+      'Routine roof repairs (non-emergency): More than 80% of roof leaks are localized issues that do NOT require a full replacement. We routinely handle minor and moderate repairs: replacing cracked or dry-rotted neoprene pipe boot collars around plumbing vents (the number one cause of bathroom ceiling water stains), resealing or replacing rusted chimney and dormer step/counter flashing, patching wind-creased or missing shingles with color-matched tabs, fixing valley leaks, and re-securing popped roofing nails. We provide clear, upfront repair pricing before doing any work and never push an unnecessary replacement.',
       'Siding & exterior expertise: We install CertainTeed Monogram and MainStreet vinyl siding, CedarBoards insulated vinyl siding, Cedar Impressions polymer shake accents, aluminum fascia, vented soffit, and seamless gutters.',
       'Storm & hail insurance claims: High winds and hail often bruise the shingle fiberglass mat or break adhesive seal strips even when not obvious from the ground. We perform free storm inspections with detailed photo documentation, meet the homeowner insurance adjuster on the roof so nothing gets overlooked, and help navigate supplements—while never guaranteeing claim approval over the phone.',
-      'Active leak homeowner guidance: If water is actively dripping inside during rain, advise placing a bucket underneath and moving valuables away, and remind them never to climb onto a wet roof. Capture their address and callback number immediately so we can coordinate emergency tarping.'
+      'Active leak homeowner guidance: Only if water is actively dripping inside during heavy rain, advise placing a bucket underneath, moving valuables away, and never climbing onto a wet roof. Capture address and callback number immediately for emergency tarping. For routine repairs or replacements, maintain a calm, professional scheduling approach without emergency panic.'
     ],
     objectionHandling: [
       {
-        trigger: 'Caller asks how much a new roof or repair costs over the phone',
-        response: 'Explain warmly that roof pricing depends on roof pitch, total squares, layers to tear off, decking condition, and shingle line, so we provide a 100% free, no-obligation in-person inspection and detailed written estimate—and offer to get them right on the schedule.'
+        trigger: 'Caller asks how much a new roof costs over the phone',
+        response: 'Explain warmly that roof replacement pricing depends on the square footage, roof pitch, number of existing layers to tear off, decking condition, and shingle tier—so Chris comes out for free, inspects everything in person, and provides an itemized written estimate with zero obligation.'
+      },
+      {
+        trigger: 'Caller asks if we do small repairs like a pipe boot or missing shingles or only full replacements',
+        response: 'Reassure them enthusiastically that we do small repairs every single day—including pipe boot collars, flashing leaks, and blown-off shingles—and we never push a whole new roof when a solid repair will do the job.'
+      },
+      {
+        trigger: 'Caller asks how they know if they need a repair or a full replacement',
+        response: 'Explain that if the shingles are still pliable with good granule coverage, a localized repair is usually great; if the roof is over 20 years old with widespread granule loss and curling, replacement is often better long term. Offer a free roof inspection so Chris can give an honest recommendation.'
       },
       {
         trigger: 'Caller asks if they should file an insurance claim before we inspect',
         response: 'Recommend having Chris or our storm specialist inspect the roof for free first—that way we can confirm whether there is legitimate wind or hail damage worth claiming before they put a claim on their insurance record.'
-      },
-      {
-        trigger: 'Caller asks if we do small repairs like a pipe boot or missing shingles or only full roofs',
-        response: 'Reassure them we handle everything from quick pipe-boot, flashing, and shingle repairs to emergency tarping, full CertainTeed roof replacements, and siding.'
       }
     ],
     customFaqs: [
-      { id: 'rf1', question: 'Do you offer free estimates for roof replacements?', answer: 'Yes. Estimates are free and written, and we get back to you within one business day. We are family owned and operated out of Pottstown and serve Montgomery and Chester Counties. Office hours are Monday to Friday 8am to 7pm and Saturday 8am to 4pm. Phone (610) 948-5207.' },
-      { id: 'rf2', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Yes. We document the damage with photos, meet your adjuster on site, and handle supplements for hail and wind claims. We never promise a claim will be approved.' },
-      { id: 'rf3', question: 'How quickly can you tarp an active roof leak?', answer: 'We do emergency tarping and leak containment. I will flag your call as urgent so the office calls you right back to confirm timing.' },
-      { id: 'rf4', question: 'What roofing brands and warranties do you offer?', answer: 'As a CertainTeed Master Craftsman contractor, we install CertainTeed Landmark and Landmark PRO architectural shingles backed by strong manufacturer and workmanship warranties.' }
+      { id: 'rf1', question: 'Do you offer free estimates for roof replacements?', answer: 'Yes! All our roof replacement estimates are 100% free and in writing. We inspect the roof in person, check the decking and ventilation, and provide a clear written quote within one business day.' },
+      { id: 'rf2', question: 'Do you do small roof repairs or only whole new roofs?', answer: 'We handle both! We do routine repairs every day—like replacing dry-rotted pipe boot collars, fixing chimney flashing, and patching missing shingles—as well as full CertainTeed roof replacements.' },
+      { id: 'rf3', question: 'How long does a roof replacement take?', answer: 'Most residential roof replacements take just 1 to 2 days from start to finish, including full landscape protection, complete cleanup, and continuous magnetic sweeps for stray nails.' },
+      { id: 'rf4', question: 'What roofing brands and warranties do you offer?', answer: 'As a CertainTeed Master Craftsman contractor, we install CertainTeed Landmark and Landmark PRO architectural shingles backed by strong manufacturer lifetime warranties and our workmanship guarantee.' },
+      { id: 'rf5', question: 'Do you assist with storm & hail damage insurance claims?', answer: 'Yes. We document all damage with clear photos, meet your insurance adjuster on site, and assist with documentation so you get fair coverage.' },
+      { id: 'rf6', question: 'How quickly can you tarp an active roof leak?', answer: 'For active leaks during storms, we offer emergency tarping and leak containment to protect your home until permanent repairs can be completed.' }
     ],
     quickScenarios: [
+      {
+        id: 'roof_replacement_quote',
+        icon: 'Home',
+        title: 'Roof Replacement Estimate',
+        badge: 'Free Estimate ($12k-$25k)',
+        prompt: "Hi Sarah, our architectural shingle roof is about 22 years old and showing granule loss in the gutters. We'd like to get an estimate on a full tear-off and replacement.",
+        description: 'Tests roof replacement intake, roof age and stories, free written estimate explanation, and booking an inspection.'
+      },
+      {
+        id: 'roof_repair_shingle_pipe',
+        icon: 'Wrench',
+        title: 'Routine Roof Repair (Pipe Boot / Shingles)',
+        badge: 'Routine Repair ($350-$850)',
+        prompt: "Hi Sarah, a couple of shingles blew off our roof in the high wind, and we noticed a small water spot near our bathroom ceiling pipe. Do you guys do repairs, or only full roofs?",
+        description: 'Tests non-emergency repair reassurance, diagnosing pipe boot / shingle issues without panic, and scheduling a repair visit.'
+      },
       {
         id: 'roof_leak_storm',
         icon: 'CloudRain',
@@ -222,19 +246,11 @@ export const INDUSTRY_PRESETS: Record<IndustryType, IndustryDefinition> = {
         description: 'Tests active leak emergency triage, immediate address/callback capture, and tarping dispatch.'
       },
       {
-        id: 'roof_replacement_quote',
-        icon: 'Home',
-        title: 'Full Roof Replacement Quote',
-        badge: 'High Value ($15k+)',
-        prompt: "Hi Mike, our architectural shingle roof is 22 years old and showing granule loss. We want a quote for a full tear-off and replacement.",
-        description: 'Tests roof material intake, number of stories, and free estimate booking on calendar.'
-      },
-      {
         id: 'siding_hardie_quote',
         icon: 'Layers',
         title: 'CertainTeed Siding Quote',
         badge: 'Siding Lead',
-        prompt: "Hello, we are redoing our home exterior and want an estimate for new CertainTeed vinyl siding.",
+        prompt: "Hello Sarah, we are redoing our home exterior and want an estimate for new CertainTeed vinyl siding.",
         description: 'Tests siding material intake, property details, and scheduling an estimator visit.'
       }
     ],
